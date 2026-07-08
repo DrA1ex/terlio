@@ -1,0 +1,47 @@
+{
+  "name": "mock-ai-terminal",
+  "version": "0.1.0",
+  "description": "Dependency-free rich terminal prototype that imitates AI chat.",
+  "type": "module",
+  "bin": {
+    "mock-ai": "./examples/mock-ai-terminal.js"
+  },
+  "scripts": {
+    "start": "node examples/mock-ai-terminal.js",
+    "test": "node --test",
+    "check": "node --check examples/mock-ai-terminal.js && node --check src/index.js && find src/lib examples test -name \"*.js\" -print0 | xargs -0 -n1 node --check",
+    "examples": "node examples/index.js",
+    "example:chat": "node examples/mock-ai-terminal.js",
+    "example:editor": "node examples/editor-lab.js",
+    "example:palette": "node examples/command-palette.js",
+    "example:stream": "node examples/streaming-workbench.js",
+    "example:components": "node examples/components-showcase.js",
+    "example:kit": "node examples/interaction-kit.js",
+    "example:keys": "node examples/keys.js",
+    "example:composer": "node examples/composer.js",
+    "example:blocks": "node examples/blocks.js",
+    "example:code-review": "node examples/code-review.js",
+    "example:command-center": "node examples/command-center.js",
+    "example:sessions": "node examples/sessions.js",
+    "example:agent-stream": "node examples/agent-stream.js",
+    "example:themes": "node examples/themes.js",
+    "demo:chat": "node examples/mock-ai-terminal.js",
+    "demo:support-desk": "node examples/support-desk.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "main": "./src/lib/index.js",
+  "exports": {
+    ".": "./src/lib/index.js",
+    "./example": "./examples/mock-ai-terminal.js",
+    "./examples/*": "./examples/*.js"
+  },
+  "files": [
+    "src/lib",
+    "src/index.js",
+    "examples",
+    "README.md"
+  ]
+}

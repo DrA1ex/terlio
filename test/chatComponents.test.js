@@ -1,0 +1,136 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  ChatScreen,
+  createChatScreen,
+  createCommandPaletteState,
+  createMessage,
+  renderToString,
+  stripAnsi,
+  themes,
+} from '../src/lib/index.js';
+import { RichTerminalApp } from '../src/lib/app.js';
+
+function plain(node, options = { width: 80, height: 20 }) {
+  return stripAnsi(renderToString(node, options));
+}
+
+test('ChatScreen renders the main shell from reusable components', () => {
+  const node = ChatScreen({
+    columns: 100,
+    rows: 18,
+    theme: themes.dark,
+    themeName: 'dark',
+    providerName: 'mock',
+    sessionId: '20260707_abcde',
+    activeSkills: ['code', 'writer'],
+    messages: [
+      createMessage({ role: 'system', content: 'Started' }),
+      createMessage({ role: 'user', content: 'hello terminal' }),
+      createMessage({ role: 'assistant', content: 'Mock answer', status: 'streaming' }),
+    ],
+    inputValue: '/he',
+    inputParts: { before: '/h', current: 'e', after: '' },
+    suggestions: [{ label: '/help', detail: '/help', description: 'Show commands', insert: '/help' }],
+    suggestionIndex: 0,
+    status: 'Ready.',
+    frame: 2,
+  });
+
+  const output = plain(node, { width: 100, height: 18 });
+  assert.match(output, /Mock AI Terminal/);
+  assert.match(output, /provider:mock theme:dark/);
+  assert.match(output, /skills:code, writer/);
+  assert.match(output, /system/);
+  assert.match(output, /you/);
+  assert.match(output, /ai/);
+  assert.match(output, /Mock answer/);
+  assert.match(output, /Suggestions 1\/1/);
+  assert.match(output, /\/help/);
+  assert.match(output, /Ready\./);
+});
+
+test('createChatScreen clamps transcript scroll offset and keeps frame height stable', () => {
+  const messages = Array.from({ length: 20 }, (_, index) => createMessage({ role: 'user', content: `message ${index}` }));
+  const screen = createChatScreen({
+    columns: 64,
+    rows: 16,
+    theme: themes.dark,
+    messages,
+    inputParts: { before: '', current: ' ', after: '' },
+    scrollOffset: 999,
+    status: 'Scrolled.',
+  });
+
+  assert.ok(screen.scrollOffset < 999);
+  assert.ok(screen.transcriptHeight >= 1);
+  const text = plain(screen.node, { width: 64, height: 16 });
+  assert.equal(text.split('\n').length, 16);
+  assert.match(text, /scroll:\+/);
+});
+
+test('ChatScreen can render command palette as an overlay section', () => {
+  const palette = createCommandPaletteState({
+    items: [
+      { id: '/help', title: 'Help', description: 'Show help' },
+      { id: '/theme', title: 'Theme', description: 'Switch theme' },
+    ],
+    query: 'theme',
+    selectedIndex: 0,
+    windowSize: 4,
+  });
+
+  const output = plain(ChatScreen({
+    columns: 72,
+    rows: 20,
+    theme: themes.dark,
+    mode: 'palette',
+    palette,
+    messages: [],
+    inputParts: { before: '', current: ' ', after: '' },
+    status: 'Palette opened.',
+  }), { width: 72, height: 20 });
+
+  assert.match(output, /Command Palette/);
+  assert.match(output, /Query: theme/);
+  assert.match(output, /\/theme/);
+});
+
+test('ChatScreen renders debug overlay through DebugPanel', () => {
+  const output = plain(ChatScreen({
+    columns: 72,
+    rows: 18,
+    theme: themes.dark,
+    messages: [],
+    inputParts: { before: '', current: ' ', after: '' },
+    debug: { enabled: true, events: [{ type: 'key', detail: 'ctrl-p' }] },
+    status: 'Debug.',
+  }), { width: 72, height: 18 });
+
+  assert.match(output, /debug key: ctrl-p/);
+  assert.match(output, /debug:on/);
+});
+
+test('RichTerminalApp.render delegates to component ChatScreen and TerminalRenderer', () => {
+  const output = {
+    columns: 80,
+    rows: 18,
+    isTTY: true,
+    writes: [],
+    write(chunk) { this.writes.push(String(chunk)); },
+    on() {},
+    off() {},
+  };
+  const app = new RichTerminalApp({ output, input: { isTTY: true, on() {}, off() {}, setEncoding() {}, setRawMode() {}, resume() {}, pause() {} } });
+  app.running = true;
+  app.messages = [createMessage({ role: 'user', content: 'hello from app' })];
+  app.editor.set('/he');
+
+  app.render();
+
+  const frame = stripAnsi(app.renderer.previousFrame.toString());
+  assert.match(frame, /Mock AI Terminal/);
+  assert.match(frame, /hello from app/);
+  assert.match(frame, /Suggestions/);
+  assert.match(frame, /\/help/);
+});
