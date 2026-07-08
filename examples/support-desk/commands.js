@@ -136,10 +136,11 @@ export function getSupportSlashSuggestions(state, raw = '/') {
 function commandMatches(state, input) {
   const registry = state?.registry ?? createSupportCommandRegistry();
   return registry.suggestions(input).slice(0, 10).map((item) => {
-    const example = item.entry?.examples?.[0];
+    const name = item.entry?.name ?? item.label.replace(/^\//, '');
+    const needsArgs = /<|\[/.test(String(item.entry?.usage ?? ''));
     return {
       ...item,
-      insert: example || `/${item.entry?.name ?? item.label.replace(/^\//, '')}`,
+      insert: `/${name}${needsArgs ? ' ' : ''}`,
       kind: 'command',
     };
   });

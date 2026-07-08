@@ -79,3 +79,22 @@ test('visibleWindowLines returns a clamped scrollable window', () => {
   assert.equal(window.scroll, 2);
   assert.equal(window.maxScroll, 2);
 });
+
+test('ANSI truncation and layout fitting preserve color sequences', async () => {
+  const { color, themes, truncateVisible, renderToString, Text } = await import('../src/lib/index.js');
+  const colored = color(themes.ocean, 'accent', 'abcdef');
+  assert.match(truncateVisible(colored, 4), /\x1b\[/);
+  const rendered = renderToString(Text(colored, { wrap: false }), { width: 4, height: 1 });
+  assert.match(rendered, /\x1b\[/);
+});
+
+test('InputEditor can move vertically across multiline text', () => {
+  const editor = new InputEditor('alpha\nbravo\ncharlie');
+  editor.end();
+  editor.moveVertical(-1);
+  assert.equal(editor.getCursorPosition().line, 1);
+  editor.moveVertical(-1);
+  assert.equal(editor.getCursorPosition().line, 0);
+  editor.moveVertical(1);
+  assert.equal(editor.getCursorPosition().line, 1);
+});

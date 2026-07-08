@@ -109,6 +109,47 @@ function fixedMainHeight({ width, height, fixed }) {
   return Math.max(1, Math.max(1, Number(height) || 1) - reserved);
 }
 
+export function getSupportScrollMax({ state, key, width = 118, height = 34 } = {}) {
+  const theme = getSupportTheme(state.themeName);
+  const mode = getResponsiveMode(width);
+  const header = appHeader({ state, width, theme, compact: mode !== 'wide' });
+  const tabs = tabsBar({ state, theme, compact: mode === 'narrow' });
+  const command = commandArea({ state, theme, compact: mode === 'narrow' });
+  const activity = mode === 'narrow' ? null : activityStrip({ state, theme, compact: mode !== 'wide' });
+  const footer = footerBar({ state, theme, compact: mode !== 'wide' });
+  const fixed = activity ? [header, tabs, command, activity, footer] : [header, tabs, command, footer];
+  const mainHeight = fixedMainHeight({ width, height, fixed });
+  const columns = responsiveColumns(width, mode === 'wide' ? 'wide' : mode === 'medium' ? 'medium' : 'narrow');
+  const workWidth = mode === 'wide' ? columns.middle : mode === 'medium' ? columns.middle : width;
+
+  if (key === 'ticketThread') {
+    const events = collectThreadEvents(getSelectedTicket(state));
+    const limit = Math.max(2, Math.min(mode === 'wide' ? 5 : 4, Math.floor(Math.max(4, mainHeight - 12) / 4)));
+    return Math.max(0, events.length - limit);
+  }
+
+  if (key === 'reply') {
+    const ticket = getSelectedTicket(state);
+    const inner = Math.max(48, workWidth - 4);
+    const editorHeight = Math.max(5, Math.min(mode === 'wide' ? 10 : 8, mainHeight - 16));
+    const previewHeight = Math.max(2, Math.min(5, mainHeight - editorHeight - 14));
+    return Math.max(0, wrapTextLines(draftText(state, ticket) || 'Nothing to preview yet.', inner).length - previewHeight);
+  }
+
+  if (key === 'rail' && mode === 'wide') {
+    const railWidth = columns.right;
+    const content = contextRailContent({ state, theme, width: railWidth });
+    return Math.max(0, renderNode(content, railWidth).length - Math.max(1, mainHeight - 2));
+  }
+
+  if (key === 'customer') {
+    const content = customerContent({ ticket: getSelectedTicket(state), theme, width: workWidth });
+    return Math.max(0, renderNode(content, workWidth).length - Math.max(1, mainHeight - 2));
+  }
+
+  return 0;
+}
+
 function appHeader({ state, width, theme, compact = false }) {
   const selected = getSelectedTicket(state);
   const atRisk = state.tickets.filter((ticket) => slaState(ticket) === 'risk').length;
@@ -146,7 +187,7 @@ function tabsBar({ state, theme, compact = false }) {
 
 function inboxPane({ state, theme, width, height = 36, compact = false }) {
   const visible = getVisibleTickets(state);
-  const windowSize = compact ? 10 : Math.max(8, Math.min(12, height - 19));
+  const windowSize = compact ? 10 : Math.max(8, Math.min(12, height - 20));
   const slice = takeVisible(visible, state.selectedIndex, windowSize);
   const inner = Math.max(32, width - 4);
   const rows = slice.items.map((ticket, offset) => ticketRow({ ticket, selected: slice.start + offset === slice.selected, theme, width: inner }));
@@ -154,6 +195,7 @@ function inboxPane({ state, theme, width, height = 36, compact = false }) {
   return pane({ title: `${state.focus === 'inbox' ? '▶' : ' '} INBOX ${spinner(state.frame)} Live `, theme, active: state.focus === 'inbox' },
     Text(inboxControlsLine(state, theme, inner), { wrap: false }),
     Text(controlOptionsLine(state, theme, inner), { wrap: false }),
+    Text(color(theme, 'muted', truncateVisible('Keys: ←/→ choose control · Enter/↑/↓ change selected control · Shift+↑/↓ scroll focused pane', inner)), { wrap: false }),
     Text(filterLine(state, theme, inner), { wrap: false }),
     Text(quickFilterLine(state, theme, inner), { wrap: false }),
     Text(searchLine(state, theme, inner), { wrap: false }),
@@ -219,7 +261,7 @@ function replyView({ state, ticket, theme, mode, width, height = 24 }) {
     Text(color(theme, 'muted', `Lines ${draft.split('\n').length} · Words ${wordCount(draft)} · Chars ${draft.length}`), { wrap: false }),
     divider(theme, inner),
     Text(color(theme, 'muted', 'PREVIEW — read-only live rendering'), { wrap: false }),
-    ...previewLines(draft, inner, previewHeight).map((line) => Text(line, { wrap: false })),
+    ...previewLines(draft, inner, previewHeight, state.scroll?.reply || 0).map((line) => Text(line, { wrap: false })),
     divider(theme, inner),
     Text(`${color(theme, 'system', 'Internal note')} ${truncateVisible(ticket.notes[0]?.body || 'No note yet. Use /note.', Math.max(20, inner - 34))}`, { wrap: false }),
     Text(`${sendReady(draft) ? color(theme, 'ok', '✓ Ready to send') : color(theme, 'system', '○ Draft incomplete')}    ${color(theme, 'accent', 'Enter sends')}    ${color(theme, 'muted', 'Esc cancel · Ctrl+J newline · /templates')}`, { wrap: false }),
@@ -227,8 +269,14 @@ function replyView({ state, ticket, theme, mode, width, height = 24 }) {
 }
 
 function customerFocusView({ ticket, theme, width }) {
-  const inner = Math.max(48, width - 4);
   return pane({ title: ' CUSTOMER PROFILE ', theme, active: false },
+    customerContent({ ticket, theme, width }),
+  );
+}
+
+function customerContent({ ticket, theme, width }) {
+  const inner = Math.max(48, width - 4);
+  return Column(
     Text(`${color(theme, 'title', ticket.customer.name)}  ${color(theme, 'accent', ticket.customer.contact)}  ${color(theme, 'muted', ticket.customer.timezone)}`, { wrap: false }),
     Text(`${ticket.customer.email}  ·  Plan ${color(theme, 'accent', ticket.customer.plan)}  MRR ${ticket.customer.mrr}  Health ${healthText(ticket.customer.health, theme)}`, { wrap: false }),
     divider(theme, inner),
@@ -238,7 +286,7 @@ function customerFocusView({ ticket, theme, width }) {
     Text(`#SD-5031  Invoice not available                  ${color(theme, 'ok', 'Solved')}`, { wrap: false }),
     divider(theme, inner),
     Text(color(theme, 'muted', 'Conversation summary'), { wrap: false }),
-    ...wrapTextLines(ticket.summary, inner).slice(0, 4).map((line) => Text(line, { wrap: false })),
+    ...wrapTextLines(ticket.summary, inner).map((line) => Text(color(theme, 'muted', line), { wrap: false })),
   );
 }
 
@@ -262,32 +310,36 @@ function activityFocusView({ state, ticket, theme, width, mode }) {
 }
 
 function contextRail({ state, theme, width, height = 30 }) {
+  const active = state.focus === 'rail';
+  const content = contextRailContent({ state, theme, width });
+  return scrollRenderedNode({ node: content, width, height, scroll: state.scroll?.rail || 0, theme, active, title: ' CONTEXT ' });
+}
+
+function contextRailContent({ state, theme, width }) {
   const ticket = getSelectedTicket(state);
   const active = state.focus === 'rail';
-  let content;
   if (state.activeTab === 'reply') {
-    content = Column(
+    return Column(
       customerCard({ ticket, theme, width, active }),
       accountCard({ ticket, theme, width }),
       summaryCard({ ticket, theme, width }),
       checklistCard({ ticket, theme, width }),
       macroCard({ theme, width }),
     );
-  } else if (state.activeTab === 'activity') {
-    content = Column(
+  }
+  if (state.activeTab === 'activity') {
+    return Column(
       eventDetailsCard({ event: buildActivityEvents(state, ticket)[state.activitySelectedIndex] || buildActivityEvents(state, ticket)[0], ticket, theme, width, active }),
       liveMetricsCard({ state, theme, width }),
       busyAgentsCard({ theme, width }),
     );
-  } else {
-    content = Column(
-      propertiesCard({ ticket, theme, width, active }),
-      slaCard({ ticket, state, theme, width }),
-      customerCard({ ticket, theme, width }),
-      actionsCard({ theme, width }),
-    );
   }
-  return scrollRenderedNode({ node: content, width, height, scroll: state.scroll?.rail || 0, theme, active, title: ' CONTEXT ' });
+  return Column(
+    propertiesCard({ ticket, theme, width, active }),
+    slaCard({ ticket, state, theme, width }),
+    customerCard({ ticket, theme, width }),
+    actionsCard({ theme, width }),
+  );
 }
 
 function propertiesCard({ ticket, theme, width, active = false }) {
@@ -600,10 +652,12 @@ function renderTextEditorLinesCompat({ text, cursor, width, height, placeholder 
   return renderTextEditorLines({ value: text, cursor, width, height, placeholder, lineNumbers: true });
 }
 
-function previewLines(draft, width, height) {
+function previewLines(draft, width, height, scroll = 0) {
   const lines = wrapTextLines(draft || 'Nothing to preview yet.', width).filter((line) => line !== undefined);
-  const window = visibleWindowLines(lines, { height, scroll: 0 });
-  return window.lines;
+  const window = visibleWindowLines(lines, { height, scroll });
+  const footer = window.maxScroll > 0 ? `Preview scroll ${window.scroll}/${window.maxScroll}` : '';
+  const visible = footer ? [...window.lines.slice(0, Math.max(1, height - 1)), footer] : window.lines;
+  return visible;
 }
 
 function scrollRenderedNode({ node, width, height, scroll, theme, active, title }) {

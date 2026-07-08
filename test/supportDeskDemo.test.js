@@ -244,3 +244,47 @@ test('support desk Enter on incomplete argument command applies selected argumen
   assert.match(state.input.value, /^\/status /);
   assert.equal(state.commandActive, true);
 });
+
+test('support desk clamps scroll offsets and supports Shift+Arrow panel scrolling while composer arrows move cursor', () => {
+  const state = createSupportDeskState();
+  const runtime = { output: { columns: 180, rows: 42 } };
+  executeSupportCommand(state, '/ticket TCK-1042');
+  state.focus = 'work';
+
+  for (let i = 0; i < 20; i += 1) handleSupportDeskKey({ key: { name: 'down' }, state, runtime });
+  const maxed = state.scroll.ticketThread;
+  handleSupportDeskKey({ key: { name: 'down' }, state, runtime });
+  assert.equal(state.scroll.ticketThread, maxed);
+
+  executeSupportCommand(state, '/reply');
+  state.composer.set('first line\nsecond line\nthird line');
+  state.composer.cursor = state.composer.value.length;
+  handleSupportDeskKey({ key: { name: 'up' }, state, runtime });
+  assert.ok(state.composer.cursor < state.composer.value.length);
+  const before = state.scroll.reply || 0;
+  handleSupportDeskKey({ key: { name: 'down', shift: true }, state, runtime });
+  assert.ok((state.scroll.reply || 0) >= before);
+});
+
+test('support desk root command suggestions insert command prefix so argument choices appear after space', () => {
+  const state = createSupportDeskState();
+  handleSupportDeskKey({ key: { name: '/', printable: true, text: '/' }, state });
+  for (const char of 'sor') handleSupportDeskKey({ key: { name: char, printable: true, text: char }, state });
+  assert.ok(getSlashSuggestions(state).some((item) => item.insert === '/sort '));
+  const sort = getSlashSuggestions(state).find((item) => item.insert === '/sort ');
+  state.input.set(sort.insert);
+  const args = getSlashSuggestions(state).map((item) => item.insert);
+  assert.deepEqual(args.slice(0, 5), ['/sort updated', '/sort sla', '/sort priority', '/sort status', '/sort queue']);
+});
+
+test('support desk live tick injects mock tickets into the inbox and activity feed', () => {
+  const state = createSupportDeskState();
+  const beforeTickets = state.tickets.length;
+  const beforeEvents = state.globalTimeline.length;
+  for (let i = 0; i < 32; i += 1) tickSupportDesk(state);
+  assert.equal(state.tickets.length, beforeTickets + 1);
+  assert.equal(state.globalTimeline.length, beforeEvents + 1);
+  assert.match(state.tickets[0].id, /^TCK-12/);
+  const output = stripAnsi(renderToString(createSupportDeskView({ state, width: 160, height: 42 }), { width: 160, height: 42 }));
+  assert.match(output, /TCK-1200/);
+});

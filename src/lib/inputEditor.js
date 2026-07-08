@@ -103,6 +103,44 @@ export class InputEditor {
     this.cursor = next;
   }
 
+  moveVertical(delta) {
+    const position = this.getCursorPosition();
+    const lines = splitLinesWithOffsets(this.value);
+    const targetLine = clamp(position.line + delta, 0, Math.max(0, lines.length - 1));
+    const targetColumn = Math.min(position.column, lines[targetLine].length);
+    this.cursor = lines[targetLine].offset + targetColumn;
+  }
+
+  lineStart() {
+    const position = this.getCursorPosition();
+    const lines = splitLinesWithOffsets(this.value);
+    this.cursor = lines[position.line]?.offset ?? 0;
+  }
+
+  lineEnd() {
+    const position = this.getCursorPosition();
+    const lines = splitLinesWithOffsets(this.value);
+    const line = lines[position.line] ?? lines[0];
+    this.cursor = line.offset + line.length;
+  }
+
+  getCursorPosition() {
+    const lines = splitLinesWithOffsets(this.value);
+    const safeCursor = clamp(this.cursor, 0, charLength(this.value));
+    let selected = lines[0];
+    let selectedIndex = 0;
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
+      const end = line.offset + line.length;
+      if (safeCursor <= end || index === lines.length - 1) {
+        selected = line;
+        selectedIndex = index;
+        break;
+      }
+    }
+    return { line: selectedIndex, column: Math.max(0, safeCursor - selected.offset) };
+  }
+
   getParts() {
     const chars = Array.from(this.value);
     return {
@@ -123,6 +161,26 @@ export function isPrintable(value) {
     if (code === 127) return false;
   }
   return true;
+}
+
+function splitLinesWithOffsets(value) {
+  const chars = Array.from(String(value ?? ''));
+  const lines = [];
+  let offset = 0;
+  let current = [];
+
+  chars.forEach((char, index) => {
+    if (char === '\n') {
+      lines.push({ text: current.join(''), length: current.length, offset });
+      current = [];
+      offset = index + 1;
+      return;
+    }
+    current.push(char);
+  });
+
+  lines.push({ text: current.join(''), length: current.length, offset });
+  return lines;
 }
 
 function charLength(value) {

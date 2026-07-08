@@ -8,7 +8,7 @@ import {
 } from '../../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from '../_demoRuntime.js';
 import { createSupportTickets, createInitialTimeline } from './data.js';
-import { createSupportDeskView } from './views.js';
+import { createSupportDeskView, getSupportScrollMax } from './views.js';
 import { createSupportPaletteItems, createSupportCommandRegistry, executeSupportCommand, getSupportSlashSuggestions } from './commands.js';
 import {
   addTag,
@@ -66,6 +66,8 @@ export function createSupportDeskState() {
     highlightedEventId: '',
     activityPage: 0,
     activitySelectedIndex: 0,
+    liveSequence: 0,
+    viewport: { width: 118, height: 34 },
     scroll: { ticketThread: 0, reply: 0, rail: 0, customer: 0 },
     themeName: 'support-ocean',
     frame: 0,
@@ -81,6 +83,12 @@ export { getVisibleTickets } from './reducers.js';
 export { SUPPORT_COMMANDS } from './commands.js';
 
 export function handleSupportDeskKey({ key, state, runtime }) {
+  if (runtime?.output) {
+    state.viewport = {
+      width: Number(runtime.output.columns) || state.viewport?.width || 118,
+      height: Number(runtime.output.rows) || state.viewport?.height || 34,
+    };
+  }
   if (key.name === 'redraw') return;
 
   if (state.commandActive) return handleSlashCommandKey(key, state);
@@ -177,13 +185,19 @@ function handleConfirmKey(key, state) {
 
 function handleComposerKey(key, state) {
   if (key.name === 'escape') return cancelComposer(state);
+  if ((key.name === 'up' || key.name === 'down') && key.shift) {
+    return scrollState(state, 'reply', key.name === 'up' ? -1 : 1);
+  }
+  if ((key.name === 'page-up' || key.name === 'page-down') && key.shift) {
+    return scrollState(state, 'reply', key.name === 'page-up' ? -5 : 5);
+  }
   if (key.name === 'enter' && (key.shift || key.ctrl)) {
     state.composer.insertLineBreak();
-    state.scroll.reply = Math.max(0, Number(state.scroll?.reply) || 0);
+    state.scroll.reply = clampScroll(state, 'reply', Number(state.scroll?.reply) || 0);
     return;
   }
   if (key.name === 'enter') return submitComposer(state);
-  editInput(state.composer, key);
+  editInput(state.composer, key, { multiline: true });
 }
 
 
@@ -308,6 +322,7 @@ function handleWorkFocusKey(key, state) {
     if (key.name === 'down') return scrollState(state, 'reply', 1);
     if (key.name === 'page-up') return scrollState(state, 'reply', -5);
     if (key.name === 'page-down') return scrollState(state, 'reply', 5);
+    if (key.name === 'enter') return startReply(state, suggestedTemplate(getSelectedTicket(state)));
   }
   if (state.activeTab === 'customer') {
     if (key.name === 'up') return scrollState(state, 'customer', -1);
@@ -326,7 +341,14 @@ function handleRailFocusKey(key, state) {
 
 function scrollState(state, key, delta) {
   state.scroll = state.scroll || {};
-  state.scroll[key] = Math.max(0, (Number(state.scroll[key]) || 0) + delta);
+  state.scroll[key] = clampScroll(state, key, (Number(state.scroll[key]) || 0) + delta);
+}
+
+function clampScroll(state, key, value) {
+  const width = Number(state.viewport?.width) || 118;
+  const height = Number(state.viewport?.height) || 34;
+  const max = getSupportScrollMax({ state, key, width, height });
+  return Math.max(0, Math.min(Number.isFinite(value) ? value : 0, max));
 }
 
 
@@ -397,11 +419,13 @@ function mod(value, size) {
   return ((value % size) + size) % size;
 }
 
-function editInput(editor, key, { allowNewline = false } = {}) {
+function editInput(editor, key, { allowNewline = false, multiline = false } = {}) {
   if (key.name === 'left') return key.meta ? editor.moveWord(-1) : editor.move(-1);
   if (key.name === 'right') return key.meta ? editor.moveWord(1) : editor.move(1);
-  if (key.name === 'home' || (key.cmd && key.name === 'left')) return editor.home();
-  if (key.name === 'end' || (key.cmd && key.name === 'right')) return editor.end();
+  if (multiline && key.name === 'up') return editor.moveVertical(-1);
+  if (multiline && key.name === 'down') return editor.moveVertical(1);
+  if (key.name === 'home' || (key.cmd && key.name === 'left')) return multiline ? editor.lineStart() : editor.home();
+  if (key.name === 'end' || (key.cmd && key.name === 'right')) return multiline ? editor.lineEnd() : editor.end();
   if (key.name === 'backspace') return editor.backspace();
   if (key.name === 'delete') return editor.deleteForward();
   if (key.name === 'kill-end') return editor.killToEnd();

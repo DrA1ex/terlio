@@ -1,4 +1,4 @@
-import { stripAnsi, visibleLength } from '../ansi.js';
+import { takeVisibleAnsi, visibleLength } from '../ansi.js';
 import { createFrame } from './screen.js';
 
 export function layout(node, { width = 80, height = 24 } = {}) {
@@ -207,10 +207,11 @@ function fitTitle(title, width) {
 }
 
 export function fit(value, width) {
+  const safeWidth = Math.max(0, Number(width) || 0);
   const text = String(value ?? '');
-  const plain = visibleLength(text) > width ? Array.from(stripAnsi(text)).slice(0, width).join('') : text;
-  const size = visibleLength(plain);
-  return size < width ? plain + ' '.repeat(width - size) : plain;
+  const fitted = visibleLength(text) > safeWidth ? takeVisibleAnsi(text, safeWidth) : text;
+  const size = visibleLength(fitted);
+  return size < safeWidth ? fitted + ' '.repeat(safeWidth - size) : fitted;
 }
 
 function wrapPlain(value, width) {
