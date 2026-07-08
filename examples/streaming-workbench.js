@@ -8,11 +8,12 @@ import {
   Row,
   Text,
   TextEditorView,
-  Toast,
   WorkspacePane,
   WorkspaceShell,
   fitInline,
+  isScrollAtBottom,
   renderNode,
+  resolveAutoScrollOffset,
   splitWorkspaceColumns,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
@@ -24,7 +25,7 @@ const TABS = [
   { id: 'control', label: 'Control' },
 ];
 
-const SAMPLE_REPLIES = [
+const DEFAULT_SAMPLE_REPLIES = [
   {
     prompt: 'show me how streaming works',
     title: 'Frame streaming',
@@ -43,8 +44,11 @@ const SAMPLE_REPLIES = [
 ];
 
 export function createStreamingWorkbenchState() {
+  const templates = cloneTemplates(DEFAULT_SAMPLE_REPLIES);
   return {
-    prompt: new InputEditor(SAMPLE_REPLIES[0].prompt),
+    prompt: new InputEditor(templates[0].prompt),
+    templates,
+    pendingTemplate: null,
     messages: [],
     streaming: false,
     streamTimer: null,
@@ -54,7 +58,8 @@ export function createStreamingWorkbenchState() {
     activeTab: 'prompt',
     lastStartedAt: null,
     paneScroll: { transcript: 0, control: 0 },
-    followTranscript: true,
+    transcriptAutoscroll: true,
+    transcriptRowCount: 0,
     keyLog: [],
     status: 'Edit the prompt, then press Enter to start a fake stream.',
   };
@@ -95,7 +100,7 @@ export function createStreamingWorkbenchView({ state, width = 100, height = 30 }
       { label: 'Messages', value: state.messages.length },
     ],
     right: [
-      { label: 'Scenario', value: SAMPLE_REPLIES[state.replyIndex]?.title ?? 'custom' },
+      { label: 'Scenario', value: activeScenarioTitle(state) },
       { label: 'Status', value: fitInline(state.status, 46).trimEnd() },
     ],
     focus: state.activeTab,
@@ -116,7 +121,7 @@ export function createStreamingWorkbenchView({ state, width = 100, height = 30 }
 
 export function handleStreamingWorkbenchKey({ key, state, runtime }) {
   rememberKey(state, key);
-  const editor = state.prompt;
+  const editor = activeEditor(state);
 
   if (key.name === 'tab') {
     cycleTab(state, TABS, key.shift ? -1 : 1, { statusPrefix: 'Focus moved to' });
@@ -124,11 +129,13 @@ export function handleStreamingWorkbenchKey({ key, state, runtime }) {
   }
 
   if (key.name === 'escape') {
+    if (state.pendingTemplate) {
+      cancelTemplateAdd(state);
+      return;
+    }
     if (state.streaming) {
       cancelStream(state);
       state.messages.push({ role: 'system', content: '[stream cancelled]' });
-      state.followTranscript = true;
-      state.activeTab = 'transcript';
       state.status = 'Stream cancelled.';
     } else {
       state.status = 'Nothing to cancel.';
@@ -143,8 +150,7 @@ export function handleStreamingWorkbenchKey({ key, state, runtime }) {
 
   if (state.activeTab === 'transcript') {
     if (key.name === 'enter') {
-      state.followTranscript = true;
-      state.paneScroll.transcript = Number.POSITIVE_INFINITY;
+      state.transcriptAutoscroll = true;
       state.status = 'Transcript pinned to newest output.';
       return;
     }
@@ -159,7 +165,6 @@ export function handleStreamingWorkbenchKey({ key, state, runtime }) {
       if (state.streaming) {
         cancelStream(state);
         state.messages.push({ role: 'system', content: '[stream cancelled from control]' });
-        state.followTranscript = true;
         state.status = 'Stream cancelled from Control.';
       } else {
         state.status = 'Control has no running stream. Switch to Prompt to submit.';
@@ -174,7 +179,7 @@ export function handleStreamingWorkbenchKey({ key, state, runtime }) {
 
   if (key.name === 'enter' && key.ctrl) {
     editor.insertLineBreak();
-    state.status = 'Inserted newline in prompt.';
+    state.status = state.pendingTemplate ? 'Inserted newline in scenario response.' : 'Inserted newline in prompt.';
     return;
   }
 
@@ -183,57 +188,57 @@ export function handleStreamingWorkbenchKey({ key, state, runtime }) {
     return;
   }
 
-  if (key.name === 'up' || key.name === 'down') {
-    editor.moveVertical(key.name === 'up' ? -1 : 1);
-    state.status = 'Moved inside the prompt editor.';
+  if (!state.pendingTemplate && key.printable && (key.text === '[' || key.text === ']')) {
+    loadSamplePrompt(state, key.text === '[' ? -1 : 1);
     return;
   }
 
-  if (key.printable && (key.text === '[' || key.text === ']')) {
-    loadSamplePrompt(state, key.text === '[' ? -1 : 1);
+  if (key.name === 'up' || key.name === 'down') {
+    editor.moveVertical(key.name === 'up' ? -1 : 1);
+    state.status = state.pendingTemplate ? 'Moved inside the scenario response.' : 'Moved inside the prompt editor.';
     return;
   }
 
   if (key.name === 'left') {
     key.meta ? editor.moveWord(-1) : editor.move(-1);
-    state.status = 'Moved prompt cursor.';
+    state.status = 'Moved editor cursor.';
     return;
   }
 
   if (key.name === 'right') {
     key.meta ? editor.moveWord(1) : editor.move(1);
-    state.status = 'Moved prompt cursor.';
+    state.status = 'Moved editor cursor.';
     return;
   }
 
   if (key.name === 'home' || (key.cmd && key.name === 'left')) {
     editor.home();
-    state.status = 'Moved to prompt start.';
+    state.status = 'Moved to editor start.';
     return;
   }
   if (key.name === 'end' || (key.cmd && key.name === 'right')) {
     editor.end();
-    state.status = 'Moved to prompt end.';
+    state.status = 'Moved to editor end.';
     return;
   }
   if (key.name === 'backspace') {
     editor.backspace();
-    state.status = 'Backspace in prompt.';
+    state.status = 'Backspace in editor.';
     return;
   }
   if (key.name === 'delete') {
     editor.deleteForward();
-    state.status = 'Delete forward in prompt.';
+    state.status = 'Delete forward in editor.';
     return;
   }
   if (key.name === 'kill-end') {
     editor.killToEnd();
-    state.status = 'Killed prompt suffix.';
+    state.status = 'Killed editor suffix.';
     return;
   }
   if (key.name === 'kill-start') {
     editor.killToStart();
-    state.status = 'Killed prompt prefix.';
+    state.status = 'Killed editor prefix.';
     return;
   }
   if (key.name === 'delete-word-left') {
@@ -248,11 +253,21 @@ export function handleStreamingWorkbenchKey({ key, state, runtime }) {
   }
   if (key.printable) {
     editor.insert(key.text);
-    state.status = 'Edited prompt.';
+    state.status = state.pendingTemplate ? 'Edited scenario response.' : 'Edited prompt.';
   }
 }
 
 function submitPrompt(state, runtime) {
+  if (state.pendingTemplate) {
+    finishTemplateAdd(state);
+    return;
+  }
+
+  if (selectedAddRow(state)) {
+    beginTemplateAdd(state);
+    return;
+  }
+
   if (state.streaming) {
     state.status = 'Already streaming. Press Esc to cancel first.';
     return;
@@ -264,25 +279,70 @@ function submitPrompt(state, runtime) {
   }
   state.messages.push({ role: 'user', content: prompt });
   state.messages.push({ role: 'assistant', content: '' });
-  state.activeTab = 'transcript';
-  state.followTranscript = true;
+  state.transcriptAutoscroll = true;
   state.prompt.clear();
   startStream(state, runtime);
 }
 
+function beginTemplateAdd(state) {
+  const prompt = state.prompt.value.trim();
+  if (!prompt) {
+    state.status = 'Type a prompt before creating a new template.';
+    return;
+  }
+  state.pendingTemplate = {
+    prompt,
+    response: new InputEditor(seedScenarioResponse(state, prompt)),
+  };
+  state.status = 'Write the scenario response, then press Enter to save the template.';
+}
+
+function finishTemplateAdd(state) {
+  const pending = state.pendingTemplate;
+  if (!pending) return;
+  const text = pending.response.value.trim();
+  if (!text) {
+    state.status = 'Scenario response is empty. Add a response before saving.';
+    return;
+  }
+  const template = {
+    prompt: pending.prompt,
+    title: titleFromPrompt(pending.prompt),
+    text,
+  };
+  state.templates.push(template);
+  state.replyIndex = state.templates.length - 1;
+  state.pendingTemplate = null;
+  state.prompt.set(template.prompt);
+  state.status = 'New template saved and selected.';
+}
+
+function cancelTemplateAdd(state) {
+  const prompt = state.pendingTemplate?.prompt ?? '';
+  state.pendingTemplate = null;
+  state.prompt.set(prompt);
+  state.status = 'Template creation cancelled.';
+}
+
 function loadSamplePrompt(state, delta) {
-  state.replyIndex = (state.replyIndex + SAMPLE_REPLIES.length + delta) % SAMPLE_REPLIES.length;
-  state.prompt.set(samplePrompt(state.replyIndex));
-  state.status = delta < 0 ? 'Loaded previous sample prompt.' : 'Loaded next sample prompt.';
+  const total = state.templates.length + 1;
+  state.replyIndex = (state.replyIndex + total + delta) % total;
+  if (selectedAddRow(state)) {
+    state.status = '+ Add new one selected. Enter creates a template from the current prompt.';
+    return;
+  }
+  state.prompt.set(samplePrompt(state, state.replyIndex));
+  state.status = delta < 0 ? 'Loaded previous template.' : 'Loaded next template.';
 }
 
 function pageActivePane(state, direction) {
   const page = 7;
   if (state.activeTab === 'transcript') {
-    const total = transcriptLines(state, 1000).length || 1;
-    state.followTranscript = false;
-    const current = Number.isFinite(state.paneScroll.transcript) ? state.paneScroll.transcript : Math.max(0, total - page);
-    state.paneScroll.transcript = scrollOffset(current, direction * page, total, page);
+    const total = transcriptLines(state, 100).length || 1;
+    const current = state.transcriptAutoscroll ? Math.max(0, total - page) : state.paneScroll.transcript;
+    const next = scrollOffset(current, direction * page, total, page);
+    state.paneScroll.transcript = next;
+    state.transcriptAutoscroll = isScrollAtBottom(next, total, page);
     state.status = direction < 0 ? 'Transcript page up.' : 'Transcript page down.';
     return;
   }
@@ -295,28 +355,29 @@ function pageActivePane(state, direction) {
 }
 
 function promptPane(state, width, height) {
-  const scenario = SAMPLE_REPLIES[state.replyIndex % SAMPLE_REPLIES.length];
+  const scenario = activeTemplate(state);
+  const editor = activeEditor(state);
+  const editorTitle = state.pendingTemplate ? ' Scenario response ' : ' Draft ';
+  const editorPlaceholder = state.pendingTemplate ? 'write the assistant response for this template...' : 'type a prompt, then press Enter...';
   return WorkspacePane({
     title: ` ${state.activeTab === 'prompt' ? '▶' : ' '} PROMPT `,
     active: state.activeTab === 'prompt',
     height,
     children: [
-      Toast({ level: state.streaming ? 'info' : 'success', message: state.streaming ? 'Provider is emitting chunks.' : 'Ready to submit a prompt.' }),
       TextEditorView({
-        title: ' Draft ',
-        value: state.prompt.value,
-        cursor: state.prompt.cursor,
+        title: editorTitle,
+        value: editor.value,
+        cursor: editor.cursor,
         width: Math.max(24, width - 4),
         height: Math.max(3, Math.min(6, height - 13)),
-        placeholder: 'type a prompt, then press Enter...',
+        placeholder: editorPlaceholder,
         lineNumbers: false,
       }),
-      Panel(' Samples ',
-        ...SAMPLE_REPLIES.map((item, index) => Text(`${index === state.replyIndex ? '›' : ' '} ${fitInline(item.prompt, Math.max(18, width - 8))}`, { wrap: false })),
+      Panel(' Templates ',
+        ...templateRows(state, width),
       ),
       Panel(' Scenario ',
-        Text(scenario.title, { wrap: false }),
-        Text(fitInline(scenario.text, Math.max(20, width - 8)), { wrap: false }),
+        ...scenarioRows(state, scenario, width),
       ),
     ],
   });
@@ -325,6 +386,9 @@ function promptPane(state, width, height) {
 function transcriptPane(state, width, height) {
   const lines = transcriptLines(state, Math.max(24, width - 6));
   if (!lines.length) {
+    state.transcriptRowCount = 0;
+    state.paneScroll.transcript = 0;
+    state.transcriptAutoscroll = true;
     return WorkspacePane({
       title: ` ${state.activeTab === 'transcript' ? '▶' : ' '} TRANSCRIPT `,
       active: state.activeTab === 'transcript',
@@ -333,16 +397,24 @@ function transcriptPane(state, width, height) {
     });
   }
   const visibleHeight = Math.max(3, height - 2);
-  const total = lines.length;
-  const maxScroll = Math.max(0, total - Math.max(1, visibleHeight - 1));
-  const scroll = state.followTranscript ? maxScroll : state.paneScroll.transcript;
+  const footer = lines.length > visibleHeight - 1;
+  const visibleRows = Math.max(1, visibleHeight - (footer ? 1 : 0));
+  const scroll = resolveAutoScrollOffset({
+    scroll: state.paneScroll.transcript,
+    totalRows: lines.length,
+    previousTotalRows: state.transcriptRowCount,
+    visibleRows,
+    sticky: state.transcriptAutoscroll,
+  });
   const window = visibleScrollableRows(lines, {
     scroll,
     height: visibleHeight,
     width: Math.max(20, width - 4),
-    footer: total > visibleHeight - 1,
+    footer,
   });
   state.paneScroll.transcript = window.scroll;
+  state.transcriptAutoscroll = isScrollAtBottom(window.scroll, lines.length, visibleRows);
+  state.transcriptRowCount = lines.length;
   return WorkspacePane({
     title: ` ${state.activeTab === 'transcript' ? '▶' : ' '} TRANSCRIPT `,
     active: state.activeTab === 'transcript',
@@ -361,8 +433,9 @@ function controlPane(state, width, height) {
       Text(`last start: ${state.lastStartedAt ?? '<none>'}`),
     ),
     Panel(' Active scenario ',
-      Text(SAMPLE_REPLIES[state.replyIndex]?.title ?? 'custom', { wrap: false }),
-      Text(fitInline(SAMPLE_REPLIES[state.replyIndex]?.prompt ?? '<custom>', Math.max(16, width - 10)), { wrap: false }),
+      Text(activeScenarioTitle(state), { wrap: false }),
+      Text(fitInline(activeTemplate(state)?.prompt ?? '+ Add new one', Math.max(16, width - 10)), { wrap: false }),
+      Text(`templates : ${state.templates.length}`, { wrap: false }),
     ),
     Panel(' Last keys ',
       ...((state.keyLog.length ? state.keyLog.slice(-6) : ['No keys yet.']).map((line) => Text(fitInline(line, Math.max(16, width - 10)), { wrap: false }))),
@@ -391,13 +464,13 @@ function narrowPane(state, width, height) {
 
 function startStream(state, runtime) {
   const assistant = state.messages.at(-1);
-  const text = SAMPLE_REPLIES[state.replyIndex % SAMPLE_REPLIES.length].text;
+  const text = activeTemplate(state)?.text ?? `Custom stream response for: ${state.messages.at(-2)?.content ?? 'prompt'}`;
   const chunks = chunkText(text);
   state.streaming = true;
   state.streamIndex = 0;
   state.streamTotal = chunks.length;
   state.lastStartedAt = new Date().toLocaleTimeString('en-US', { hour12: false });
-  state.status = 'Streaming. Press Esc to cancel.';
+  state.status = 'Streaming in Transcript. Prompt stays active.';
 
   const tick = () => {
     if (!state.streaming) return;
@@ -405,14 +478,12 @@ function startStream(state, runtime) {
     if (chunk === undefined) {
       state.streaming = false;
       state.streamTimer = null;
-      state.replyIndex = (state.replyIndex + 1) % SAMPLE_REPLIES.length;
       state.status = 'Stream complete.';
       runtime.invalidate();
       return;
     }
     assistant.content += chunk;
     state.streamIndex += 1;
-    state.followTranscript = true;
     runtime.invalidate();
     state.streamTimer = setTimeout(tick, chunk.trim() ? 35 : 10);
   };
@@ -432,15 +503,23 @@ function chunkText(text) {
 
 function transcriptLines(state, width) {
   if (!state.messages.length) return [];
-  return state.messages.map((message, index) => {
+  const safeWidth = Math.max(12, Number(width) || 80);
+  const lines = [];
+  state.messages.forEach((message, index) => {
     const role = message.role === 'assistant' ? 'ai' : message.role;
+    const prefix = `${String(index + 1).padStart(2)} ${role.padEnd(8)} `;
     const content = message.content || '…';
-    return fitInline(`${String(index + 1).padStart(2)} ${role.padEnd(8)} ${content}`, width);
+    const bodyWidth = Math.max(8, safeWidth - prefix.length);
+    const bodyLines = renderNode(Text(content), bodyWidth);
+    bodyLines.forEach((line, lineIndex) => {
+      lines.push(fitInline(`${lineIndex === 0 ? prefix : ' '.repeat(prefix.length)}${line}`, safeWidth));
+    });
   });
+  return lines;
 }
 
-function samplePrompt(index) {
-  return SAMPLE_REPLIES[index % SAMPLE_REPLIES.length].prompt;
+function samplePrompt(state, index) {
+  return state.templates[index % state.templates.length]?.prompt ?? '';
 }
 
 function rememberKey(state, key) {
@@ -450,7 +529,7 @@ function rememberKey(state, key) {
 }
 
 function controlLineCount() {
-  return 18;
+  return 20;
 }
 
 function contextHelpHints(state) {
@@ -472,14 +551,91 @@ function contextHelpHints(state) {
       ['↑/↓', 'not used here'],
     ];
   }
+  if (state.pendingTemplate) {
+    return [
+      ['Enter', 'save template'],
+      ['Ctrl+J', 'new line'],
+      ['Esc', 'cancel template'],
+      ['↑/↓', 'move cursor'],
+      ['Alt+←/→', 'word move'],
+      ['Tab', 'switch pane'],
+    ];
+  }
   return [
-    ['Enter', 'submit prompt'],
+    ['Enter', selectedAddRow(state) ? 'start template add' : 'submit prompt'],
     ['Ctrl+J', 'new line'],
     ['↑/↓', 'move cursor'],
-    ['[/]', 'load sample'],
-    ['Alt+←/→', 'word move'],
+    ['[ and ]', 'switch template'],
+    ['+ Add new one', 'create template'],
     ['Esc', 'cancel stream'],
   ];
+}
+
+function activeEditor(state) {
+  return state.pendingTemplate?.response ?? state.prompt;
+}
+
+function activeTemplate(state) {
+  return state.templates[state.replyIndex] ?? null;
+}
+
+function activeScenarioTitle(state) {
+  if (state.pendingTemplate) return 'Adding template';
+  if (selectedAddRow(state)) return '+ Add new one';
+  return activeTemplate(state)?.title ?? 'custom';
+}
+
+function selectedAddRow(state) {
+  return state.replyIndex >= state.templates.length;
+}
+
+function templateRows(state, width) {
+  const inner = Math.max(18, width - 8);
+  const rows = state.templates.map((item, index) => Text(`${index === state.replyIndex ? '›' : ' '} ${fitInline(item.prompt, inner)}`, { wrap: false }));
+  rows.push(Text(`${selectedAddRow(state) ? '›' : ' '} + Add new one`, { wrap: false }));
+  return rows;
+}
+
+function scenarioRows(state, scenario, width) {
+  const inner = Math.max(20, width - 8);
+  if (state.pendingTemplate) {
+    return [
+      Text('Adding template', { wrap: false }),
+      Text(fitInline(`Prompt: ${state.pendingTemplate.prompt}`, inner), { wrap: false }),
+      Text('Enter saves this scenario response.', { wrap: false }),
+    ];
+  }
+  if (selectedAddRow(state)) {
+    return [
+      Text('+ Add new one', { wrap: false }),
+      Text('Enter turns the current prompt into a template.', { wrap: false }),
+      Text('Next step asks for the scenario response.', { wrap: false }),
+    ];
+  }
+  return [
+    Text(scenario?.title ?? 'Custom', { wrap: false }),
+    Text(fitInline(scenario?.text ?? 'No scenario selected.', inner), { wrap: false }),
+  ];
+}
+
+function seedScenarioResponse(state, prompt) {
+  const lastAssistant = [...state.messages].reverse().find((message) => message.role === 'assistant' && message.content.trim());
+  if (lastAssistant) return lastAssistant.content.trim();
+  return `Draft response for: ${prompt}`;
+}
+
+function titleFromPrompt(prompt) {
+  return String(prompt)
+    .trim()
+    .replace(/[?.!]+$/g, '')
+    .split(/\s+/)
+    .slice(0, 4)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ') || 'Custom scenario';
+}
+
+function cloneTemplates(items) {
+  return items.map((item) => ({ ...item }));
 }
 
 if (isDirectRun(import.meta.url)) {

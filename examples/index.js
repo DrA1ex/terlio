@@ -8,7 +8,7 @@ const groups = [
     ['npm run example:chat', 'Full mock AI chat with commands, skills, sessions, palette and structured blocks.'],
     ['npm run example:editor', 'Editor Lab workspace: live draft buffer, editable saved drafts, diagnostics and PgUp/PgDn scrollable panes.'],
     ['npm run example:palette', 'Command Palette workspace: tab-scoped launcher, detail rail, accepted log, scrollable panes and bordered help grid.'],
-    ['npm run example:stream', 'Streaming Workbench workspace: explicit prompt editor, transcript scroll, control rail, progress and cancellation.'],
+    ['npm run example:stream', 'Streaming Workbench workspace: prompt editor, transcript autoscroll, template switching and + Add new one flow.'],
     ['npm run example:kit', 'Interaction Kit workspace: palette-driven toasts, modals, confirmations, scrollable panes and mode stack.'],
     ['npm run example:composer', 'Prompt Composer workspace: fields, templates, preview/history tabs and command/footer shell.'],
     ['npm run example:code-review', 'AI Code Review workspace: prompt brief, transcript, block actions and confirm apply/run.'],

@@ -1,296 +1,605 @@
-# Components
+# API reference
 
-Components are functions that return UI nodes. They are intentionally simple: pass state in, get a renderable node out. They do not subscribe to input, own timers, or mutate global state.
+All public exports are re-exported from the package entrypoint:
 
 ```js
-import { SelectList, Modal, WorkspaceShell, WorkspacePane } from 'mock-ai-terminal';
+import * as terminal from 'mock-ai-terminal';
 ```
 
-## Selection and confirmation
+When developing inside this repository, import from `src/lib/index.js`.
+
+## Full app
+
+### RichTerminalApp
+
+```js
+new RichTerminalApp({ input, output, onExit, sessionStore })
+```
+
+A complete mock AI chat terminal app. It owns terminal raw mode, alternate screen rendering, command execution, mock provider streaming, sessions, skills, suggestions, debug state, and command palette integration.
+
+Important methods:
+
+- `start()` — enter interactive TTY mode and render the app.
+- `stop()` — remove listeners, leave raw mode, reset renderer.
+- `requestExit(code)` — stop and call `onExit` if provided.
+- `setTheme(name)` and `setProvider(name)`.
+- `addSystemMessage(content)`, `addUserMessage(content)`, `addAssistantMessage(content, streaming, options)`.
+- `clearMessages()`.
+- `submitInput()`, `executeCommand(line)`, `respond(prompt)`.
+- `retryLastUserPrompt()`.
+- `newSession()`, `saveSession()`, `loadSession(id)`, `snapshot()`.
+- `toggleDebug(enabled)`.
+- `openCommandPalette()`.
+- `render()`.
+
+### createAppPaletteItems
+
+```js
+createAppPaletteItems()
+```
+
+Returns palette item descriptors for built-in commands, themes, providers, and skills.
+
+## UI node runtime
+
+### createNode
+
+```js
+createNode(type, props, children)
+```
+
+Creates a raw UI node.
+
+### Text
+
+```js
+Text(value, props = {})
+```
+
+Creates a text node.
+
+### Box
+
+```js
+Box(props = {}, ...children)
+```
+
+Creates a box node. Supports border, padding, title, fixed height, grow behavior, and border color.
+
+### Row
+
+```js
+Row(props, ...children)
+Row(...children)
+```
+
+Creates a horizontal layout. Supports `gap`, `distribute`, and `widths`.
+
+### Column
+
+```js
+Column(props, ...children)
+Column(...children)
+```
+
+Creates a vertical layout. Supports `gap`, fixed `height`, and grow child allocation.
+
+### Panel
+
+```js
+Panel(title, ...children)
+```
+
+Shorthand for a bordered padded box.
+
+### normalizeChildren
+
+```js
+normalizeChildren(children)
+```
+
+Flattens children, removes empty values, and converts strings/numbers into text nodes.
+
+## Layout, frames, and rendering
+
+### layout / renderNode / measureNodeHeight
+
+```js
+layout(node, { width, height })
+renderNode(node, width)
+measureNodeHeight(node, width)
+```
+
+`layout()` returns a fixed-size frame. `renderNode()` returns rendered lines for a node at a given width. `measureNodeHeight()` renders the node at the same width and returns the number of rows it would occupy; use it when calculating available space for adaptive terminal layouts.
+
+### Frame
+
+```js
+new Frame(lines, options)
+```
+
+Represents a fixed-size terminal frame.
+
+Methods:
+
+- `toLines()`
+- `toString()`
+- `equals(other)`
+
+### createFrame / normalizeLines
+
+```js
+createFrame(lines, { width, height })
+normalizeLines(lines, { width, height })
+```
+
+Creates or normalizes fixed-size frame lines.
+
+### renderToFrame / renderToString
+
+```js
+renderToFrame(node, options)
+renderToString(node, options)
+```
+
+Render a UI tree to a `Frame` or string.
+
+### TerminalRenderer
+
+```js
+new TerminalRenderer({ output })
+```
+
+Methods:
+
+- `renderLines(lines, options)`
+- `renderNode(node, options)`
+- `renderFrame(frame)`
+- `reset()`
+
+### diffFrames / patchFrames
+
+```js
+diffFrames(previous, next)
+patchFrames(previous, next)
+```
+
+Compute frame differences or an ANSI patch string.
+
+## ANSI and text width
+
+Exports:
+
+- `ansi`
+- `themes`
+- `color(name, value)`
+- `stripAnsi(value)`
+- `visibleLength(value)`
+- `padEndVisible(value, width)`
+- `truncateVisible(value, width)`
+- `wrapText(value, width)`
+
+These helpers handle ANSI escape sequences when computing visible terminal width.
+
+## Components
 
 ### SelectList
 
 ```js
-SelectList({
-  title: 'Tickets',
-  items,
-  selectedIndex,
-  windowSize: 8,
-  emptyText: 'No tickets.',
-  getLabel: (item) => item.title,
-  getDescription: (item) => item.status,
-  getDisabled: (item) => item.disabled,
-})
+SelectList({ title, items, selectedIndex, windowSize, emptyText, getLabel, getDescription, getDisabled })
 ```
 
-`SelectList` renders a scrollable list window with a selected row marker. It only renders the list; your app is responsible for updating `selectedIndex` from key events.
+Renders a scroll-windowed selectable list.
 
 ### ConfirmPrompt
 
 ```js
-ConfirmPrompt({
-  title: ' Delete ',
-  message: 'Delete this session?',
-  confirmLabel: 'Delete',
-  cancelLabel: 'Cancel',
-  selected: 'cancel',
-})
+ConfirmPrompt({ title, message, confirmLabel, cancelLabel, selected })
 ```
 
-Use it together with `ModeManager` when an action needs confirmation.
-
-## Overlays and notifications
+Renders a two-choice confirmation panel.
 
 ### Modal
 
 ```js
-Modal({
-  title: ' Help ',
-  children: [Text('Use / to enter commands.')],
-  footer: 'Esc close',
-})
+Modal({ title, children, footer })
 ```
 
-`Modal` renders a bordered block. Overlay placement is application-specific; many examples render the modal as part of the main tree while a modal mode is active.
+Renders a bordered modal body.
 
 ### Toast
 
 ```js
-Toast({ level: 'success', message: 'Saved.' })
+Toast({ level, message })
 ```
 
-Supported levels are `info`, `success`, `warning`, and `error`.
-
-For stateful toast queues, use `createToastManager()` from the interaction layer.
-
-## Progress and activity
+Renders an info/success/warning/error toast.
 
 ### ProgressBar
 
 ```js
-ProgressBar({ value: 42, total: 100, width: 24, label: 'Indexing' })
+ProgressBar({ value, total, width, label })
 ```
+
+Renders a text progress bar.
 
 ### Spinner
 
 ```js
-Spinner({ frame, label: 'Streaming' })
+Spinner({ frame, label })
 ```
 
-Increment `frame` from your app state or timer to animate the spinner.
-
-### Live blocks
-
-```js
-MetricBlock({ title: ' SLA ', value: '12m', detail: 'high priority', pulse: true })
-KeyValueBlock({ title: ' Customer ', rows: [['Plan', 'Pro'], ['Region', 'EU']] })
-LiveJobBlock({ title: ' Deploy ', status: 'running', steps, activeIndex, progress, frame })
-```
-
-Live blocks are useful for dashboards, support desks, background jobs, and streaming agent steps.
-
-## Help, status, and controls
+Renders a spinner frame.
 
 ### HelpOverlay
 
 ```js
-HelpOverlay({
-  title: ' Keys ',
-  shortcuts: [
-    ['↑/↓', 'move'],
-    ['Enter', 'accept'],
-    ['Esc', 'close'],
-  ],
-})
+HelpOverlay({ title, shortcuts })
 ```
 
-### Badge
+Renders shortcut rows.
+
+### Badge, SectionTabs, CommandBar, FooterStatusBar, Grid, PropertyRows, ChipLine
+
+Small components for status labels, tab rows, command input display, footer status, aligned grids, key/value details, and chip controls.
 
 ```js
-Badge({ label: 'OPEN' })
+Grid({ items, columns = 3, gap = 2, renderItem, emptyText, border = false, borderColor, padding })
 ```
 
-### SectionTabs
+`Grid` renders equal-width rows and columns. It is intended for shortcut bars and footer-like blocks where each row should keep the same column starts. Set `border: true` to render a compact table grid with horizontal and vertical separators.
+
+### TextEditorView / renderTextEditorLines
 
 ```js
-SectionTabs({
-  tabs: [{ id: 'inbox', label: 'Inbox' }, { id: 'ticket', label: 'Ticket' }],
-  active: 'inbox',
-})
+TextEditorView({ title, value, cursor, width, height, placeholder, lineNumbers })
+renderTextEditorLines({ value, cursor, width, height, lineNumbers, placeholder, cursorGlyph })
 ```
 
-### CommandBar
+Render a multi-line editor view or its raw lines.
+
+### visibleWindowLines / ScrollPane / autoscroll helpers
 
 ```js
-CommandBar({
-  value: 'status open',
-  suggestions: ['/status open', '/status pending'],
-  mode: 'COMMAND',
-  hint: 'Tab next · Enter run',
-  prompt: '/',
-})
+visibleWindowLines(lines, { height, scroll, tail })
+ScrollPane({ title, lines, width, height, scroll, border, footer })
+resolveAutoScrollOffset({ scroll, previousTotalRows, totalRows, visibleRows, sticky })
+isScrollAtBottom(scroll, totalRows, visibleRows)
+scrollMax(totalRows, visibleRows)
 ```
 
-### FooterStatusBar
+Render or calculate a scroll window. Use `resolveAutoScrollOffset()` for log/transcript panes that should follow new output only while the user is already at the bottom. Once the user scrolls up, keep `sticky: false`; when they page back to the bottom, set it to `true` again.
+
+### fitInline
 
 ```js
-FooterStatusBar({ left: ['Ready'], right: ['theme dark', 'mock provider'] })
+fitInline(value, width)
 ```
 
-### Grid
+Pad or truncate a single-line value to a target visible width.
+
+## Workspace components
+
+### WorkspaceHeader
 
 ```js
-Grid({
-  columns: 3,
-  items: [['Enter', 'submit'], ['Tab', 'switch'], ['PgDn', 'scroll']],
-  renderItem: ([key, label]) => `${key} ${label}`,
-})
-
-Grid({
-  columns: 3,
-  border: true,
-  items: [['Enter', 'open'], ['Tab', 'switch'], ['Esc', 'close']],
-  renderItem: ([key, label]) => `${key} ${label}`,
-})
+WorkspaceHeader({ title, subtitle, stats, right, focus })
 ```
 
-`Grid` renders equal-width terminal columns using the same layout rules as the rest of the UI system. It is useful for shortcut bars, compact status rows, and other footer-like blocks where wrapped text should stay aligned across rows. Set `border: true` to render a compact table-like grid with shared row and column separators.
+Renders a top product header.
 
-### PropertyRows
+### WorkspaceTabs
 
 ```js
-PropertyRows({
-  title: ' Ticket ',
-  rows: [['Priority', 'High'], ['Owner', 'Alex']],
-})
+WorkspaceTabs({ tabs, active, title, hint })
 ```
 
-### ChipLine
-
-```js
-ChipLine({
-  label: 'Filter',
-  chips: ['all', 'open', 'pending'],
-  active: 'open',
-})
-```
-
-## Editor and scrolling components
-
-### TextEditorView
-
-```js
-TextEditorView({
-  title: ' Reply ',
-  value: editor.value,
-  cursor: editor.cursor,
-  width: 80,
-  height: 8,
-  placeholder: 'Type a reply...',
-  lineNumbers: true,
-})
-```
-
-This component renders a multi-line text editor view with a visible cursor. It pairs with `InputEditor`, which owns the text value and cursor operations.
-
-### renderTextEditorLines
-
-```js
-const lines = renderTextEditorLines({ value, cursor, width: 80, height: 8 });
-```
-
-Use this if you need the editor lines but want to wrap them in a custom container.
-
-### ScrollPane
-
-```js
-ScrollPane({
-  title: ' Logs ',
-  lines,
-  width: 100,
-  height: 12,
-  scroll,
-  footer: true,
-})
-```
-
-### visibleWindowLines
-
-```js
-const { lines: visible, scroll, maxScroll, start } = visibleWindowLines(lines, {
-  height: 10,
-  scroll: 3,
-  tail: false,
-});
-```
-
-Use this helper when you want to render the scroll window yourself.
-
-## Workspace primitives
-
-Workspace primitives are for full-screen product-style terminal apps. They provide a consistent layout with header, tabs, main content, command bar, activity area, and footer.
-
-### WorkspaceShell
-
-```js
-WorkspaceShell({
-  title: 'Support Desk',
-  subtitle: 'Triage queue',
-  stats: [{ label: 'open', value: 12 }],
-  right: [{ label: 'theme', value: 'dark' }],
-  focus: 'inbox',
-  tabs: [{ id: 'inbox', label: 'Inbox' }, { id: 'reply', label: 'Reply' }],
-  activeTab: 'inbox',
-  tabHint: '/ command · Ctrl+P palette',
-  main,
-  command,
-  activity,
-  footer,
-  height: process.stdout.rows,
-})
-```
-
-`WorkspaceShell` automatically makes `main` fill remaining vertical space when a shell height is provided.
+Renders a tab/navigation bar.
 
 ### WorkspacePane
 
 ```js
-WorkspacePane({
-  title: ' Thread ',
-  active: focus === 'thread',
-  height: 16,
-  children: [Text('Message body')],
-  footer: '↑/↓ scroll',
+WorkspacePane({ title, active, height, children, footer, borderColor })
+```
+
+Renders a bordered application pane. Active panes get a highlighted border by default.
+
+### KeyHintBar
+
+```js
+KeyHintBar({ title, hints, columns = 3, gridBorder = false })
+```
+
+Renders grouped key hints using the shared `Grid` component, so wrapped rows stay aligned across columns. `gridBorder: true` enables the bordered-grid mode for shortcut-heavy examples.
+
+### WorkspaceCommandBar
+
+```js
+WorkspaceCommandBar({ value, suggestions, mode, hint, prompt })
+```
+
+Workspace wrapper around `CommandBar`.
+
+### WorkspaceFooter
+
+```js
+WorkspaceFooter({ left, right })
+```
+
+Renders a bottom status footer.
+
+### WorkspaceShell
+
+```js
+WorkspaceShell({ title, subtitle, stats, right, focus, tabs, activeTab, tabHint, main, command, activity, footer, height })
+```
+
+Renders a full application shell and makes `main` fill available height when `height` is provided.
+
+### resolveWorkspaceShellLayout
+
+```js
+resolveWorkspaceShellLayout({
+  width,
+  height,
+  title,
+  subtitle,
+  stats,
+  right,
+  focus,
+  tabs,
+  activeTab,
+  tabHint,
+  command,
+  activity,
+  footer,
+  theme,
+  minMainHeight,
 })
 ```
 
-### WorkspaceHeader, WorkspaceTabs, KeyHintBar, WorkspaceCommandBar, WorkspaceFooter
-
-These are smaller building blocks used by `WorkspaceShell`. `KeyHintBar` is backed by `Grid`, so multi-row shortcut blocks keep stable column alignment instead of relying on manually joined strings.
+Measures the real header, tabs, command, activity, and footer nodes and returns `{ mainHeight, fixedRows, remainingRows, constrained }`. This is useful for examples or apps whose main panes need to know their available height before they build scroll windows. It avoids hard-coded row counts that can drift when borders, hints, or grid helpers change.
 
 ### splitWorkspaceColumns
 
 ```js
-const { mode, widths } = splitWorkspaceColumns(process.stdout.columns || 120);
+splitWorkspaceColumns(width, mode = 'auto')
 ```
 
-Breakpoints:
-
-- `wide`: 160 columns or more, returns three column widths.
-- `medium`: 112–159 columns, returns two column widths.
-- `narrow`: below 112 columns, returns one width.
-
-Use the returned `mode` to decide which panes should be visible.
+Returns `{ mode, widths }` for `wide`, `medium`, or `narrow` layouts.
 
 ### SummaryList
 
 ```js
-SummaryList({
-  title: ' Sessions ',
-  items: sessions,
-  selectedIndex,
-  emptyText: 'No sessions yet.',
-})
+SummaryList({ title, items, selectedIndex, emptyText })
 ```
 
-`SummaryList` is a compact list component built on top of `WorkspacePane`.
+Renders compact summary rows inside a workspace pane.
+
+## Live and timeline blocks
+
+### MetricBlock
+
+```js
+MetricBlock({ title, value, detail, status, pulse })
+```
+
+### KeyValueBlock
+
+```js
+KeyValueBlock({ title, rows })
+```
+
+### LiveJobBlock
+
+```js
+LiveJobBlock({ title, status, steps, activeIndex, progress, frame })
+```
+
+### Timeline
+
+```js
+Timeline({ title, events, limit, getLine })
+```
+
+### createTimelineEvent / formatTimelineTime
+
+```js
+createTimelineEvent({ type, text, actor, time, id, meta })
+formatTimelineTime(value)
+```
+
+## Input and keys
+
+### InputEditor
+
+```js
+new InputEditor(value = '')
+```
+
+Methods:
+
+- `set(value)`, `clear()`
+- `insert(text)`, `insertLineBreak()`
+- `backspace()`, `deleteForward()`
+- `move(delta)`, `moveWord(delta)`, `moveVertical(delta)`
+- `home()`, `end()`, `lineStart()`, `lineEnd()`
+- `killToStart()`, `killToEnd()`, `deleteWordBack()`
+- `getCursorPosition()`
+- `getParts()`
+
+### parseKey / isPrintable
+
+```js
+parseKey(data)
+isPrintable(value)
+```
+
+Normalize raw TTY data and detect printable text.
+
+## Focus and modes
+
+### FocusManager
+
+```js
+new FocusManager(targets)
+```
+
+Methods:
+
+- `current()`, `focus(id)`, `next()`, `previous()`, `move(delta)`
+- `enable(id)`, `disable(id)`
+- `has(id)`, `isEnabled(id)`, `get(id)`, `require(id)`
+
+### ModeManager
+
+```js
+new ModeManager(root = 'input')
+```
+
+Methods:
+
+- `current()`, `currentEntry()`, `is(name)`
+- `push(name, data)`, `pop()`, `replace(name, data)`, `reset()`
+- `toJSON()`
+
+## Command palette
+
+Exports:
+
+- `createCommandPaletteState({ items, query, selectedIndex, windowSize })`
+- `getCommandPaletteMatches(state)`
+- `getPaletteQuery(state)`
+- `handleCommandPaletteKey(state, key)`
+- `renderCommandPalette(state, options)`
+- `normalizePaletteItems(items)`
+
+`handleCommandPaletteKey()` returns actions such as `accept`, `cancel`, `clear`, `move`, `edit`, and `noop`.
+
+## Commands
+
+Built-in command helpers:
+
+- `commands`
+- `parseCommand(line)`
+- `findCommand(name)`
+- `getSuggestions(input)`
+- `helpText()`
+
+Command registry helpers:
+
+- `createCommandRegistry(entries)`
+- `normalizeCommandEntry(entry)`
+
+Parser helpers:
+
+- `parseSlashCommand(line)`
+- `tokenizeCommand(line)`
+- `commandRest(line, commandName)`
+
+## Scroll state and toasts
+
+Scroll helpers:
+
+- `clampScrollOffset(value, max)`
+- `scrollBy(current, delta, max)`
+- `scrollPage(current, direction, pageSize, max)`
+- `normalizeScrollMap(scroll, maxByKey)`
+
+Toast state:
+
+- `createToastManager({ limit, ttlMs })`
+
+The toast manager exposes `show(message, level, ttl)`, `clear()`, `tick(delta)`, and `current(fallback)`.
+
+## Structured blocks and messages
+
+Block helpers:
+
+- `BLOCK_TYPES`
+- `createBlock(input)`
+- `normalizeBlock(input)`
+- `normalizeBlocks(input)`
+- `appendBlockContent(block, content)`
+- `blockToText(block)`
+- `blocksToText(blocks)`
+- `ensureTextBlock(blocks)`
+
+Message helpers:
+
+- `createMessage(input)`
+- `appendMessageChunk(message, chunk)`
+- `appendMessageBlock(message, block)`
+- `setMessageBlocks(message, blocks)`
+- `completeMessage(message)`
+- `trimMessages(messages, limit)`
+- `normalizeMessages(messages)`
+- `visibleConversationMessages(messages)`
+- `lastUserMessage(messages)`
+- `lastAssistantMessage(messages)`
+
+## Chat components
+
+Exports:
+
+- `ChatScreen`
+- `ChatHeader`
+- `ChatTranscript`
+- `SuggestionsPanel`
+- `PalettePanel`
+- `DebugPanel`
+- `StatusBar`
+- `InputBar`
+- `Lines`
+- `Clip`
+- `createChatScreen(options)`
+- `renderTranscriptLines(options)`
+- `renderMessageContentLines(options)`
+- `renderBlocksLines(options)`
+- `renderBlockLines(options)`
+
+Use these when you want the built-in chat/transcript rendering without using the complete `RichTerminalApp`.
+
+## Providers and mock model
+
+Provider exports:
+
+- `createProvider(name)`
+- `listProviders()`
+- `MockProvider`
+- `ReplayProvider`
+
+Mock model exports:
+
+- `buildMockReply(prompt, options)`
+- `buildMockBlocks(prompt, options)`
+- `streamMockReply(prompt, options)`
+- `streamMockBlocks(prompt, options)`
+- `replyRules`
+- `selectRule(prompt, rules)`
+- `StreamCancelled`
+
+## Sessions and skills
+
+Session exports:
+
+- `SessionStore`
+- `serializeSkillState(skillState)`
+- `applySerializedSkillState(skillState, serialized)`
+
+Skill exports:
+
+- `skills`
+- `createSkillState()`
+- `getSkill(id)`
+- `enabledSkillNames(skillState)`
+- `formatSkillList(skillState)`
+
+## Responsive helpers
+
+- `getResponsiveMode(width)`
+- `responsiveColumns(width, mode)`
+- `takeVisible(items, count)`
+
+These helpers are used by the demos to adapt layouts to terminal width.

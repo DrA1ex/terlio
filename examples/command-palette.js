@@ -13,10 +13,11 @@ import {
   WorkspaceShell,
   fitInline,
   renderNode,
+  resolveWorkspaceShellLayout,
   splitWorkspaceColumns,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
-import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, scrollOffset, visibleScrollableRows, workspaceMainHeight } from './_workspaceExampleUtils.js';
+import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, scrollOffset, visibleScrollableRows } from './_workspaceExampleUtils.js';
 
 const ACTIONS = [
   ['chat.new', 'Start a new chat transcript', 'Chat', '⌘N', 'Safe reset that preserves the current session in history.'],
@@ -70,15 +71,48 @@ export function createCommandPaletteView({ state, width = 96, height = 30 } = {}
   normalizeAcceptedSelection(state);
   const selectedAction = items[selected];
   const layout = splitWorkspaceColumns(width);
-  const helpHints = contextHelpHints(state);
-  const helpGridRows = Math.ceil(helpHints.length / 3);
-  const mainHeight = workspaceMainHeight(height, {
-    min: 6,
-    activityRows: helpGridRows ? helpGridRows * 2 + 1 : 0,
-    commandRows: state.activeTab === 'palette' ? 4 : 0,
-    footerRows: 0,
-  });
   const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['palette'] });
+  const tabHint = responsiveTabHint('Tab focus · Enter accept/inspect · PgUp/PgDn page active pane · Ctrl+C exit', TABS, visibleTabs);
+  const stats = [
+    { label: 'Matches', value: items.length },
+    { label: 'Selected', value: selectedAction?.[0] ?? 'none' },
+    { label: 'Accepted', value: state.accepted.length },
+  ];
+  const right = [
+    { label: 'Query', value: state.search.value || '<empty>' },
+    { label: 'Status', value: fitInline(state.status, 44).trimEnd() },
+  ];
+  const helpHints = contextHelpHints(state);
+  const command = state.activeTab === 'palette' ? WorkspaceCommandBar({
+    mode: 'PALETTE',
+    prompt: 'search',
+    value: `${state.search.value || '<empty>'}▌`,
+    suggestions: groupCounts(items),
+    hint: 'typing edits only while Palette is focused',
+    theme: EXAMPLE_THEME,
+  }) : null;
+  const activity = KeyHintBar({
+    title: ' LOCAL HELP ',
+    hints: helpHints,
+    theme: EXAMPLE_THEME,
+    gridBorder: true,
+  });
+  const { mainHeight } = resolveWorkspaceShellLayout({
+    width,
+    height,
+    title: 'Command Palette',
+    subtitle: 'action launcher workspace',
+    stats,
+    right,
+    focus: state.activeTab,
+    tabs: visibleTabs,
+    activeTab: state.activeTab,
+    tabHint,
+    command,
+    activity,
+    theme: EXAMPLE_THEME,
+    minMainHeight: 6,
+  });
   const main = layout.mode === 'wide'
     ? Row({ gap: 2, widths: layout.widths },
         palettePane(state, items, selected, Math.max(30, layout.widths[0]), mainHeight),
@@ -97,34 +131,15 @@ export function createCommandPaletteView({ state, width = 96, height = 30 } = {}
   return WorkspaceShell({
     title: 'Command Palette',
     subtitle: 'action launcher workspace',
-    stats: [
-      { label: 'Matches', value: items.length },
-      { label: 'Selected', value: selectedAction?.[0] ?? 'none' },
-      { label: 'Accepted', value: state.accepted.length },
-    ],
-    right: [
-      { label: 'Query', value: state.search.value || '<empty>' },
-      { label: 'Status', value: fitInline(state.status, 44).trimEnd() },
-    ],
+    stats,
+    right,
     focus: state.activeTab,
     tabs: visibleTabs,
     activeTab: state.activeTab,
-    tabHint: responsiveTabHint('Tab focus · Enter accept/inspect · PgUp/PgDn page active pane · Ctrl+C exit', TABS, visibleTabs),
+    tabHint,
     main,
-    command: state.activeTab === 'palette' ? WorkspaceCommandBar({
-      mode: 'PALETTE',
-      prompt: 'search',
-      value: `${state.search.value || '<empty>'}▌`,
-      suggestions: groupCounts(items),
-      hint: 'typing edits only while Palette is focused',
-      theme: EXAMPLE_THEME,
-    }) : null,
-    activity: KeyHintBar({
-      title: ' LOCAL HELP ',
-      hints: helpHints,
-      theme: EXAMPLE_THEME,
-      gridBorder: true,
-    }),
+    command,
+    activity,
     height,
     theme: EXAMPLE_THEME,
   });

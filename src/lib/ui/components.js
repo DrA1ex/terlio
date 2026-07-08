@@ -1,5 +1,6 @@
 import { color, visibleLength, truncateVisible } from '../ansi.js';
 import { Box, Column, Panel, Row, Text, createNode } from './node.js';
+import { isScrollAtBottom, resolveAutoScrollOffset } from '../scrollState.js';
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
@@ -267,15 +268,31 @@ export function TextEditorView({
   return Box({ border: true, padding: { left: 1, right: 1 }, title }, ...lines.map((line) => Text(line, { wrap: false })));
 }
 
-export function visibleWindowLines(lines = [], { height = 8, scroll = 0, tail = false } = {}) {
+export function visibleWindowLines(lines = [], {
+  height = 8,
+  scroll = 0,
+  tail = false,
+  autoscroll = false,
+  previousTotalRows = undefined,
+  sticky = undefined,
+} = {}) {
   const safeLines = Array.from(lines, (line) => String(line ?? ''));
   const safeHeight = Math.max(1, Number(height) || 1);
   const maxScroll = Math.max(0, safeLines.length - safeHeight);
-  const safeScroll = clamp(Number(scroll) || 0, 0, maxScroll);
+  const resolvedScroll = autoscroll
+    ? resolveAutoScrollOffset({
+        scroll,
+        totalRows: safeLines.length,
+        previousTotalRows: previousTotalRows ?? safeLines.length,
+        visibleRows: safeHeight,
+        sticky,
+      })
+    : scroll;
+  const safeScroll = clamp(Number(resolvedScroll) || 0, 0, maxScroll);
   const start = tail ? Math.max(0, safeLines.length - safeHeight - safeScroll) : safeScroll;
   const visible = safeLines.slice(start, start + safeHeight);
   while (visible.length < safeHeight) visible.push('');
-  return { lines: visible, scroll: safeScroll, maxScroll, start };
+  return { lines: visible, scroll: safeScroll, maxScroll, start, atBottom: isScrollAtBottom(safeScroll, safeLines.length, safeHeight) };
 }
 
 export function ScrollPane({
@@ -286,9 +303,12 @@ export function ScrollPane({
   scroll = 0,
   border = true,
   footer = true,
+  autoscroll = false,
+  previousTotalRows = undefined,
+  sticky = undefined,
 } = {}) {
   const innerHeight = Math.max(1, Number(height) || 1) - (border ? 3 : 1);
-  const window = visibleWindowLines(lines, { height: Math.max(1, innerHeight), scroll });
+  const window = visibleWindowLines(lines, { height: Math.max(1, innerHeight), scroll, autoscroll, previousTotalRows, sticky });
   const rows = window.lines.map((line) => Text(fitInline(line, Math.max(1, width - (border ? 4 : 0))), { wrap: false }));
   if (footer) rows.push(Text(`↑↓ scroll ${window.scroll}/${window.maxScroll}`, { wrap: false }));
   return Box({ border, padding: border ? { left: 1, right: 1 } : 0, title, height }, ...rows);

@@ -1,6 +1,7 @@
 import { color } from '../ansi.js';
 import { Box, Column, Row, Text } from './node.js';
 import { CommandBar, FooterStatusBar, Grid, SectionTabs, fitInline } from './components.js';
+import { measureNodeHeight } from './layout.js';
 
 export function WorkspaceHeader({
   title = 'Workspace',
@@ -77,6 +78,44 @@ export function WorkspaceFooter({ left = [], right = [], theme = null } = {}) {
   return Box({ border: true, borderColor: theme?.border, padding: { left: 1, right: 1 }, title: ' STATUS ' },
     FooterStatusBar({ left, right, theme }),
   );
+}
+
+
+export function resolveWorkspaceShellLayout({
+  width = 80,
+  height = 24,
+  title = 'Workspace',
+  subtitle = '',
+  stats = [],
+  right = [],
+  focus = '',
+  tabs = [],
+  activeTab = '',
+  tabHint = '',
+  command = null,
+  activity = null,
+  footer = null,
+  theme = null,
+  minMainHeight = 1,
+} = {}) {
+  const safeWidth = Math.max(1, Number(width) || 80);
+  const safeHeight = Math.max(0, Number(height) || 0);
+  const fixedNodes = [
+    WorkspaceHeader({ title, subtitle, stats, right, focus, theme }),
+    tabs.length ? WorkspaceTabs({ tabs, active: activeTab, hint: tabHint, theme }) : null,
+    command,
+    activity,
+    footer,
+  ].filter(Boolean);
+  const fixedRows = fixedNodes.reduce((sum, node) => sum + measureNodeHeight(node, safeWidth), 0);
+  const remainingRows = Math.max(0, safeHeight - fixedRows);
+  const mainHeight = Math.max(1, remainingRows || Math.min(Math.max(1, Number(minMainHeight) || 1), safeHeight || 1));
+  return {
+    mainHeight,
+    fixedRows,
+    remainingRows,
+    constrained: remainingRows < Math.max(1, Number(minMainHeight) || 1),
+  };
 }
 
 export function WorkspaceShell({

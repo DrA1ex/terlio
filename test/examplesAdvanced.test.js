@@ -10,6 +10,7 @@ import { createCommandCenterState, createCommandCenterView, handleCommandCenterK
 import { createSessionBrowserState, createSessionBrowserView, getSessionMatches, handleSessionBrowserKey } from '../examples/sessions.js';
 import { cancelAgentStream, createAgentStreamState, createAgentStreamView, handleAgentStreamKey, submitAgentPrompt } from '../examples/agent-stream.js';
 import { createThemeGalleryState, createThemeGalleryView, handleThemeGalleryKey } from '../examples/themes.js';
+import { createCommandPaletteState, createCommandPaletteView } from '../examples/command-palette.js';
 
 test('package exposes advanced product and diagnostic examples', async () => {
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
@@ -117,4 +118,19 @@ test('theme gallery switches previews across all available themes', () => {
   assert.match(output, /Theme Gallery/);
   assert.match(output, /Selected theme/);
   assert.match(output, /Theme token check/);
+});
+
+
+test('command palette keeps Actions bounded above the Palette command bar on small terminals', () => {
+  const state = createCommandPaletteState();
+  const output = stripAnsi(renderToString(createCommandPaletteView({ state, width: 80, height: 24 }), { width: 80, height: 24 }));
+  const lines = output.split('\n');
+  const actionsTop = lines.findIndex((line) => line.includes('ACTIONS'));
+  const paletteTop = lines.findIndex((line, index) => index > actionsTop && line.includes(' PALETTE'));
+  const actionsBottom = lines.findIndex((line, index) => index > actionsTop && index < paletteTop && line.startsWith('└'));
+
+  assert.equal(lines.length, 24);
+  assert.ok(actionsTop >= 0, 'Actions pane should render');
+  assert.ok(paletteTop > actionsTop, 'Palette command bar should render after Actions');
+  assert.ok(actionsBottom > actionsTop && actionsBottom < paletteTop, 'Actions pane should close before Palette command bar starts');
 });

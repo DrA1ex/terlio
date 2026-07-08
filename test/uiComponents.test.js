@@ -20,7 +20,12 @@ import {
   WorkspacePane,
   WorkspaceCommandBar,
   WorkspaceFooter,
+  KeyHintBar,
+  resolveWorkspaceShellLayout,
+  measureNodeHeight,
   splitWorkspaceColumns,
+  resolveAutoScrollOffset,
+  isScrollAtBottom,
 } from '../src/lib/index.js';
 
 test('SelectList renders a scrollable selected window', () => {
@@ -120,6 +125,35 @@ test('visibleWindowLines returns a clamped scrollable window', () => {
   assert.equal(window.maxScroll, 2);
 });
 
+
+
+test('auto-scroll helper sticks to bottom only while already pinned', () => {
+  assert.equal(resolveAutoScrollOffset({ scroll: 0, previousTotalRows: 2, totalRows: 8, visibleRows: 3 }), 5);
+  assert.equal(resolveAutoScrollOffset({ scroll: 1, previousTotalRows: 8, totalRows: 10, visibleRows: 3 }), 1);
+  assert.equal(resolveAutoScrollOffset({ scroll: 5, previousTotalRows: 8, totalRows: 10, visibleRows: 3 }), 7);
+  assert.equal(isScrollAtBottom(7, 10, 3), true);
+  assert.equal(isScrollAtBottom(6, 10, 3), false);
+
+  const pinnedWindow = visibleWindowLines(['a', 'b', 'c', 'd', 'e'], {
+    height: 2,
+    scroll: 1,
+    previousTotalRows: 3,
+    autoscroll: true,
+  });
+  assert.deepEqual(pinnedWindow.lines, ['d', 'e']);
+  assert.equal(pinnedWindow.atBottom, true);
+
+  const manualWindow = visibleWindowLines(['a', 'b', 'c', 'd', 'e'], {
+    height: 2,
+    scroll: 1,
+    previousTotalRows: 5,
+    sticky: false,
+    autoscroll: true,
+  });
+  assert.deepEqual(manualWindow.lines, ['b', 'c']);
+  assert.equal(manualWindow.atBottom, false);
+});
+
 test('ANSI truncation and layout fitting preserve color sequences', async () => {
   const { color, themes, truncateVisible, renderToString, Text } = await import('../src/lib/index.js');
   const colored = color(themes.ocean, 'accent', 'abcdef');
@@ -169,4 +203,39 @@ test('splitWorkspaceColumns switches from one to two to three pane layouts', () 
   assert.equal(splitWorkspaceColumns(130).mode, 'medium');
   assert.equal(splitWorkspaceColumns(180).mode, 'wide');
   assert.equal(splitWorkspaceColumns(180).widths.length, 3);
+});
+
+
+test('resolveWorkspaceShellLayout measures real shell chrome instead of relying on hard-coded rows', () => {
+  const command = WorkspaceCommandBar({ value: 'search <empty>▌', mode: 'PALETTE', suggestions: ['chat 3'] });
+  const activity = KeyHintBar({
+    title: ' LOCAL HELP ',
+    gridBorder: true,
+    hints: [
+      ['Type', 'filter actions'],
+      ['↑/↓', 'select action'],
+      ['PgUp/PgDn', 'page list'],
+      ['Enter', 'accept action'],
+      ['Esc', 'clear filter'],
+      ['Tab', 'switch pane'],
+    ],
+  });
+  const layout = resolveWorkspaceShellLayout({
+    width: 80,
+    height: 24,
+    title: 'Command Palette',
+    subtitle: 'action launcher workspace',
+    stats: [{ label: 'Matches', value: 24 }],
+    right: [{ label: 'Status', value: 'ready' }],
+    tabs: [{ id: 'palette', label: 'Palette' }],
+    activeTab: 'palette',
+    tabHint: 'Tab focus',
+    command,
+    activity,
+    minMainHeight: 6,
+  });
+
+  assert.equal(layout.fixedRows + layout.mainHeight, 24);
+  assert.equal(layout.constrained, true);
+  assert.equal(measureNodeHeight(activity, 80), 7);
 });

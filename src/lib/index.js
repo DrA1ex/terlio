@@ -13,7 +13,7 @@ export { BLOCK_TYPES, appendBlockContent, blockToText, blocksToText, createBlock
 export { wrapText } from './wrap.js';
 
 export { Box, Column, Panel, Row, Text, createNode, normalizeChildren } from './ui/node.js';
-export { layout, renderNode } from './ui/layout.js';
+export { layout, renderNode, measureNodeHeight } from './ui/layout.js';
 export { Frame, createFrame, normalizeLines, padEndVisible as padFrameLine, truncateVisibleText } from './ui/screen.js';
 export { diffFrames, patchFrames } from './ui/diff.js';
 export { TerminalRenderer, renderToFrame, renderToString } from './ui/renderer.js';
@@ -73,7 +73,7 @@ export { Timeline, createTimelineEvent, formatTimelineTime } from './ui/timeline
 export { MetricBlock, KeyValueBlock, LiveJobBlock } from './ui/liveBlocks.js';
 export { createToastManager } from './toastManager.js';
 
-export { clampScrollOffset, scrollBy, scrollPage, normalizeScrollMap } from './scrollState.js';
+export { clampScrollOffset, scrollBy, scrollPage, normalizeScrollMap, scrollMax, isScrollAtBottom, resolveAutoScrollOffset } from './scrollState.js';
 
 export {
   WorkspaceHeader,
@@ -83,6 +83,7 @@ export {
   WorkspaceCommandBar,
   WorkspaceFooter,
   WorkspaceShell,
+  resolveWorkspaceShellLayout,
   SummaryList,
   splitWorkspaceColumns,
 } from './ui/workspace.js';

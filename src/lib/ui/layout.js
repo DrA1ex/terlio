@@ -6,6 +6,10 @@ export function layout(node, { width = 80, height = 24 } = {}) {
   return createFrame(lines, { width, height });
 }
 
+export function measureNodeHeight(node, width = 80) {
+  return renderNode(node, Math.max(1, width)).length;
+}
+
 export function renderNode(node, width = 80) {
   if (!node) return [];
   if (typeof node === 'string' || typeof node === 'number') return wrapPlain(String(node), width);
@@ -109,26 +113,28 @@ function distribute(total, count) {
 
 function renderRow(node, width) {
   const gap = Number(node.props.gap ?? 0);
-  if (!node.children.length) return [''];
+  const fixedHeight = node.props.height === undefined || node.props.height === 'fill' ? null : Math.max(0, Number(node.props.height) || 0);
+  if (!node.children.length) return applyFixedHeight([''], width, fixedHeight);
 
+  const childForRow = (child) => fixedHeight === null ? child : withHeight(child, fixedHeight);
   const explicitWidths = Array.isArray(node.props.widths) ? node.props.widths.map((item) => Number(item) || 0) : null;
   if (explicitWidths?.length) {
     const childCount = node.children.length;
     const available = Math.max(1, width - gap * (childCount - 1));
     const normalized = normalizeRowWidths(explicitWidths, childCount, available);
-    const rendered = node.children.map((child, index) => renderNode(child, normalized[index]));
-    return stitchRows(rendered, normalized, gap, width);
+    const rendered = node.children.map((child, index) => renderNode(childForRow(child), normalized[index]));
+    return applyFixedHeight(stitchRows(rendered, normalized, gap, width), width, fixedHeight);
   }
 
   if (node.props.distribute === true) {
     const childWidth = Math.max(1, Math.floor((width - gap * (node.children.length - 1)) / node.children.length));
-    const rendered = node.children.map((child) => renderNode(child, childWidth));
-    return stitchRows(rendered, Array(node.children.length).fill(childWidth), gap, width);
+    const rendered = node.children.map((child) => renderNode(childForRow(child), childWidth));
+    return applyFixedHeight(stitchRows(rendered, Array(node.children.length).fill(childWidth), gap, width), width, fixedHeight);
   }
 
-  const rendered = node.children.map((child) => renderNode(child, width));
+  const rendered = node.children.map((child) => renderNode(childForRow(child), width));
   const widths = rendered.map((lines) => Math.max(0, ...lines.map((line) => Math.min(width, visibleLength(String(line ?? '').trimEnd())))));
-  return stitchRows(rendered, widths, gap, width);
+  return applyFixedHeight(stitchRows(rendered, widths, gap, width), width, fixedHeight);
 }
 
 function normalizeRowWidths(widths, childCount, available) {
@@ -216,21 +222,30 @@ function renderBorderedGrid(rows, props, width, columns) {
 }
 
 function renderBox(node, width) {
-  const fixedHeight = node.props.height === undefined ? null : Math.max(0, Number(node.props.height) || 0);
+  const fixedHeight = node.props.height === undefined || node.props.height === 'fill' ? null : Math.max(0, Number(node.props.height) || 0);
   const border = Boolean(node.props.border);
   const padding = normalizeSpacing(node.props.padding ?? 0);
   const borderSize = border ? 2 : 0;
   const innerWidth = Math.max(1, width - borderSize - padding.left - padding.right);
-  const childLines = renderColumn({ type: 'column', props: { gap: node.props.gap ?? 0 }, children: node.children }, innerWidth);
+  const contentWidth = Math.max(0, width - borderSize);
+  const availableContentRows = fixedHeight === null ? null : Math.max(0, fixedHeight - borderSize);
+  const availableChildRows = availableContentRows === null
+    ? null
+    : Math.max(0, availableContentRows - padding.top - padding.bottom);
+  const columnProps = { gap: node.props.gap ?? 0 };
+  if (availableChildRows !== null) columnProps.height = availableChildRows;
+  const childLines = renderColumn({ type: 'column', props: columnProps, children: node.children }, innerWidth);
+  const topPadding = availableContentRows === null ? padding.top : Math.min(padding.top, availableContentRows);
+  const rowsAfterTopPadding = availableContentRows === null ? null : Math.max(0, availableContentRows - topPadding);
+  const bottomPadding = rowsAfterTopPadding === null ? padding.bottom : Math.min(padding.bottom, rowsAfterTopPadding);
   const padded = [
-    ...Array(padding.top).fill(''),
+    ...Array(topPadding).fill(''),
     ...childLines,
-    ...Array(padding.bottom).fill(''),
+    ...Array(bottomPadding).fill(''),
   ].map((line) => ' '.repeat(padding.left) + fit(line, innerWidth) + ' '.repeat(padding.right));
 
   if (!border) return applyFixedHeight(padded.map((line) => fit(line, width)), width, fixedHeight);
 
-  const contentWidth = Math.max(0, width - 2);
   const title = node.props.title ? ` ${String(node.props.title)} ` : '';
   const borderColor = String(node.props.borderColor ?? '');
   const reset = borderColor ? '\x1b[0m' : '';

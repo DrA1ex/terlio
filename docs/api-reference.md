@@ -103,14 +103,15 @@ Flattens children, removes empty values, and converts strings/numbers into text 
 
 ## Layout, frames, and rendering
 
-### layout / renderNode
+### layout / renderNode / measureNodeHeight
 
 ```js
 layout(node, { width, height })
 renderNode(node, width)
+measureNodeHeight(node, width)
 ```
 
-`layout()` returns a fixed-size frame. `renderNode()` returns rendered lines for a node at a given width.
+`layout()` returns a fixed-size frame. `renderNode()` returns rendered lines for a node at a given width. `measureNodeHeight()` renders the node at the same width and returns the number of rows it would occupy; use it when calculating available space for adaptive terminal layouts.
 
 ### Frame
 
@@ -258,14 +259,17 @@ renderTextEditorLines({ value, cursor, width, height, lineNumbers, placeholder, 
 
 Render a multi-line editor view or its raw lines.
 
-### visibleWindowLines / ScrollPane
+### visibleWindowLines / ScrollPane / autoscroll helpers
 
 ```js
-visibleWindowLines(lines, { height, scroll, tail })
-ScrollPane({ title, lines, width, height, scroll, border, footer })
+visibleWindowLines(lines, { height, scroll, tail, autoscroll, previousTotalRows, sticky })
+ScrollPane({ title, lines, width, height, scroll, border, footer, autoscroll, previousTotalRows, sticky })
+resolveAutoScrollOffset({ scroll, previousTotalRows, totalRows, visibleRows, sticky })
+isScrollAtBottom(scroll, totalRows, visibleRows)
+scrollMax(totalRows, visibleRows)
 ```
 
-Render or calculate a scroll window.
+Render or calculate a scroll window. Use `resolveAutoScrollOffset()` for log/transcript panes that should follow new output only while the user is already at the bottom. Once the user scrolls up, keep `sticky: false`; when they page back to the bottom, set it to `true` again.
 
 ### fitInline
 
@@ -332,6 +336,30 @@ WorkspaceShell({ title, subtitle, stats, right, focus, tabs, activeTab, tabHint,
 ```
 
 Renders a full application shell and makes `main` fill available height when `height` is provided.
+
+### resolveWorkspaceShellLayout
+
+```js
+resolveWorkspaceShellLayout({
+  width,
+  height,
+  title,
+  subtitle,
+  stats,
+  right,
+  focus,
+  tabs,
+  activeTab,
+  tabHint,
+  command,
+  activity,
+  footer,
+  theme,
+  minMainHeight,
+})
+```
+
+Measures the real header, tabs, command, activity, and footer nodes and returns `{ mainHeight, fixedRows, remainingRows, constrained }`. This is useful for examples or apps whose main panes need to know their available height before they build scroll windows. It avoids hard-coded row counts that can drift when borders, hints, or grid helpers change.
 
 ### splitWorkspaceColumns
 

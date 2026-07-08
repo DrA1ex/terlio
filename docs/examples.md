@@ -66,7 +66,7 @@ A polished InputEditor workspace with a live draft buffer, visible cursor state,
 npm run example:palette
 ```
 
-A product-style command launcher with grouped actions, searchable metadata, selected-action details, accepted-action log, responsive layout, tab-scoped keyboard handling, PgUp/PgDn scrolling for long panes, and bordered-grid local help.
+A product-style command launcher with grouped actions, searchable metadata, selected-action details, accepted-action log, responsive layout, tab-scoped keyboard handling, PgUp/PgDn scrolling for long panes, bordered-grid local help, and measured workspace sizing so the Actions pane stays bounded above the command bar on small terminals.
 
 ### Streaming Workbench
 
@@ -74,7 +74,7 @@ A product-style command launcher with grouped actions, searchable metadata, sele
 npm run example:stream
 ```
 
-A streaming workspace with an explicit prompt editor, Ctrl+J newline support, transcript scrolling, runtime control rail, chunk progress, cancellation path, sample prompts loaded with bracket shortcuts, and bordered-grid local help.
+A streaming workspace with an explicit prompt editor, Ctrl+J newline support, transcript autoscroll, runtime control rail, chunk progress, cancellation path, clear `[ and ]` template switching, and a `+ Add new one` flow for saving the current prompt plus a scenario response as a reusable template.
 
 ### Interaction Kit
 

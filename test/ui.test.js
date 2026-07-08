@@ -64,3 +64,23 @@ test('Column grow child pins following footer to the bottom', () => {
     'bottom  ',
   ]);
 });
+
+
+test('fixed-height bordered boxes keep the closing border when content overflows', () => {
+  const frame = renderToFrame(Box({ border: true, height: 3 }, Text('one'), Text('two')), { width: 8, height: 3 });
+  assert.deepEqual(frame.toLines(), [
+    '┌──────┐',
+    '│one   │',
+    '└──────┘',
+  ]);
+});
+
+test('fixed-height rows pass the assigned height to child boxes', () => {
+  const frame = renderToFrame(Row({ height: 4, widths: [8, 8], gap: 1 },
+    Box({ border: true }, Text('left'), Text('overflow')),
+    Box({ border: true }, Text('right')),
+  ), { width: 17, height: 4 });
+  const lines = frame.toLines();
+  assert.match(lines[0], /┌──────┐ ┌──────┐/);
+  assert.match(lines[3], /└──────┘ └──────┘/);
+});

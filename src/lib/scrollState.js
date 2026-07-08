@@ -21,3 +21,29 @@ export function normalizeScrollMap(scroll = {}, maxByKey = {}) {
   }
   return next;
 }
+
+export function scrollMax(totalRows = 0, visibleRows = 1) {
+  return Math.max(0, Math.max(0, Number(totalRows) || 0) - Math.max(1, Number(visibleRows) || 1));
+}
+
+export function isScrollAtBottom(scroll = 0, totalRows = 0, visibleRows = 1) {
+  const max = scrollMax(totalRows, visibleRows);
+  return clampScrollOffset(scroll, max) >= max;
+}
+
+export function resolveAutoScrollOffset({
+  scroll = 0,
+  totalRows = 0,
+  visibleRows = 1,
+  previousTotalRows = totalRows,
+  sticky = undefined,
+} = {}) {
+  const safeVisible = Math.max(1, Number(visibleRows) || 1);
+  const previousMax = scrollMax(previousTotalRows, safeVisible);
+  const nextMax = scrollMax(totalRows, safeVisible);
+  const safeScroll = clampScrollOffset(scroll, nextMax);
+  const shouldStick = sticky === undefined
+    ? clampScrollOffset(scroll, previousMax) >= previousMax
+    : Boolean(sticky);
+  return shouldStick ? nextMax : safeScroll;
+}
