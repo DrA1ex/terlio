@@ -89,7 +89,7 @@ export function scrollToVisible(current = 0, index = 0, visibleRows = 1, totalRo
   return Math.max(0, Math.min(max, Number(current) || 0));
 }
 
-export function visibleScrollableRows(lines = [], { scroll = 0, height = 8, width = 80, footer = true } = {}) {
+export function visibleScrollableRows(lines = [], { scroll = 0, height = 8, width = 80, footer = true, footerLabel = 'PgUp/PgDn scroll' } = {}) {
   const safeLines = Array.from(lines, (line) => String(line ?? ''));
   const footerRows = footer ? 1 : 0;
   const visibleHeight = Math.max(1, (Number(height) || 1) - footerRows);
@@ -101,7 +101,7 @@ export function visibleScrollableRows(lines = [], { scroll = 0, height = 8, widt
   if (footer) {
     const end = safeLines.length ? Math.min(safeLines.length, safeScroll + visibleHeight) : 0;
     const range = safeLines.length ? `${safeScroll + 1}-${end}/${safeLines.length}` : '0/0';
-    fitted.push(fitInline(`PgUp/PgDn scroll · ${range}`, Math.max(1, width)));
+    fitted.push(fitInline(`${footerLabel} · ${range}`, Math.max(1, width)));
   }
   return { rows: fitted, scroll: safeScroll, maxScroll };
 }

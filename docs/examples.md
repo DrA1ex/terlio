@@ -74,7 +74,7 @@ A product-style command launcher with grouped actions, searchable metadata, sele
 npm run example:stream
 ```
 
-A streaming workspace with an explicit prompt editor, Ctrl+J newline support, transcript autoscroll, runtime control rail, chunk progress, cancellation path, clear `[ and ]` template switching, and a `+ Add new one` flow for saving the current prompt plus a scenario response as a reusable template.
+A streaming workspace with an explicit prompt editor, Ctrl+J newline support, transcript autoscroll, read-only transcript line scrolling with ↑/↓, page scrolling with PgUp/PgDn, runtime control rail, chunk progress, cancellation path, clear `[ and ]` template switching, and a `+ Add new one` flow for saving the current prompt plus a scenario response as a reusable template.
 
 ### Interaction Kit
 

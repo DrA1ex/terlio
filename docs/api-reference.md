@@ -265,11 +265,13 @@ Render a multi-line editor view or its raw lines.
 visibleWindowLines(lines, { height, scroll, tail, autoscroll, previousTotalRows, sticky })
 ScrollPane({ title, lines, width, height, scroll, border, footer, autoscroll, previousTotalRows, sticky })
 resolveAutoScrollOffset({ scroll, previousTotalRows, totalRows, visibleRows, sticky })
+resolveScrollKeyOffset({ keyName, scroll, totalRows, visibleRows, sticky })
+scrollLine(scroll, direction, max, step)
 isScrollAtBottom(scroll, totalRows, visibleRows)
 scrollMax(totalRows, visibleRows)
 ```
 
-Render or calculate a scroll window. Use `resolveAutoScrollOffset()` for log/transcript panes that should follow new output only while the user is already at the bottom. Once the user scrolls up, keep `sticky: false`; when they page back to the bottom, set it to `true` again.
+Render or calculate a scroll window. Use `resolveAutoScrollOffset()` for log/transcript panes that should follow new output only while the user is already at the bottom. Use `resolveScrollKeyOffset()` for read-only panes that should handle `up`, `down`, `page-up`, and `page-down` consistently. Once the user scrolls up, keep `sticky: false`; when they scroll or page back to the bottom, set it to `true` again.
 
 ### fitInline
 

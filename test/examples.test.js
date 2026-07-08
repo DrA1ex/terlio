@@ -140,12 +140,25 @@ test('streaming workbench view renders prompt, controls and transcript area', ()
   assert.match(output, /Esc/);
 });
 
-test('streaming workbench keeps arrows local and uses explicit sample shortcuts', () => {
+test('streaming workbench keeps shortcuts local and supports transcript line scrolling', () => {
   const state = createStreamingWorkbenchState();
+  state.messages = [
+    { role: 'user', content: 'long prompt' },
+    { role: 'assistant', content: Array.from({ length: 80 }, (_, index) => `word${index}`).join(' ') },
+  ];
   state.activeTab = 'transcript';
-  handleStreamingWorkbenchKey({ key: { name: 'down' }, state, runtime: { invalidate() {} } });
+  renderToString(createStreamingWorkbenchView({ state, width: 72, height: 20 }), { width: 72, height: 20 });
+  const bottom = state.paneScroll.transcript;
+
+  handleStreamingWorkbenchKey({ key: { name: 'up' }, state, runtime: { invalidate() {} } });
   assert.equal(state.replyIndex, 0);
-  assert.match(state.status, /PageUp\/PageDown/);
+  assert.equal(state.paneScroll.transcript, bottom - 1);
+  assert.equal(state.transcriptAutoscroll, false);
+  assert.match(state.status, /one line/);
+
+  handleStreamingWorkbenchKey({ key: { name: 'down' }, state, runtime: { invalidate() {} } });
+  assert.equal(state.paneScroll.transcript, bottom);
+  assert.equal(state.transcriptAutoscroll, true);
 
   state.activeTab = 'prompt';
   handleStreamingWorkbenchKey({ key: { name: ']', printable: true, text: ']' }, state, runtime: { invalidate() {} } });
@@ -203,6 +216,32 @@ test('streaming workbench keeps Prompt active after submit and autoscrolls trans
   state.messages[1].content += ' twenty-one twenty-two twenty-three twenty-four twenty-five';
   renderToString(createStreamingWorkbenchView({ state, width: 72, height: 20 }), { width: 72, height: 20 });
   assert.equal(state.paneScroll.transcript, manualScroll);
+});
+
+test('streaming workbench transcript paging uses the rendered pane viewport', () => {
+  const state = createStreamingWorkbenchState();
+  state.messages = [
+    { role: 'user', content: 'long prompt' },
+    { role: 'assistant', content: Array.from({ length: 120 }, (_, index) => `word${index}`).join(' ') },
+  ];
+  state.activeTab = 'transcript';
+
+  const initial = renderToString(createStreamingWorkbenchView({ state, width: 72, height: 20 }), { width: 72, height: 20 });
+  assert.match(initial, /↑\/↓ line · PgUp\/PgDn page/);
+  assert.equal(state.transcriptAutoscroll, true);
+  const bottomScroll = state.paneScroll.transcript;
+  const visibleRows = state.scrollMetrics.transcript.visibleRows;
+  assert.ok(bottomScroll > visibleRows);
+
+  handleStreamingWorkbenchKey({ key: { name: 'page-up' }, state, runtime: { invalidate() {} } });
+  renderToString(createStreamingWorkbenchView({ state, width: 72, height: 20 }), { width: 72, height: 20 });
+  assert.equal(state.paneScroll.transcript, bottomScroll - visibleRows);
+  assert.equal(state.transcriptAutoscroll, false);
+
+  handleStreamingWorkbenchKey({ key: { name: 'page-down' }, state, runtime: { invalidate() {} } });
+  renderToString(createStreamingWorkbenchView({ state, width: 72, height: 20 }), { width: 72, height: 20 });
+  assert.equal(state.paneScroll.transcript, bottomScroll);
+  assert.equal(state.transcriptAutoscroll, true);
 });
 
 test('components showcase can render without a TTY and exposes frame diff operations', () => {

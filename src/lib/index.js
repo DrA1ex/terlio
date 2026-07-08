@@ -73,7 +73,7 @@ export { Timeline, createTimelineEvent, formatTimelineTime } from './ui/timeline
 export { MetricBlock, KeyValueBlock, LiveJobBlock } from './ui/liveBlocks.js';
 export { createToastManager } from './toastManager.js';
 
-export { clampScrollOffset, scrollBy, scrollPage, normalizeScrollMap, scrollMax, isScrollAtBottom, resolveAutoScrollOffset } from './scrollState.js';
+export { clampScrollOffset, scrollBy, scrollLine, scrollPage, normalizeScrollMap, scrollMax, isScrollAtBottom, resolveAutoScrollOffset, resolveScrollKeyOffset } from './scrollState.js';
 
 export {
   WorkspaceHeader,

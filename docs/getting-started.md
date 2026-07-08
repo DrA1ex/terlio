@@ -162,6 +162,7 @@ Use component helpers when you need common terminal UI patterns:
 SelectList({ items, selectedIndex })
 CommandBar({ value, suggestions })
 ScrollPane({ lines, scroll, height })
+resolveScrollKeyOffset({ keyName, scroll, totalRows, visibleRows })
 ```
 
 Use workspace primitives when you are building a product-style full-screen terminal application:

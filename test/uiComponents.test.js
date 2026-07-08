@@ -25,6 +25,7 @@ import {
   measureNodeHeight,
   splitWorkspaceColumns,
   resolveAutoScrollOffset,
+  resolveScrollKeyOffset,
   isScrollAtBottom,
 } from '../src/lib/index.js';
 
@@ -152,6 +153,25 @@ test('auto-scroll helper sticks to bottom only while already pinned', () => {
   });
   assert.deepEqual(manualWindow.lines, ['b', 'c']);
   assert.equal(manualWindow.atBottom, false);
+});
+
+
+test('resolveScrollKeyOffset handles line and page scroll for read-only panes', () => {
+  const lineUp = resolveScrollKeyOffset({ keyName: 'up', scroll: 8, totalRows: 20, visibleRows: 5 });
+  assert.equal(lineUp.handled, true);
+  assert.equal(lineUp.scroll, 7);
+  assert.equal(lineUp.atBottom, false);
+
+  const lineDownFromStickyBottom = resolveScrollKeyOffset({ keyName: 'down', scroll: 0, totalRows: 20, visibleRows: 5, sticky: true });
+  assert.equal(lineDownFromStickyBottom.scroll, 15);
+  assert.equal(lineDownFromStickyBottom.atBottom, true);
+
+  const pageUp = resolveScrollKeyOffset({ keyName: 'page-up', scroll: 15, totalRows: 20, visibleRows: 5 });
+  assert.equal(pageUp.scroll, 10);
+
+  const ignored = resolveScrollKeyOffset({ keyName: 'left', scroll: 3, totalRows: 20, visibleRows: 5 });
+  assert.equal(ignored.handled, false);
+  assert.equal(ignored.scroll, 3);
 });
 
 test('ANSI truncation and layout fitting preserve color sequences', async () => {

@@ -14,10 +14,12 @@ import {
   isScrollAtBottom,
   renderNode,
   resolveAutoScrollOffset,
+  resolveScrollKeyOffset,
+  resolveWorkspaceShellLayout,
   splitWorkspaceColumns,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
-import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, scrollOffset, visibleScrollableRows, workspaceMainHeight } from './_workspaceExampleUtils.js';
+import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, visibleScrollableRows } from './_workspaceExampleUtils.js';
 
 const TABS = [
   { id: 'prompt', label: 'Prompt' },
@@ -60,6 +62,7 @@ export function createStreamingWorkbenchState() {
     paneScroll: { transcript: 0, control: 0 },
     transcriptAutoscroll: true,
     transcriptRowCount: 0,
+    scrollMetrics: { transcript: { totalRows: 0, visibleRows: 1 } },
     keyLog: [],
     status: 'Edit the prompt, then press Enter to start a fake stream.',
   };
@@ -68,14 +71,38 @@ export function createStreamingWorkbenchState() {
 export function createStreamingWorkbenchView({ state, width = 100, height = 30 } = {}) {
   const layout = splitWorkspaceColumns(width);
   const helpHints = contextHelpHints(state);
-  const helpGridRows = Math.ceil(helpHints.length / 3);
-  const mainHeight = workspaceMainHeight(height, {
-    min: 6,
-    activityRows: helpGridRows ? helpGridRows * 2 + 1 : 0,
-    commandRows: 0,
-    footerRows: 0,
-  });
   const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['prompt'] });
+  const stats = [
+    { label: 'Streaming', value: state.streaming ? 'yes' : 'no' },
+    { label: 'Chunks', value: `${state.streamIndex}/${state.streamTotal}` },
+    { label: 'Messages', value: state.messages.length },
+  ];
+  const right = [
+    { label: 'Scenario', value: activeScenarioTitle(state) },
+    { label: 'Status', value: fitInline(state.status, 46).trimEnd() },
+  ];
+  const tabHint = responsiveTabHint('Tab focus · Enter submit from Prompt · Esc cancel stream · PgUp/PgDn scroll active pane', TABS, visibleTabs);
+  const activity = KeyHintBar({
+    title: ' LOCAL HELP ',
+    hints: helpHints,
+    theme: EXAMPLE_THEME,
+    gridBorder: true,
+  });
+  const { mainHeight } = resolveWorkspaceShellLayout({
+    width,
+    height,
+    title: 'Streaming Workbench',
+    subtitle: 'incremental output lab',
+    stats,
+    right,
+    focus: state.activeTab,
+    tabs: visibleTabs,
+    activeTab: state.activeTab,
+    tabHint,
+    activity,
+    theme: EXAMPLE_THEME,
+    minMainHeight: 3,
+  });
   const main = layout.mode === 'wide'
     ? Row({ gap: 2, widths: layout.widths },
         promptPane(state, Math.max(30, layout.widths[0]), mainHeight),
@@ -94,26 +121,14 @@ export function createStreamingWorkbenchView({ state, width = 100, height = 30 }
   return WorkspaceShell({
     title: 'Streaming Workbench',
     subtitle: 'incremental output lab',
-    stats: [
-      { label: 'Streaming', value: state.streaming ? 'yes' : 'no' },
-      { label: 'Chunks', value: `${state.streamIndex}/${state.streamTotal}` },
-      { label: 'Messages', value: state.messages.length },
-    ],
-    right: [
-      { label: 'Scenario', value: activeScenarioTitle(state) },
-      { label: 'Status', value: fitInline(state.status, 46).trimEnd() },
-    ],
+    stats,
+    right,
     focus: state.activeTab,
     tabs: visibleTabs,
     activeTab: state.activeTab,
-    tabHint: responsiveTabHint('Tab focus · Enter submit from Prompt · Esc cancel stream · PgUp/PgDn scroll active pane', TABS, visibleTabs),
+    tabHint,
     main,
-    activity: KeyHintBar({
-      title: ' LOCAL HELP ',
-      hints: helpHints,
-      theme: EXAMPLE_THEME,
-      gridBorder: true,
-    }),
+    activity,
     height,
     theme: EXAMPLE_THEME,
   });
@@ -144,18 +159,17 @@ export function handleStreamingWorkbenchKey({ key, state, runtime }) {
   }
 
   if (key.name === 'page-up' || key.name === 'page-down') {
-    pageActivePane(state, key.name === 'page-up' ? -1 : 1);
+    scrollActivePane(state, key.name);
     return;
   }
 
   if (state.activeTab === 'transcript') {
     if (key.name === 'enter') {
-      state.transcriptAutoscroll = true;
-      state.status = 'Transcript pinned to newest output.';
+      pinTranscriptToNewest(state);
       return;
     }
     if (key.name === 'up' || key.name === 'down') {
-      state.status = 'Transcript uses PageUp/PageDown only.';
+      scrollActivePane(state, key.name);
     }
     return;
   }
@@ -335,23 +349,66 @@ function loadSamplePrompt(state, delta) {
   state.status = delta < 0 ? 'Loaded previous template.' : 'Loaded next template.';
 }
 
-function pageActivePane(state, direction) {
-  const page = 7;
+function scrollActivePane(state, keyName) {
   if (state.activeTab === 'transcript') {
-    const total = transcriptLines(state, 100).length || 1;
-    const current = state.transcriptAutoscroll ? Math.max(0, total - page) : state.paneScroll.transcript;
-    const next = scrollOffset(current, direction * page, total, page);
-    state.paneScroll.transcript = next;
-    state.transcriptAutoscroll = isScrollAtBottom(next, total, page);
-    state.status = direction < 0 ? 'Transcript page up.' : 'Transcript page down.';
+    const metrics = state.scrollMetrics?.transcript ?? {};
+    const total = Math.max(1, metrics.totalRows || state.transcriptRowCount || transcriptLines(state, 80).length || 1);
+    const visibleRows = Math.max(1, metrics.visibleRows || 1);
+    const next = resolveScrollKeyOffset({
+      keyName,
+      scroll: state.paneScroll.transcript,
+      totalRows: total,
+      visibleRows,
+      previousTotalRows: state.transcriptRowCount || total,
+      sticky: state.transcriptAutoscroll,
+    });
+    if (!next.handled) {
+      state.status = 'Transcript is read-only.';
+      return;
+    }
+    state.paneScroll.transcript = next.scroll;
+    state.transcriptAutoscroll = next.atBottom;
+    state.status = transcriptScrollStatus(keyName, next.atBottom);
     return;
   }
   if (state.activeTab === 'control') {
-    state.paneScroll.control = scrollOffset(state.paneScroll.control, direction * page, controlLineCount(), page);
-    state.status = direction < 0 ? 'Control page up.' : 'Control page down.';
+    const total = controlLineCount();
+    const visibleRows = 7;
+    const next = resolveScrollKeyOffset({
+      keyName,
+      scroll: state.paneScroll.control,
+      totalRows: total,
+      visibleRows,
+      sticky: false,
+      lineStep: visibleRows,
+    });
+    if (!next.handled) {
+      state.status = 'Control is read-only.';
+      return;
+    }
+    state.paneScroll.control = next.scroll;
+    state.status = keyName === 'page-up' ? 'Control page up.' : 'Control page down.';
     return;
   }
-  state.status = 'Prompt editor does not need page scrolling.';
+  state.status = 'Prompt editor does not need pane scrolling.';
+}
+
+function pinTranscriptToNewest(state) {
+  const metrics = state.scrollMetrics?.transcript ?? {};
+  const total = Math.max(1, metrics.totalRows || state.transcriptRowCount || 1);
+  const visibleRows = Math.max(1, metrics.visibleRows || 1);
+  state.paneScroll.transcript = Math.max(0, total - visibleRows);
+  state.transcriptAutoscroll = true;
+  state.status = 'Transcript pinned to newest output.';
+}
+
+function transcriptScrollStatus(keyName, atBottom) {
+  if (atBottom) return 'Transcript pinned to newest output.';
+  if (keyName === 'up') return 'Transcript scrolled up one line.';
+  if (keyName === 'down') return 'Transcript scrolled down one line.';
+  if (keyName === 'page-up') return 'Transcript page up.';
+  if (keyName === 'page-down') return 'Transcript page down.';
+  return 'Transcript scroll updated.';
 }
 
 function promptPane(state, width, height) {
@@ -384,11 +441,13 @@ function promptPane(state, width, height) {
 }
 
 function transcriptPane(state, width, height) {
+  state.scrollMetrics ??= {};
   const lines = transcriptLines(state, Math.max(24, width - 6));
   if (!lines.length) {
     state.transcriptRowCount = 0;
     state.paneScroll.transcript = 0;
     state.transcriptAutoscroll = true;
+    state.scrollMetrics.transcript = { totalRows: 0, visibleRows: 1 };
     return WorkspacePane({
       title: ` ${state.activeTab === 'transcript' ? '▶' : ' '} TRANSCRIPT `,
       active: state.activeTab === 'transcript',
@@ -399,6 +458,7 @@ function transcriptPane(state, width, height) {
   const visibleHeight = Math.max(3, height - 2);
   const footer = lines.length > visibleHeight - 1;
   const visibleRows = Math.max(1, visibleHeight - (footer ? 1 : 0));
+  state.scrollMetrics.transcript = { totalRows: lines.length, visibleRows };
   const scroll = resolveAutoScrollOffset({
     scroll: state.paneScroll.transcript,
     totalRows: lines.length,
@@ -411,6 +471,7 @@ function transcriptPane(state, width, height) {
     height: visibleHeight,
     width: Math.max(20, width - 4),
     footer,
+    footerLabel: '↑/↓ line · PgUp/PgDn page',
   });
   state.paneScroll.transcript = window.scroll;
   state.transcriptAutoscroll = isScrollAtBottom(window.scroll, lines.length, visibleRows);
@@ -535,11 +596,11 @@ function controlLineCount() {
 function contextHelpHints(state) {
   if (state.activeTab === 'transcript') {
     return [
-      ['PgUp/PgDn', 'scroll transcript'],
+      ['↑/↓', 'line scroll'],
+      ['PgUp/PgDn', 'page scroll'],
       ['Enter', 'jump to newest'],
       ['Esc', 'cancel stream'],
       ['Tab', 'switch pane'],
-      ['↑/↓', 'not used here'],
     ];
   }
   if (state.activeTab === 'control') {
