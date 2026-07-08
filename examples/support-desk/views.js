@@ -195,7 +195,7 @@ function inboxPane({ state, theme, width, height = 36, compact = false }) {
   return pane({ title: `${state.focus === 'inbox' ? '▶' : ' '} INBOX ${spinner(state.frame)} Live `, theme, active: state.focus === 'inbox' },
     Text(inboxControlsLine(state, theme, inner), { wrap: false }),
     Text(controlOptionsLine(state, theme, inner), { wrap: false }),
-    Text(color(theme, 'muted', truncateVisible('Keys: ←/→ choose control · Enter/↑/↓ change selected control · Shift+↑/↓ scroll focused pane', inner)), { wrap: false }),
+    ...inboxHelpLines(state, theme, inner).map((line) => Text(line, { wrap: false })),
     Text(filterLine(state, theme, inner), { wrap: false }),
     Text(quickFilterLine(state, theme, inner), { wrap: false }),
     Text(searchLine(state, theme, inner), { wrap: false }),
@@ -234,7 +234,7 @@ function ticketView({ state, ticket, theme, mode, width, height = 24 }) {
     state.lastWorkflowAction ? Text(`${color(theme, 'ok', 'Last action')} ${truncateVisible(state.lastWorkflowAction, Math.max(18, inner - 12))}`, { wrap: false }) : null,
     ...wrapTextLines(ticket.summary, inner).slice(0, 2).map((line) => Text(color(theme, 'subtle', line), { wrap: false })),
     divider(theme, inner),
-    Text(color(theme, 'muted', `THREAD — ↑/↓ scroll · Enter reply`), { wrap: false }),
+    Text(color(theme, 'muted', `THREAD — ↑/↓ scroll · PgUp/PgDn page · Enter reply`), { wrap: false }),
     ...scrollingThreadRows({ ticket, theme, width: inner, limit: threadLimit, scroll: state.scroll?.ticketThread || 0 }),
     divider(theme, inner),
     quickReplyStripLine({ state, theme, width: inner }),
@@ -256,7 +256,7 @@ function replyView({ state, ticket, theme, mode, width, height = 24 }) {
     Text(color(theme, 'subtle', 'Internal context (not visible to customer)'), { wrap: false }),
     ...wrapTextLines(internalContext(ticket), inner).slice(0, 2).map((line) => Text(line, { wrap: false })),
     divider(theme, inner),
-    Text(color(theme, activeComposer ? 'selected' : 'muted', activeComposer ? 'DRAFT REPLY — active editor · Enter sends · Ctrl+J/Shift+Enter newline' : 'DRAFT REPLY — open /reply to edit'), { wrap: false }),
+    Text(color(theme, activeComposer ? 'selected' : 'muted', activeComposer ? 'DRAFT REPLY — active editor · Enter sends · Ctrl+J newline · PgUp/PgDn preview' : 'DRAFT REPLY — open /reply to edit'), { wrap: false }),
     ...renderEditorBlockLines({ text: draft, cursor: activeComposer ? state.composer.cursor : draft.length, width: inner, height: editorHeight, active: activeComposer, theme }),
     Text(color(theme, 'muted', `Lines ${draft.split('\n').length} · Words ${wordCount(draft)} · Chars ${draft.length}`), { wrap: false }),
     divider(theme, inner),
@@ -264,7 +264,7 @@ function replyView({ state, ticket, theme, mode, width, height = 24 }) {
     ...previewLines(draft, inner, previewHeight, state.scroll?.reply || 0).map((line) => Text(line, { wrap: false })),
     divider(theme, inner),
     Text(`${color(theme, 'system', 'Internal note')} ${truncateVisible(ticket.notes[0]?.body || 'No note yet. Use /note.', Math.max(20, inner - 34))}`, { wrap: false }),
-    Text(`${sendReady(draft) ? color(theme, 'ok', '✓ Ready to send') : color(theme, 'system', '○ Draft incomplete')}    ${color(theme, 'accent', 'Enter sends')}    ${color(theme, 'muted', 'Esc cancel · Ctrl+J newline · /templates')}`, { wrap: false }),
+    Text(`${sendReady(draft) ? color(theme, 'ok', '✓ Ready to send') : color(theme, 'system', '○ Draft incomplete')}    ${color(theme, 'accent', 'Enter sends')}    ${color(theme, 'muted', 'Esc cancel · Ctrl+J newline · PgUp/PgDn preview')}`, { wrap: false }),
   );
 }
 
@@ -574,7 +574,7 @@ function ticketRow({ ticket, selected, theme, width }) {
   const marker = selected ? '›' : ' ';
   const subject = fitText(ticket.subject, subjectWidth);
   const raw = `${marker} ${fitText(ticket.id, idWidth)} ${subject} ${fitText(ticket.status.toUpperCase(), statusWidth)} ${ticket.priority[0] || '?'} ${fitText(`${ticket.slaMinutes}m`, slaWidth)}`;
-  if (selected) return color(theme, 'selected', raw);
+  if (selected) return color(theme, 'selected', padEndVisible(truncateVisible(raw, width), width));
   const token = ticket.slaMinutes <= 15 ? 'error' : ticket.slaMinutes <= 60 ? 'system' : 'muted';
   return `${color(theme, 'accent', `${marker} ${fitText(ticket.id, idWidth)}`)} ${subject} ${statusBadge(ticket.status, theme, statusWidth)} ${priorityBadge(ticket.priority, theme)} ${color(theme, token, fitText(`${ticket.slaMinutes}m`, slaWidth))}`;
 }
@@ -645,11 +645,11 @@ function collectThreadEvents(ticket) {
 function renderEditorBlockLines({ text, cursor, width, height, active, theme }) {
   const safeWidth = Math.max(12, width - 2);
   const lines = renderTextEditorLinesCompat({ text, cursor, width: safeWidth, height, placeholder: 'Type your customer reply here…' });
-  return lines.map((line) => Text(active ? color(theme, 'text', line) : color(theme, 'muted', line), { wrap: false }));
+  return lines.map((line) => Text(active ? color(theme, 'text', padEndVisible(line, safeWidth)) : color(theme, 'muted', padEndVisible(line, safeWidth)), { wrap: false }));
 }
 
 function renderTextEditorLinesCompat({ text, cursor, width, height, placeholder }) {
-  return renderTextEditorLines({ value: text, cursor, width, height, placeholder, lineNumbers: true });
+  return renderTextEditorLines({ value: text, cursor, width, height, placeholder, lineNumbers: true, cursorGlyph: '▌' });
 }
 
 function previewLines(draft, width, height, scroll = 0) {
@@ -662,10 +662,11 @@ function previewLines(draft, width, height, scroll = 0) {
 
 function scrollRenderedNode({ node, width, height, scroll, theme, active, title }) {
   const content = renderNode(node, width);
-  const window = visibleWindowLines(content, { height: Math.max(1, height), scroll });
-  const header = window.maxScroll > 0 ? `${title} ↑/↓ ${window.scroll}/${window.maxScroll} ` : title;
+  const visibleHeight = Math.max(1, height - 2);
+  const window = visibleWindowLines(content, { height: visibleHeight, scroll });
+  const header = window.maxScroll > 0 ? `${title} ↑/↓ PgUp/PgDn ${window.scroll}/${window.maxScroll} ` : title;
   return pane({ title: active ? `▶${header}` : header, theme, active, padding: { left: 0, right: 0 } },
-    Lines(window.lines.slice(0, Math.max(1, height - 2))),
+    Lines(window.lines.slice(0, visibleHeight)),
   );
 }
 
@@ -683,6 +684,19 @@ function inboxControlsLine(state, theme, width) {
   return truncateVisible(`Controls: ${rendered.join(' ')}  ${color(theme, 'muted', '←/→ choose · Enter cycle · ↑/↓ tickets')}`, width);
 }
 
+
+
+function inboxHelpLines(state, theme, width) {
+  const control = state.inboxControl || 'tickets';
+  const primary = control === 'tickets'
+    ? 'Keys: ↑/↓ select ticket · Enter open · PgUp/PgDn jump'
+    : `Keys: ←/→ choose control · Enter/↑/↓ change ${control}`;
+  const secondary = 'Scroll: focused panes use ↑/↓ or PgUp/PgDn; composer preview uses PgUp/PgDn or Ctrl/Alt+↑/↓';
+  return [
+    color(theme, 'muted', truncateVisible(primary, width)),
+    color(theme, 'muted', truncateVisible(secondary, width)),
+  ];
+}
 
 function controlOptionsLine(state, theme, width) {
   const control = state.inboxControl || 'tickets';

@@ -1,5 +1,20 @@
 #!/usr/bin/env node
-import { Box, Column, HelpOverlay, InputEditor, Panel, Row, Text } from '../src/lib/index.js';
+import {
+  ChipLine,
+  Column,
+  InputEditor,
+  KeyHintBar,
+  Panel,
+  Row,
+  Text,
+  TextEditorView,
+  WorkspaceCommandBar,
+  WorkspaceFooter,
+  WorkspacePane,
+  WorkspaceShell,
+  fitInline,
+  splitWorkspaceColumns,
+} from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
 
 const FIELD_TEMPLATES = [
@@ -23,6 +38,12 @@ const FIELD_TEMPLATES = [
   },
 ];
 
+const TABS = [
+  { id: 'compose', label: 'Compose' },
+  { id: 'preview', label: 'Preview' },
+  { id: 'history', label: 'History' },
+];
+
 export function createPromptComposerState() {
   const first = FIELD_TEMPLATES[0];
   return {
@@ -33,143 +54,174 @@ export function createPromptComposerState() {
       createField('output', 'Expected output', first.output),
     ],
     activeIndex: 0,
+    activeTab: 'compose',
     templateIndex: 0,
     submitted: [],
-    status: 'Prompt Composer: Tab switches fields, Enter submits the composed prompt.',
+    status: 'Ready. Edit a field, load templates, then submit the composed prompt.',
+    lastAction: 'Loaded template 1.',
   };
 }
 
-export function createPromptComposerView({ state, width = 104 } = {}) {
+export function createPromptComposerView({ state, width = 104, height = 32 } = {}) {
   const prompt = buildComposedPrompt(state);
   const plan = inferPromptPlan(prompt);
   const active = state.fields[state.activeIndex];
+  const layout = splitWorkspaceColumns(width);
+  const mainHeight = Math.max(9, height - 12);
+  const main = layout.mode === 'narrow'
+    ? renderNarrowComposer(state, plan, prompt, mainHeight, width)
+    : Row({ gap: 2, widths: layout.mode === 'wide' ? layout.widths : layout.widths },
+        renderFieldsPane(state, Math.max(28, layout.widths[0]), mainHeight),
+        renderComposerWorkPane(state, plan, prompt, Math.max(40, layout.widths[1]), mainHeight),
+        ...(layout.mode === 'wide' ? [renderComposerRail(state, plan, Math.max(26, layout.widths[2]), mainHeight)] : []),
+      );
 
-  return Column(
-    Box({ border: true, padding: { left: 1, right: 1 }, title: ' Prompt Composer ' },
-      Text('A product-style editor demo: multiple editable prompt sections, cursor movement, templates, preview and submit history.'),
-      Text(`Active field: ${active.title} · Template ${state.templateIndex + 1}/${FIELD_TEMPLATES.length}`),
-    ),
-    Row({ gap: 2, distribute: true },
-      Panel(' Editable fields ', ...state.fields.map((field, index) => Text(formatFieldLine(field, index === state.activeIndex, width - 12)))),
-      Panel(' Preview ',
-        Text(`detected intent : ${plan.intent}`),
-        Text(`estimated blocks: ${plan.blocks.join(' + ')}`),
-        Text(`risk level      : ${plan.risk}`),
-        Text(`chars           : ${prompt.length}`),
-        Text(''),
-        ...prompt.split('\n').slice(0, 8).map((line) => Text(line)),
+  return WorkspaceShell({
+    title: 'Prompt Composer',
+    subtitle: 'multi-section terminal editor',
+    stats: [
+      { label: 'Field', value: active.title },
+      { label: 'Template', value: `${state.templateIndex + 1}/${FIELD_TEMPLATES.length}` },
+      { label: 'Intent', value: plan.intent },
+    ],
+    right: [{ label: 'Mode', value: layout.mode }],
+    focus: state.activeTab,
+    tabs: TABS,
+    activeTab: state.activeTab,
+    tabHint: 'Tab switches fields · [/] switches workspace tab · PgUp/PgDn template · Enter submit',
+    main,
+    command: WorkspaceCommandBar({ value: '', prompt: '›', mode: 'COMPOSER', suggestions: ['Enter submit', 'Tab field', 'PgUp/PgDn template', 'Ctrl+J newline'] }),
+    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['↑/↓', 'move field'], ['Ctrl+A/E', 'line edges'], ['Ctrl+K/U/W', 'delete'], ['Alt+←/→', 'word move'], ['[/]', 'tabs'], ['Enter', 'submit']] }),
+    footer: WorkspaceFooter({ left: ['Connected', `chars ${prompt.length}`, state.status], right: ['demo: composer'] }),
+    height,
+  });
+}
+
+function renderFieldsPane(state, width, height) {
+  return WorkspacePane({
+    title: ' FIELDS ',
+    active: state.activeTab === 'compose',
+    height,
+    children: [
+      ChipLine({ label: 'Templates', chips: FIELD_TEMPLATES.map((_, index) => ({ id: String(index + 1), label: String(index + 1) })), active: String(state.templateIndex + 1) }),
+      Text(''),
+      ...state.fields.map((field, index) => Text(formatFieldLine(field, index === state.activeIndex, width - 4), { wrap: false })),
+      Text(''),
+      Text('Use ↑/↓ to select a field; text keys edit the selected field.', { wrap: false }),
+    ],
+  });
+}
+
+function renderComposerWorkPane(state, plan, prompt, width, height) {
+  if (state.activeTab === 'preview') return renderPreviewPane(plan, prompt, width, height, true);
+  if (state.activeTab === 'history') return renderHistoryPane(state, height, true);
+  const field = state.fields[state.activeIndex];
+  return WorkspacePane({
+    title: ` EDIT ${field.title.toUpperCase()} `,
+    active: true,
+    height,
+    children: [
+      TextEditorView({ title: ` ${field.title} draft `, value: field.editor.value, cursor: field.editor.cursor, width: Math.max(30, width - 4), height: Math.max(5, Math.floor(height * 0.45)), lineNumbers: false }),
+      Panel(' Live prompt plan ',
+        Text(`intent  : ${plan.intent}`),
+        Text(`blocks  : ${plan.blocks.join(' + ')}`),
+        Text(`risk    : ${plan.risk}`),
       ),
-    ),
-    Row({ gap: 2, distribute: true },
-      HelpOverlay({
-        title: ' Editor keys ',
-        shortcuts: [
-          ['Tab / Shift+Tab', 'switch field'],
-          ['↑ / ↓', 'switch field'],
-          ['PgUp/PgDn', 'load template'],
-          ['Ctrl+A/E', 'start/end'],
-          ['Ctrl+K/U/W', 'delete text ranges'],
-          ['Alt+←/→', 'move by word'],
-          ['Enter', 'submit composed prompt'],
-        ],
-      }),
-      Panel(' Submitted prompts ',
-        ...(state.submitted.length ? state.submitted.slice(-5).map((item, index) => Text(`${index + 1}. ${item.summary}`)) : [Text('No submitted prompts yet.')]),
-      ),
-    ),
-    Box({ border: true, padding: { left: 1, right: 1 }, title: ' Status ' }, Text(state.status)),
-  );
+      Text(fitInline(state.lastAction, Math.max(20, width - 4)), { wrap: false }),
+    ],
+  });
+}
+
+function renderComposerRail(state, plan, width, height) {
+  return WorkspacePane({
+    title: ' PREVIEW / HISTORY ',
+    height,
+    children: [
+      Text(`intent: ${plan.intent}`),
+      Text(`risk  : ${plan.risk}`),
+      Text(''),
+      Text('Recent submissions'),
+      ...(state.submitted.length ? state.submitted.slice(-6).map((item, index) => Text(`${index + 1}. ${fitInline(item.summary, width - 6)}`, { wrap: false })) : [Text('No submissions yet.')]),
+    ],
+  });
+}
+
+function renderPreviewPane(plan, prompt, width, height, active) {
+  return WorkspacePane({
+    title: ' PREVIEW ',
+    active,
+    height,
+    children: [
+      Text(`detected intent : ${plan.intent}`),
+      Text(`estimated blocks: ${plan.blocks.join(' + ')}`),
+      Text(`risk level      : ${plan.risk}`),
+      Text(''),
+      ...prompt.split('\n').slice(0, Math.max(3, height - 8)).map((line) => Text(fitInline(line, width - 4), { wrap: false })),
+    ],
+  });
+}
+
+function renderHistoryPane(state, height, active) {
+  return WorkspacePane({
+    title: ' SUBMITTED PROMPTS ',
+    active,
+    height,
+    children: state.submitted.length
+      ? state.submitted.slice(-Math.max(3, height - 4)).flatMap((item, index) => [Text(`${index + 1}. ${item.summary}`, { wrap: false }), Text(`   detected intent: ${item.plan.intent}`, { wrap: false })])
+      : [Text('No submitted prompts yet.')],
+  });
+}
+
+function renderNarrowComposer(state, plan, prompt, height, width) {
+  if (state.activeTab === 'preview') return renderPreviewPane(plan, prompt, width, height, true);
+  if (state.activeTab === 'history') return renderHistoryPane(state, height, true);
+  return renderComposerWorkPane(state, plan, prompt, width, height);
 }
 
 export function handlePromptComposerKey({ key, state }) {
   const editor = state.fields[state.activeIndex].editor;
+
+  if (key.name === '[' || (key.name === 'left' && key.ctrl)) return switchTab(state, -1);
+  if (key.name === ']' || (key.name === 'right' && key.ctrl)) return switchTab(state, 1);
 
   if (key.name === 'enter') {
     const prompt = buildComposedPrompt(state);
     const plan = inferPromptPlan(prompt);
     state.submitted.push({ summary: `${plan.intent}: ${state.fields[0].editor.value}`, prompt, plan });
     state.status = `Submitted composer prompt as ${plan.intent} request.`;
+    state.lastAction = 'Prompt submitted and stored in History.';
+    state.activeTab = 'history';
     return;
   }
 
-  if (key.name === 'tab') {
-    moveField(state, key.shift ? -1 : 1);
+  if (key.name === 'tab' || key.name === 'up' || key.name === 'down') {
+    moveField(state, key.name === 'up' || key.shift ? -1 : 1);
+    state.activeTab = 'compose';
     return;
   }
 
-  if (key.name === 'up') {
-    moveField(state, -1);
+  if (key.name === 'page-up') return loadTemplate(state, -1);
+  if (key.name === 'page-down') return loadTemplate(state, 1);
+  if (key.name === 'line-break') {
+    editor.insertLineBreak();
+    state.lastAction = `Added line break in ${state.fields[state.activeIndex].title}.`;
     return;
   }
 
-  if (key.name === 'down') {
-    moveField(state, 1);
-    return;
-  }
-
-  if (key.name === 'page-up') {
-    loadTemplate(state, -1);
-    return;
-  }
-
-  if (key.name === 'page-down') {
-    loadTemplate(state, 1);
-    return;
-  }
-
-  if (key.name === 'left') {
-    key.meta ? editor.moveWord(-1) : editor.move(-1);
-    state.status = 'Moved cursor in active field.';
-    return;
-  }
-  if (key.name === 'right') {
-    key.meta ? editor.moveWord(1) : editor.move(1);
-    state.status = 'Moved cursor in active field.';
-    return;
-  }
-  if (key.name === 'home' || (key.cmd && key.name === 'left')) {
-    editor.home();
-    state.status = 'Moved to field start.';
-    return;
-  }
-  if (key.name === 'end' || (key.cmd && key.name === 'right')) {
-    editor.end();
-    state.status = 'Moved to field end.';
-    return;
-  }
-  if (key.name === 'backspace') {
-    editor.backspace();
-    state.status = 'Backspace in active field.';
-    return;
-  }
-  if (key.name === 'delete') {
-    editor.deleteForward();
-    state.status = 'Delete forward in active field.';
-    return;
-  }
-  if (key.name === 'kill-end') {
-    editor.killToEnd();
-    state.status = 'Killed to field end.';
-    return;
-  }
-  if (key.name === 'kill-start') {
-    editor.killToStart();
-    state.status = 'Killed to field start.';
-    return;
-  }
-  if (key.name === 'delete-word-left') {
-    editor.deleteWordBack();
-    state.status = 'Deleted word left in active field.';
-    return;
-  }
-  if (key.name === 'paste') {
-    editor.insert(key.text.replace(/\s+/g, ' '));
-    state.status = 'Pasted text into active field.';
-    return;
-  }
+  if (key.name === 'left') return key.meta ? editor.moveWord(-1) : editor.move(-1);
+  if (key.name === 'right') return key.meta ? editor.moveWord(1) : editor.move(1);
+  if (key.name === 'home' || (key.cmd && key.name === 'left')) return editor.home();
+  if (key.name === 'end' || (key.cmd && key.name === 'right')) return editor.end();
+  if (key.name === 'backspace') return editor.backspace();
+  if (key.name === 'delete') return editor.deleteForward();
+  if (key.name === 'kill-end') return editor.killToEnd();
+  if (key.name === 'kill-start') return editor.killToStart();
+  if (key.name === 'delete-word-left') return editor.deleteWordBack();
+  if (key.name === 'paste') return editor.insert(key.text);
   if (key.printable) {
     editor.insert(key.text);
-    state.status = `Edited ${state.fields[state.activeIndex].title}.`;
+    state.activeTab = 'compose';
+    state.lastAction = `Edited ${state.fields[state.activeIndex].title}.`;
   }
 }
 
@@ -208,6 +260,7 @@ function createField(id, title, value) {
 function moveField(state, delta) {
   state.activeIndex = mod(state.activeIndex + delta, state.fields.length);
   state.status = `Focused ${state.fields[state.activeIndex].title}.`;
+  state.lastAction = state.status;
 }
 
 function loadTemplate(state, delta) {
@@ -215,14 +268,20 @@ function loadTemplate(state, delta) {
   const template = FIELD_TEMPLATES[state.templateIndex];
   for (const field of state.fields) field.editor.set(template[field.id] ?? '');
   state.activeIndex = 0;
+  state.activeTab = 'compose';
   state.status = `Loaded template ${state.templateIndex + 1}.`;
+  state.lastAction = state.status;
+}
+
+function switchTab(state, delta) {
+  const index = TABS.findIndex((tab) => tab.id === state.activeTab);
+  state.activeTab = TABS[mod(index + delta, TABS.length)].id;
+  state.status = `Opened ${state.activeTab} tab.`;
 }
 
 function formatFieldLine(field, active, width) {
-  const parts = field.editor.getParts();
-  const cursor = active ? `${parts.before}█${parts.current === ' ' ? '' : parts.current}${parts.after}` : field.editor.value;
-  const line = `${active ? '›' : ' '} ${field.title.padEnd(15)} ${cursor || '<empty>'}`;
-  return line.length > width ? line.slice(0, Math.max(0, width - 1)) + '…' : line;
+  const marker = active ? '›' : ' ';
+  return `${marker} ${field.title.padEnd(15)} ${fitInline(field.editor.value, Math.max(10, width - 18))}`;
 }
 
 function mod(value, size) {

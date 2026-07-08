@@ -1,5 +1,20 @@
 #!/usr/bin/env node
-import { Box, Column, ConfirmPrompt, HelpOverlay, InputEditor, ModeManager, Panel, Row, Text, Toast } from '../src/lib/index.js';
+import {
+  ConfirmPrompt,
+  InputEditor,
+  KeyHintBar,
+  ModeManager,
+  Panel,
+  Row,
+  Text,
+  Toast,
+  WorkspaceCommandBar,
+  WorkspaceFooter,
+  WorkspacePane,
+  WorkspaceShell,
+  fitInline,
+  splitWorkspaceColumns,
+} from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
 
 const INITIAL_SESSIONS = [
@@ -11,64 +26,98 @@ const INITIAL_SESSIONS = [
   { id: 'sess_theme_gallery', title: 'Theme gallery', messages: 7, updated: 'last week', preview: 'Compared dark, ocean, matrix, amber and paper theme tokens.' },
 ];
 
+const TABS = [
+  { id: 'browser', label: 'Browser' },
+  { id: 'preview', label: 'Preview' },
+  { id: 'actions', label: 'Actions' },
+];
+
 export function createSessionBrowserState() {
   return {
     filter: new InputEditor(''),
     sessions: INITIAL_SESSIONS.map((item) => ({ ...item })),
     selectedIndex: 0,
+    activeTab: 'browser',
     modes: new ModeManager('browser'),
     confirmSelected: 'confirm',
-    toast: { level: 'info', message: 'Session Browser: filter, preview, confirm delete, mock export.' },
+    toast: { level: 'info', message: 'Type to filter. Enter opens preview. D deletes with confirmation.' },
     actionLog: [],
   };
 }
 
-export function createSessionBrowserView({ state, width = 108 } = {}) {
+export function createSessionBrowserView({ state, width = 108, height = 32 } = {}) {
   const matches = getSessionMatches(state);
   clampSelection(state, matches.length);
   const selected = matches[state.selectedIndex] ?? null;
+  const layout = splitWorkspaceColumns(width);
+  const mainHeight = Math.max(10, height - 12);
   const overlay = state.modes.current() === 'confirm'
     ? ConfirmPrompt({ title: ' Delete session ', message: `Delete ${selected?.title ?? 'selected session'}?`, selected: state.confirmSelected })
     : null;
 
-  return Column(
-    Box({ border: true, padding: { left: 1, right: 1 }, title: ' Session Browser ' },
-      Text('A realistic SelectList-style browser: filter saved sessions, preview content, delete with confirmation, export mock data.'),
-      Text(`Filter: ${state.filter.value || '<empty>'}█`),
-    ),
-    Row({ gap: 2, distribute: true },
-      Panel(` Sessions ${matches.length ? state.selectedIndex + 1 : 0}/${matches.length} `,
-        ...(matches.length ? windowSessions(matches, state.selectedIndex, 10).map((item) => Text(formatSessionRow(item.session, item.index === state.selectedIndex))) : [Text('No matching sessions.')]),
+  const browserPane = WorkspacePane({
+    title: ` SESSIONS ${matches.length ? state.selectedIndex + 1 : 0}/${matches.length} `,
+    active: state.activeTab === 'browser',
+    height: mainHeight,
+    children: [
+      Text(`Filter: ${state.filter.value || '<empty>'}▌`, { wrap: false }),
+      Text(''),
+      ...(matches.length ? windowSessions(matches, state.selectedIndex, Math.max(5, mainHeight - 6)).map((item) => Text(formatSessionRow(item.session, item.index === state.selectedIndex, Math.max(28, (layout.widths[0] ?? width) - 4)), { wrap: false })) : [Text('No matching sessions.')]),
+    ],
+  });
+  const previewPane = WorkspacePane({
+    title: ' PREVIEW ',
+    active: state.activeTab === 'preview',
+    height: mainHeight,
+    children: selected ? [
+      Text(`id      : ${selected.id}`),
+      Text(`title   : ${selected.title}`),
+      Text(`messages: ${selected.messages}`),
+      Text(`updated : ${selected.updated}`),
+      Text(''),
+      Text(selected.preview),
+      Text(''),
+      Text('Enter opens this mock session. E exports it. D deletes it.'),
+    ] : [Text('Nothing selected.')],
+  });
+  const actionsPane = WorkspacePane({
+    title: ' ACTIONS ',
+    active: state.activeTab === 'actions',
+    height: mainHeight,
+    children: [
+      Toast(state.toast),
+      Panel(' Available actions ',
+        Text('Enter  open preview'),
+        Text('N      create mock session'),
+        Text('E      export selected'),
+        Text('D      delete selected'),
+        Text('Esc    clear filter'),
       ),
-      Column(
-        Toast(state.toast),
-        Panel(' Preview ', ...(selected ? [
-          Text(`id      : ${selected.id}`),
-          Text(`title   : ${selected.title}`),
-          Text(`messages: ${selected.messages}`),
-          Text(`updated : ${selected.updated}`),
-          Text(''),
-          Text(selected.preview),
-        ] : [Text('Nothing selected.')])),
-      ),
-    ),
-    ...(overlay ? [overlay] : []),
-    Row({ gap: 2, distribute: true },
-      HelpOverlay({
-        title: ' Keys ',
-        shortcuts: [
-          ['Type', 'filter sessions'],
-          ['↑/↓', 'move selection'],
-          ['Enter', 'open preview action'],
-          ['D', 'delete with confirm'],
-          ['N', 'create mock session'],
-          ['E', 'export selected'],
-          ['Esc', 'clear filter/cancel'],
-        ],
-      }),
-      Panel(' Action log ', ...(state.actionLog.length ? state.actionLog.slice(-6).map((line) => Text(line)) : [Text('No actions yet.')]))
-    ),
-  );
+      Panel(' Action log ', ...(state.actionLog.length ? state.actionLog.slice(-6).map((line) => Text(line, { wrap: false })) : [Text('No actions yet.')])),
+    ],
+  });
+
+  const main = layout.mode === 'wide'
+    ? Row({ gap: 2, widths: layout.widths }, browserPane, previewPane, actionsPane)
+    : layout.mode === 'medium'
+      ? Row({ gap: 2, widths: layout.widths }, browserPane, state.activeTab === 'actions' ? actionsPane : previewPane)
+      : state.activeTab === 'browser' ? browserPane : state.activeTab === 'actions' ? actionsPane : previewPane;
+
+  return WorkspaceShell({
+    title: 'Session Browser',
+    subtitle: 'saved conversations and exports',
+    stats: [{ label: 'Sessions', value: state.sessions.length }, { label: 'Matches', value: matches.length }, { label: 'Selected', value: selected?.id ?? 'none' }],
+    right: [{ label: 'Mode', value: layout.mode }],
+    focus: state.activeTab,
+    tabs: TABS,
+    activeTab: state.activeTab,
+    tabHint: '[/] switch tabs · Type filters · Enter open · D delete · N new · E export',
+    main,
+    command: WorkspaceCommandBar({ value: state.filter.value, prompt: 'filter', mode: 'SEARCH', suggestions: ['Type filter text', '↑/↓ select', 'Enter open', 'D delete', 'N new', 'E export'] }),
+    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['Type', 'filter sessions'], ['↑/↓', 'move selection'], ['PgUp/PgDn', 'page selection'], ['Enter', 'open'], ['D', 'delete'], ['Esc', 'clear']] }),
+    footer: WorkspaceFooter({ left: ['Ready', state.toast.message], right: ['demo: sessions'] }),
+    height,
+  });
 }
 
 export function handleSessionBrowserKey({ key, state }) {
@@ -76,26 +125,34 @@ export function handleSessionBrowserKey({ key, state }) {
   const matches = getSessionMatches(state);
   clampSelection(state, matches.length);
 
+  if (key.name === '[' || (key.name === 'left' && key.ctrl)) return switchTab(state, -1);
+  if (key.name === ']' || (key.name === 'right' && key.ctrl)) return switchTab(state, 1);
+
   if (key.name === 'escape') {
     state.filter.clear();
     state.selectedIndex = 0;
     state.toast = { level: 'info', message: 'Filter cleared.' };
+    state.activeTab = 'browser';
     return;
   }
   if (key.name === 'up') {
     state.selectedIndex = Math.max(0, state.selectedIndex - 1);
+    state.activeTab = 'browser';
     return;
   }
   if (key.name === 'down') {
     state.selectedIndex = Math.min(Math.max(0, matches.length - 1), state.selectedIndex + 1);
+    state.activeTab = 'browser';
     return;
   }
   if (key.name === 'page-up') {
     state.selectedIndex = Math.max(0, state.selectedIndex - 8);
+    state.activeTab = 'browser';
     return;
   }
   if (key.name === 'page-down') {
     state.selectedIndex = Math.min(Math.max(0, matches.length - 1), state.selectedIndex + 8);
+    state.activeTab = 'browser';
     return;
   }
   if (key.name === 'enter') {
@@ -104,6 +161,7 @@ export function handleSessionBrowserKey({ key, state }) {
     const action = `Opened preview for ${session.id}.`;
     state.actionLog.push(action);
     state.toast = { level: 'success', message: action };
+    state.activeTab = 'preview';
     return;
   }
   if (key.name === 'd') {
@@ -117,6 +175,7 @@ export function handleSessionBrowserKey({ key, state }) {
     const id = `sess_new_${String(state.sessions.length + 1).padStart(2, '0')}`;
     state.sessions.unshift({ id, title: 'New mock session', messages: 0, updated: 'just now', preview: 'Created from the session browser example.' });
     state.selectedIndex = 0;
+    state.activeTab = 'browser';
     state.toast = { level: 'success', message: `Created ${id}.` };
     return;
   }
@@ -126,6 +185,7 @@ export function handleSessionBrowserKey({ key, state }) {
     const action = `Exported ${session.id} to mock JSON.`;
     state.actionLog.push(action);
     state.toast = { level: 'success', message: action };
+    state.activeTab = 'actions';
     return;
   }
   if (key.name === 'backspace') {
@@ -151,6 +211,7 @@ export function handleSessionBrowserKey({ key, state }) {
   if (key.printable) {
     state.filter.insert(key.text);
     state.selectedIndex = 0;
+    state.activeTab = 'browser';
   }
 }
 
@@ -189,6 +250,7 @@ function handleDeleteConfirm(key, state) {
   state.actionLog.push(action);
   state.toast = { level: 'success', message: action };
   state.confirmSelected = 'confirm';
+  state.activeTab = 'actions';
 }
 
 function windowSessions(items, selectedIndex, size) {
@@ -196,12 +258,18 @@ function windowSessions(items, selectedIndex, size) {
   return items.slice(start, start + size).map((session, offset) => ({ session, index: start + offset }));
 }
 
-function formatSessionRow(session, selected) {
-  return `${selected ? '›' : ' '} ${session.title.padEnd(24)} ${String(session.messages).padStart(2)} msg · ${session.updated}`;
+function formatSessionRow(session, selected, width) {
+  const meta = `${String(session.messages).padStart(2)} msg · ${session.updated}`;
+  return `${selected ? '›' : ' '} ${fitInline(session.title, Math.max(10, width - meta.length - 4))} ${meta}`;
 }
 
 function clampSelection(state, size) {
   state.selectedIndex = Math.max(0, Math.min(Math.max(0, size - 1), state.selectedIndex));
+}
+
+function switchTab(state, delta) {
+  const index = TABS.findIndex((tab) => tab.id === state.activeTab);
+  state.activeTab = TABS[((index + delta) % TABS.length + TABS.length) % TABS.length].id;
 }
 
 if (isDirectRun(import.meta.url)) {

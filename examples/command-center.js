@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 import {
-  Box,
-  Column,
-  HelpOverlay,
+
   Modal,
   ModeManager,
+  KeyHintBar,
   Panel,
   ProgressBar,
   Row,
   Spinner,
   Text,
   Toast,
+  WorkspaceCommandBar,
+  WorkspaceFooter,
+  WorkspacePane,
+  WorkspaceShell,
+  splitWorkspaceColumns,
   createCommandPaletteState,
   getPaletteQuery,
   handleCommandPaletteKey,
@@ -45,9 +49,11 @@ export function createCommandCenterState() {
   };
 }
 
-export function createCommandCenterView({ state, width = 112 } = {}) {
+export function createCommandCenterView({ state, width = 112, height = 32 } = {}) {
   state.frame += 1;
   const mode = state.modes.current();
+  const layout = splitWorkspaceColumns(width);
+  const mainHeight = Math.max(10, height - 12);
   const overlay = mode === 'modal'
     ? Modal({
         title: ` ${state.modes.currentEntry().data?.title ?? 'Modal'} `,
@@ -55,40 +61,52 @@ export function createCommandCenterView({ state, width = 112 } = {}) {
         footer: 'Esc or Enter closes this modal.',
       })
     : null;
-
-  return Column(
-    Box({ border: true, padding: { left: 1, right: 1 }, title: ' Command Center ' },
-      Text('A product-style dashboard built from palette, mode stack, modal, toast, progress and status widgets.'),
-      Text(`Mode: ${mode} · Theme: ${state.themeName} · Query: ${getPaletteQuery(state.palette) || '<empty>'}`),
-    ),
-    Row({ gap: 2, distribute: true },
-      renderCommandPalette(state.palette, { title: ' Actions ', showHelp: false }),
-      Column(
-        Toast(state.toast),
-        Panel(' Runtime ',
-          Spinner({ frame: state.frame, label: 'frame renderer' }),
-          ProgressBar({ value: state.progress, total: 100, width: 22, label: 'background task' }),
-          Text(`Theme tokens: ${Object.keys(themes[state.themeName] ?? {}).length}`),
-          Text(`Mode stack : ${state.modes.toJSON().map((item) => item.name).join(' → ')}`),
-        ),
-        Panel(' Active skills ', ...Array.from(state.skills).map((skill) => Text(`✓ ${skill}`)), ...(state.skills.size ? [] : [Text('No skills enabled.')])),
+  const palettePane = WorkspacePane({
+    title: ' ACTION PALETTE ',
+    active: mode === 'palette',
+    height: mainHeight,
+    children: [renderCommandPalette(state.palette, { title: ' Actions ', showHelp: false })],
+  });
+  const runtimePane = WorkspacePane({
+    title: ' RUNTIME ',
+    height: mainHeight,
+    children: [
+      Toast(state.toast),
+      Panel(' Dashboard ',
+        Spinner({ frame: state.frame, label: 'frame renderer' }),
+        ProgressBar({ value: state.progress, total: 100, width: 22, label: 'background task' }),
+        Text(`Theme tokens: ${Object.keys(themes[state.themeName] ?? {}).length}`),
+        Text(`Mode stack : ${state.modes.toJSON().map((item) => item.name).join(' → ')}`),
       ),
-    ),
-    ...(overlay ? [overlay] : []),
-    Row({ gap: 2, distribute: true },
-      HelpOverlay({
-        title: ' Keys ',
-        shortcuts: [
-          ['Type', 'filter action list'],
-          ['↑/↓', 'move selection'],
-          ['Enter', 'run action'],
-          ['Esc', 'clear filter / close modal'],
-          ['Ctrl+D', 'exit'],
-        ],
-      }),
-      Panel(' Action log ', ...(state.actionLog.length ? state.actionLog.slice(-6).map((line) => Text(line)) : [Text('No actions yet.')]))
-    ),
-  );
+      Panel(' Active skills ', ...Array.from(state.skills).map((skill) => Text(`✓ ${skill}`)), ...(state.skills.size ? [] : [Text('No skills enabled.')])),
+    ],
+  });
+  const logPane = WorkspacePane({
+    title: ' ACTION LOG ',
+    height: mainHeight,
+    children: state.actionLog.length ? state.actionLog.slice(-10).map((line) => Text(line, { wrap: false })) : [Text('No actions yet.')],
+  });
+  const main = layout.mode === 'wide'
+    ? Row({ gap: 2, widths: layout.widths }, palettePane, runtimePane, logPane)
+    : layout.mode === 'medium'
+      ? Row({ gap: 2, widths: layout.widths }, palettePane, runtimePane)
+      : palettePane;
+
+  return WorkspaceShell({
+    title: 'Command Center',
+    subtitle: 'palette-driven operations dashboard',
+    stats: [{ label: 'Mode', value: mode }, { label: 'Theme', value: state.themeName }, { label: 'Progress', value: `${state.progress}%` }],
+    right: [{ label: 'Skills', value: state.skills.size }],
+    focus: mode,
+    tabs: [{ id: 'actions', label: 'Actions' }, { id: 'runtime', label: 'Runtime' }, { id: 'log', label: 'Log' }],
+    activeTab: mode === 'modal' ? 'runtime' : 'actions',
+    tabHint: 'Type filters actions · ↑/↓ select · Enter run · Esc clear/close modal',
+    main: overlay ? Row({ gap: 2, widths: [Math.max(40, Math.floor(width * 0.62)), Math.max(30, Math.floor(width * 0.34))] }, main, overlay) : main,
+    command: WorkspaceCommandBar({ value: getPaletteQuery(state.palette), prompt: 'palette', mode: mode.toUpperCase(), suggestions: ['theme', 'skill', 'session', 'debug', 'toast', 'progress', 'exit'] }),
+    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['Type', 'filter actions'], ['↑/↓', 'select'], ['Enter', 'run'], ['Esc', 'clear/close'], ['Ctrl+D', 'exit']] }),
+    footer: WorkspaceFooter({ left: [state.toast.message], right: ['demo: command-center'] }),
+    height,
+  });
 }
 
 export function handleCommandCenterKey({ key, state, runtime }) {

@@ -97,6 +97,15 @@ import { RichTerminalApp } from './src/lib/index.js';
 
 ## Что добавлено в текущем инкременте
 
+- Остальные product examples приведены к более цельному UX-подходу по аналогии с `demo:support-desk`: теперь `example:composer`, `example:code-review`, `example:command-center`, `example:sessions` и `example:agent-stream` используют продуктовый shell с header, tabs, main work area, command bar, local help и footer.
+- В библиотеку вынесены reusable workspace primitives: `WorkspaceShell`, `WorkspaceHeader`, `WorkspaceTabs`, `WorkspacePane`, `WorkspaceCommandBar`, `WorkspaceFooter`, `KeyHintBar`, `SummaryList`, `splitWorkspaceColumns`. Их можно использовать в собственных terminal apps, не собирая layout с нуля.
+- `example:composer` стал полноценным prompt-workspace: поля, вкладки Compose/Preview/History, live plan, template switching и full-height shell.
+- `example:code-review` стал product-like code review console: prompt brief, transcript, block index, action rail, confirm-flow и command/help/footer.
+- `example:command-center` теперь выглядит как operations dashboard с palette, runtime pane, action log и modal overlay.
+- `example:sessions` получил нормальный session-browser layout: filter/search, preview, actions pane, confirmation delete и responsive columns.
+- `example:agent-stream` приведён к live workspace: prompt pane, transcript, stream control, progress, actions and pinned command/footer layout.
+- Добавлены тесты для workspace primitives: full-height shell с pinned footer и responsive column breakpoints.
+
 - `demo:support-desk` получил полноценный reply editor: draft теперь переносится по строкам, показывает видимый курсор и отделён от read-only preview.
 - В reply/note composer добавлен перенос строки через `Ctrl+J` и поддержка Shift+Enter-последовательностей там, где терминал их отдаёт; обычный `Enter` отправляет draft.
 - Ticket thread, Reply view, Customer/work panes и wide context rail получили scroll-state: `↑/↓` и `PageUp/PageDown` теперь реально меняют видимый фрагмент, когда соответствующая зона в фокусе.

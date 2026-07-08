@@ -6,11 +6,11 @@ const groups = [
   ]],
   ['Product examples', [
     ['npm run example:chat', 'Full mock AI chat with commands, skills, sessions, palette and structured blocks.'],
-    ['npm run example:composer', 'Prompt Composer: multi-field prompt editing, templates, preview and submit history.'],
-    ['npm run example:code-review', 'AI Code Review Terminal: structured blocks, selected block actions, confirm apply/run.'],
-    ['npm run example:command-center', 'Command Center: palette, mode stack, modal, toast, progress and status dashboard.'],
-    ['npm run example:sessions', 'Session Browser: filter, preview, create, export and delete with confirmation.'],
-    ['npm run example:agent-stream', 'Agent Stream Playground: structured streaming, cancel, retry, regenerate and rewrite actions.'],
+    ['npm run example:composer', 'Prompt Composer workspace: fields, templates, preview/history tabs and command/footer shell.'],
+    ['npm run example:code-review', 'AI Code Review workspace: prompt brief, transcript, block actions and confirm apply/run.'],
+    ['npm run example:command-center', 'Command Center workspace: palette-driven operations dashboard, modal, toast and action log.'],
+    ['npm run example:sessions', 'Session Browser workspace: filterable list, preview, actions and delete confirmation.'],
+    ['npm run example:agent-stream', 'Agent Stream workspace: structured streaming, progress, cancel/retry/regenerate actions.'],
   ]],
   ['Library diagnostics and galleries', [
     ['npm run example:keys', 'Key Inspector: raw escape sequences, normalized keys and editor action diagnostics.'],

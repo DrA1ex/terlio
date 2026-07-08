@@ -5,6 +5,8 @@ import {
   createToastManager,
   handleCommandPaletteKey,
   isPrintable,
+  scrollBy,
+  normalizeScrollMap,
 } from '../../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from '../_demoRuntime.js';
 import { createSupportTickets, createInitialTimeline } from './data.js';
@@ -138,7 +140,16 @@ export function runSupportDeskDemo() {
     state: createSupportDeskState(),
     render: createSupportDeskView,
     onKey: handleSupportDeskKey,
-    onTick: ({ state }) => tickSupportDesk(state),
+    onTick: ({ state, runtime }) => {
+      if (runtime?.output) {
+        state.viewport = {
+          width: Number(runtime.output.columns) || state.viewport?.width || 118,
+          height: Number(runtime.output.rows) || state.viewport?.height || 34,
+        };
+      }
+      tickSupportDesk(state);
+      clampAllScrolls(state);
+    },
     tickMs: 250,
   });
 }
@@ -185,11 +196,8 @@ function handleConfirmKey(key, state) {
 
 function handleComposerKey(key, state) {
   if (key.name === 'escape') return cancelComposer(state);
-  if ((key.name === 'up' || key.name === 'down') && key.shift) {
-    return scrollState(state, 'reply', key.name === 'up' ? -1 : 1);
-  }
-  if ((key.name === 'page-up' || key.name === 'page-down') && key.shift) {
-    return scrollState(state, 'reply', key.name === 'page-up' ? -5 : 5);
+  if (isPanelScrollKey(key)) {
+    return scrollState(state, 'reply', panelScrollDelta(key));
   }
   if (key.name === 'enter' && (key.shift || key.ctrl)) {
     state.composer.insertLineBreak();
@@ -298,8 +306,12 @@ function handleInboxFocusKey(key, state) {
 function handleTabsFocusKey(key, state) {
   if (key.name === 'left' || key.name === 'up') return switchTab(state, -1);
   if (key.name === 'right' || key.name === 'down') return switchTab(state, 1);
-  if (key.name === 'enter') state.focus = 'work';
+  if (key.name === 'enter') {
+    state.focus = 'work';
+    if (state.activeTab === 'reply') startReply(state, suggestedTemplate(getSelectedTicket(state)));
+  }
 }
+
 
 function handleActivityFocusKey(key, state) {
   if (key.name === 'up') return selectActivityByDelta(state, -1);
@@ -341,14 +353,40 @@ function handleRailFocusKey(key, state) {
 
 function scrollState(state, key, delta) {
   state.scroll = state.scroll || {};
-  state.scroll[key] = clampScroll(state, key, (Number(state.scroll[key]) || 0) + delta);
+  const max = getScrollMax(state, key);
+  state.scroll[key] = scrollBy(state.scroll[key] || 0, delta, max);
+}
+
+function clampAllScrolls(state) {
+  state.scroll = normalizeScrollMap(state.scroll || {}, {
+    ticketThread: getScrollMax(state, 'ticketThread'),
+    reply: getScrollMax(state, 'reply'),
+    rail: getScrollMax(state, 'rail'),
+    customer: getScrollMax(state, 'customer'),
+  });
+}
+
+function getScrollMax(state, key) {
+  const width = Number(state.viewport?.width) || 118;
+  const height = Number(state.viewport?.height) || 34;
+  return getSupportScrollMax({ state, key, width, height });
 }
 
 function clampScroll(state, key, value) {
-  const width = Number(state.viewport?.width) || 118;
-  const height = Number(state.viewport?.height) || 34;
-  const max = getSupportScrollMax({ state, key, width, height });
-  return Math.max(0, Math.min(Number.isFinite(value) ? value : 0, max));
+  return scrollBy(0, value, getScrollMax(state, key));
+}
+
+function isPanelScrollKey(key) {
+  if (!key) return false;
+  if ((key.name === 'up' || key.name === 'down') && (key.shift || key.ctrl || key.meta)) return true;
+  if (key.name === 'page-up' || key.name === 'page-down') return true;
+  return false;
+}
+
+function panelScrollDelta(key) {
+  if (key.name === 'up' || key.name === 'page-up') return key.name === 'page-up' ? -5 : -1;
+  if (key.name === 'down' || key.name === 'page-down') return key.name === 'page-down' ? 5 : 1;
+  return 0;
 }
 
 

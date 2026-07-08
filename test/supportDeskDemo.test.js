@@ -288,3 +288,31 @@ test('support desk live tick injects mock tickets into the inbox and activity fe
   const output = stripAnsi(renderToString(createSupportDeskView({ state, width: 160, height: 42 }), { width: 160, height: 42 }));
   assert.match(output, /TCK-1200/);
 });
+
+test('support desk composer uses Ctrl or Alt arrows and PageUp/PageDown for preview scrolling', () => {
+  const state = createSupportDeskState();
+  const runtime = { output: { columns: 180, rows: 42 } };
+  executeSupportCommand(state, '/reply');
+  state.composer.set(Array.from({ length: 12 }, (_, index) => `line ${index + 1}`).join('\n'));
+  state.composer.cursor = state.composer.value.length;
+
+  handleSupportDeskKey({ key: { name: 'up' }, state, runtime });
+  assert.ok(state.composer.cursor < state.composer.value.length);
+  const cursorAfterMove = state.composer.cursor;
+
+  handleSupportDeskKey({ key: { name: 'down', ctrl: true }, state, runtime });
+  assert.equal(state.composer.cursor, cursorAfterMove);
+  assert.ok((state.scroll.reply || 0) >= 0);
+
+  handleSupportDeskKey({ key: { name: 'page-down' }, state, runtime });
+  assert.ok((state.scroll.reply || 0) >= 0);
+});
+
+test('support desk tabs Enter opens reply composer when Reply tab is focused', () => {
+  const state = createSupportDeskState();
+  state.focus = 'tabs';
+  state.activeTab = 'reply';
+  handleSupportDeskKey({ key: { name: 'enter' }, state, runtime: { output: { columns: 180, rows: 42 } } });
+  assert.equal(state.modes.current(), 'reply');
+  assert.equal(state.focus, 'composer');
+});

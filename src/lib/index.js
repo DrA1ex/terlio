@@ -71,3 +71,18 @@ export { getResponsiveMode, responsiveColumns, takeVisible } from './ui/responsi
 export { Timeline, createTimelineEvent, formatTimelineTime } from './ui/timeline.js';
 export { MetricBlock, KeyValueBlock, LiveJobBlock } from './ui/liveBlocks.js';
 export { createToastManager } from './toastManager.js';
+
+export { clampScrollOffset, scrollBy, scrollPage, normalizeScrollMap } from './scrollState.js';
+
+export {
+  WorkspaceHeader,
+  WorkspaceTabs,
+  WorkspacePane,
+  KeyHintBar,
+  WorkspaceCommandBar,
+  WorkspaceFooter,
+  WorkspaceShell,
+  SummaryList,
+  splitWorkspaceColumns,
+} from './ui/workspace.js';
+

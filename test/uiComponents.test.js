@@ -13,6 +13,13 @@ import {
   visibleWindowLines,
   InputEditor,
   parseKey,
+  stripAnsi,
+  Text,
+  WorkspaceShell,
+  WorkspacePane,
+  WorkspaceCommandBar,
+  WorkspaceFooter,
+  splitWorkspaceColumns,
 } from '../src/lib/index.js';
 
 test('SelectList renders a scrollable selected window', () => {
@@ -97,4 +104,36 @@ test('InputEditor can move vertically across multiline text', () => {
   assert.equal(editor.getCursorPosition().line, 0);
   editor.moveVertical(1);
   assert.equal(editor.getCursorPosition().line, 1);
+});
+
+test('scroll state helpers clamp offsets without accumulating hidden overflow', async () => {
+  const { scrollBy, scrollPage, normalizeScrollMap } = await import('../src/lib/index.js');
+  assert.equal(scrollBy(0, 10, 2), 2);
+  assert.equal(scrollBy(2, -1, 2), 1);
+  assert.equal(scrollPage(0, 1, 5, 3), 3);
+  assert.deepEqual(normalizeScrollMap({ rail: 99, reply: -5 }, { rail: 4, reply: 2 }), { rail: 4, reply: 0 });
+});
+
+test('WorkspaceShell pins command and footer while main content grows', () => {
+  const view = WorkspaceShell({
+    title: 'Demo Workspace',
+    tabs: [{ id: 'one', label: 'One' }],
+    activeTab: 'one',
+    main: WorkspacePane({ title: ' Main ', children: [Text('content')] }),
+    command: WorkspaceCommandBar({ value: 'run', mode: 'COMMAND' }),
+    footer: WorkspaceFooter({ left: ['Connected'], right: ['demo'] }),
+    height: 18,
+  });
+  const output = stripAnsi(renderToString(view, { width: 90, height: 18 }));
+  assert.match(output, /Demo Workspace/);
+  assert.match(output, /COMMAND/);
+  assert.match(output, /Connected/);
+  assert.equal(output.split('\n').length, 18);
+});
+
+test('splitWorkspaceColumns switches from one to two to three pane layouts', () => {
+  assert.equal(splitWorkspaceColumns(90).mode, 'narrow');
+  assert.equal(splitWorkspaceColumns(130).mode, 'medium');
+  assert.equal(splitWorkspaceColumns(180).mode, 'wide');
+  assert.equal(splitWorkspaceColumns(180).widths.length, 3);
 });

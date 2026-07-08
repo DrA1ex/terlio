@@ -1,21 +1,25 @@
 #!/usr/bin/env node
 import {
-  Box,
+  ChatTranscript,
   Column,
   ConfirmPrompt,
-  HelpOverlay,
   InputEditor,
+  KeyHintBar,
   ModeManager,
   Panel,
   Row,
   Text,
   Toast,
-  ChatTranscript,
+  WorkspaceCommandBar,
+  WorkspaceFooter,
+  WorkspacePane,
+  WorkspaceShell,
   appendMessageBlock,
   createMessage,
+  fitInline,
+  splitWorkspaceColumns,
   themes,
 } from '../src/lib/index.js';
-import { BLOCK_GALLERY_BLOCKS } from './blocks.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
 
 const REVIEW_PROMPTS = [
@@ -24,10 +28,17 @@ const REVIEW_PROMPTS = [
   'write tests for command palette keyboard navigation',
 ];
 
+const TABS = [
+  { id: 'review', label: 'Review' },
+  { id: 'blocks', label: 'Blocks' },
+  { id: 'actions', label: 'Actions' },
+];
+
 export function createCodeReviewState() {
   return {
     input: new InputEditor(REVIEW_PROMPTS[0]),
     promptIndex: 0,
+    activeTab: 'review',
     messages: [createMessage({ role: 'system', content: 'Code review demo. Submit a prompt to receive structured blocks.' })],
     selectedBlockIndex: 0,
     modes: new ModeManager('input'),
@@ -41,8 +52,10 @@ export function createCodeReviewState() {
 export function createCodeReviewView({ state, width = 110, height = 32 } = {}) {
   const assistant = lastAssistantWithBlocks(state.messages);
   const blocks = assistant?.blocks ?? [];
-  const mode = state.modes.current();
-  const overlay = mode === 'confirm'
+  const selected = blocks[state.selectedBlockIndex] ?? null;
+  const layout = splitWorkspaceColumns(width);
+  const mainHeight = Math.max(10, height - 12);
+  const overlay = state.modes.current() === 'confirm'
     ? ConfirmPrompt({
         title: ' Confirm block action ',
         message: state.modes.currentEntry().data?.message ?? 'Run selected action?',
@@ -50,39 +63,65 @@ export function createCodeReviewView({ state, width = 110, height = 32 } = {}) {
       })
     : null;
 
-  return Column(
-    Box({ border: true, padding: { left: 1, right: 1 }, title: ' AI Code Review Terminal ' },
-      Text('Product demo: prompt editing, structured assistant blocks, block selection, mock apply/run/copy actions and confirm flow.'),
-      Text(`Mode: ${mode} · selected block: ${blocks.length ? `${state.selectedBlockIndex + 1}/${blocks.length}` : 'none'}`),
-    ),
-    Row({ gap: 2, distribute: true },
-      Panel(' Transcript ', ChatTranscript({ columns: Math.max(54, Math.floor(width * 0.62)), height: Math.max(12, height - 13), messages: state.messages, theme: themes.dark }).node),
-      Column(
-        Toast(state.toast),
-        Panel(' Blocks ', ...(blocks.length ? blocks.map((block, index) => Text(formatReviewBlock(block, index, index === state.selectedBlockIndex))) : [Text('Submit a review prompt to generate blocks.')])) ,
-        Panel(' Actions ',
-          Text('Tab / Shift+Tab  select block'),
-          Text('Enter            primary action'),
-          Text('A                apply diff'),
-          Text('R                run command'),
-          Text('C                copy block'),
-          Text('Esc              cancel overlay'),
-        ),
-      ),
-    ),
-    ...(overlay ? [overlay] : []),
-    Row({ gap: 2, distribute: true },
-      Panel(' Input ',
-        Text(`› ${state.input.value || '<empty>'}`),
-        Text('↑/↓ sample prompts · Ctrl+K/U/W edit · Alt+←/→ words · Enter submit'),
-      ),
-      Panel(' Action log ', ...(state.actionLog.length ? state.actionLog.slice(-5).map((line) => Text(line)) : [Text('No actions yet.')]))
-    ),
-    Box({ border: true, padding: { left: 1, right: 1 }, title: ' Status ' }, Text(state.status)),
-  );
+  const transcriptPane = WorkspacePane({
+    title: ' TRANSCRIPT ',
+    active: state.activeTab === 'review',
+    height: mainHeight,
+    children: [ChatTranscript({ columns: Math.max(52, layout.mode === 'wide' ? layout.widths[1] : Math.floor(width * 0.62)), height: Math.max(8, mainHeight - 2), messages: state.messages, theme: themes.dark }).node],
+  });
+  const promptPane = WorkspacePane({
+    title: ' REVIEW BRIEF ',
+    active: state.activeTab === 'review' && !blocks.length,
+    height: mainHeight,
+    children: [
+      Text('Prompt'),
+      Text(`› ${state.input.value || '<empty>'}▌`, { wrap: false }),
+      Text(''),
+      Text('Sample prompts'),
+      ...REVIEW_PROMPTS.map((prompt, index) => Text(`${index === state.promptIndex ? '›' : ' '} ${fitInline(prompt, Math.max(20, (layout.widths[0] ?? 40) - 4))}`, { wrap: false })),
+    ],
+  });
+  const blocksPane = WorkspacePane({
+    title: ` BLOCKS ${blocks.length ? state.selectedBlockIndex + 1 : 0}/${blocks.length} `,
+    active: state.activeTab === 'blocks',
+    height: mainHeight,
+    children: blocks.length ? blocks.map((block, index) => Text(formatReviewBlock(block, index, index === state.selectedBlockIndex), { wrap: false })) : [Text('Submit a review prompt to generate structured blocks.')],
+  });
+  const actionPane = WorkspacePane({
+    title: ' ACTIONS ',
+    active: state.activeTab === 'actions',
+    height: mainHeight,
+    children: [
+      Toast(state.toast),
+      Panel(' Selected ', selected ? Text(`${selected.type}: ${selected.title || selected.command || selected.name || 'block'}`) : Text('No block selected.')),
+      Panel(' Action log ', ...(state.actionLog.length ? state.actionLog.slice(-6).map((line) => Text(line, { wrap: false })) : [Text('No actions yet.')])),
+    ],
+  });
+
+  const main = layout.mode === 'wide'
+    ? Row({ gap: 2, widths: layout.widths }, promptPane, transcriptPane, actionPane)
+    : layout.mode === 'medium'
+      ? Row({ gap: 2, widths: layout.widths }, blocksPane, transcriptPane)
+      : (state.activeTab === 'actions' ? actionPane : state.activeTab === 'blocks' ? blocksPane : transcriptPane);
+
+  return WorkspaceShell({
+    title: 'AI Code Review Terminal',
+    subtitle: 'structured blocks and safe actions',
+    stats: [{ label: 'Blocks', value: blocks.length }, { label: 'Selected', value: selected?.type ?? 'none' }, { label: 'Mode', value: state.modes.current() }],
+    right: [{ label: 'Prompt', value: state.input.value ? 'ready' : 'empty' }],
+    focus: state.activeTab,
+    tabs: TABS,
+    activeTab: state.activeTab,
+    tabHint: '[/] switch tabs · Tab selects blocks · Enter submit/action · A/R/C block actions',
+    main: overlay ? Column({ grow: true, height: 'fill' }, main, overlay) : main,
+    command: WorkspaceCommandBar({ value: state.input.value, prompt: 'review', mode: 'PROMPT', suggestions: ['Enter submit', '↑/↓ samples', 'Tab block', 'A apply', 'R run', 'C copy'] }),
+    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['Enter', 'submit or primary action'], ['Tab', 'select block'], ['A', 'apply diff'], ['R', 'run command'], ['C', 'copy block'], ['Esc', 'cancel modal']] }),
+    footer: WorkspaceFooter({ left: ['Ready', state.modes.current() === 'confirm' ? 'Confirm block action' : state.status], right: ['demo: code-review'] }),
+    height,
+  });
 }
 
-export function handleCodeReviewKey({ key, state }) {
+export function handleCodeReviewKey({ key, state, runtime }) {
   if (state.modes.current() === 'confirm') {
     handleConfirmKey(key, state);
     return;
@@ -90,19 +129,20 @@ export function handleCodeReviewKey({ key, state }) {
 
   const blocks = lastAssistantWithBlocks(state.messages)?.blocks ?? [];
 
+  if (key.name === '[' || (key.name === 'left' && key.ctrl)) return switchTab(state, -1);
+  if (key.name === ']' || (key.name === 'right' && key.ctrl)) return switchTab(state, 1);
+
   if (key.name === 'tab') {
     if (blocks.length) {
       state.selectedBlockIndex = mod(state.selectedBlockIndex + (key.shift ? -1 : 1), blocks.length);
+      state.activeTab = 'blocks';
       state.status = `Selected ${blocks[state.selectedBlockIndex].type} block.`;
     }
     return;
   }
 
   if (key.name === 'enter') {
-    if (blocks.length && state.input.value.trim() === '') {
-      requestPrimaryAction(state, blocks[state.selectedBlockIndex]);
-      return;
-    }
+    if (blocks.length && state.input.value.trim() === '') return requestPrimaryAction(state, blocks[state.selectedBlockIndex]);
     submitReview(state);
     return;
   }
@@ -139,6 +179,7 @@ export function submitReview(state) {
   state.messages.push(assistant);
   state.input.clear();
   state.selectedBlockIndex = 0;
+  state.activeTab = 'blocks';
   state.toast = { level: 'success', message: 'Structured review generated.' };
   state.status = 'Review complete. Select blocks and run actions.';
 }
@@ -221,6 +262,7 @@ function handleConfirmKey(key, state) {
   state.toast = { level: 'success', message: action };
   state.status = action;
   state.confirmSelected = 'confirm';
+  state.activeTab = 'actions';
 }
 
 function selectedBlock(state) {
@@ -229,15 +271,13 @@ function selectedBlock(state) {
 }
 
 function lastAssistantWithBlocks(messages) {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (messages[index].role === 'assistant' && messages[index].blocks?.length) return messages[index];
-  }
-  return null;
+  return [...messages].reverse().find((message) => message.role === 'assistant' && message.blocks?.length);
 }
 
 function formatReviewBlock(block, index, selected) {
-  const source = block.title || block.command || block.name || block.language || block.content.split('\n')[0];
-  return `${selected ? '›' : ' '} ${String(index + 1).padStart(2, '0')} ${block.type.padEnd(11)} ${source}`;
+  const label = `${index + 1}. ${block.type}`.padEnd(14);
+  const detail = block.title || block.name || block.command || block.language || '';
+  return `${selected ? '›' : ' '} ${label} ${detail}`;
 }
 
 function editInput(editor, key, state) {
@@ -250,11 +290,17 @@ function editInput(editor, key, state) {
   if (key.name === 'kill-end') return editor.killToEnd();
   if (key.name === 'kill-start') return editor.killToStart();
   if (key.name === 'delete-word-left') return editor.deleteWordBack();
-  if (key.name === 'paste') return editor.insert(key.text);
+  if (key.name === 'paste') return editor.insert(key.text.replace(/\s+/g, ' '));
   if (key.printable) {
     editor.insert(key.text);
-    state.status = 'Editing review prompt.';
+    state.activeTab = 'review';
   }
+}
+
+function switchTab(state, delta) {
+  const index = TABS.findIndex((tab) => tab.id === state.activeTab);
+  state.activeTab = TABS[mod(index + delta, TABS.length)].id;
+  state.status = `Opened ${state.activeTab} tab.`;
 }
 
 function mod(value, size) {

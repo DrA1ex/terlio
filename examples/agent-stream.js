@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Box, ChatTranscript, Column, HelpOverlay, InputEditor, Panel, ProgressBar, Row, Text, Toast, appendMessageBlock, appendMessageChunk, completeMessage, createMessage, themes } from '../src/lib/index.js';
+import { ChatTranscript, InputEditor, KeyHintBar, Panel, ProgressBar, Row, Text, Toast, WorkspaceCommandBar, WorkspaceFooter, WorkspacePane, WorkspaceShell, appendMessageBlock, appendMessageChunk, completeMessage, createMessage, splitWorkspaceColumns, themes } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
 
 const STREAM_SCENARIOS = [
@@ -44,37 +44,67 @@ export function createAgentStreamState() {
 }
 
 export function createAgentStreamView({ state, width = 110, height = 32 } = {}) {
-  return Column(
-    Box({ border: true, padding: { left: 1, right: 1 }, title: ' Agent Stream Playground ' },
-      Text('Demonstrates structured streaming, cancellation, retry/regenerate/shorter/longer/explain actions and live transcript rendering.'),
-      Text(`Prompt: ${state.prompt.value || '<empty>'}█`),
-    ),
-    Row({ gap: 2, distribute: true },
-      Panel(' Transcript ', ChatTranscript({ columns: Math.max(56, Math.floor(width * 0.66)), height: Math.max(12, height - 12), messages: state.messages, theme: themes.dark }).node),
-      Column(
-        Toast(state.toast),
-        Panel(' Stream state ',
-          Text(`streaming : ${state.streaming ? 'yes' : 'no'}`),
-          Text(`progress  : ${state.streamDone}/${state.streamTotal}`),
-          ProgressBar({ value: state.streamDone, total: Math.max(1, state.streamTotal), width: 20 }),
-          Text(`last prompt: ${state.lastPrompt || '<none>'}`),
-        ),
-        HelpOverlay({
-          title: ' Actions ',
-          shortcuts: [
-            ['Enter', 'submit prompt'],
-            ['Esc', 'cancel stream'],
-            ['R', 'retry last prompt'],
-            ['G', 'regenerate'],
-            ['S/L', 'shorter / longer'],
-            ['E', 'explain'],
-            ['↑/↓', 'sample prompts'],
-          ],
-        }),
+  const layout = splitWorkspaceColumns(width);
+  const mainHeight = Math.max(10, height - 12);
+  const transcriptPane = WorkspacePane({
+    title: ' LIVE TRANSCRIPT ',
+    active: true,
+    height: mainHeight,
+    children: [ChatTranscript({ columns: Math.max(52, layout.mode === 'wide' ? layout.widths[1] : Math.floor(width * 0.62)), height: Math.max(8, mainHeight - 2), messages: state.messages, theme: themes.dark }).node],
+  });
+  const promptPane = WorkspacePane({
+    title: ' PROMPT ',
+    height: mainHeight,
+    children: [
+      Text(`› ${state.prompt.value || '<empty>'}▌`, { wrap: false }),
+      Text(''),
+      Text('Sample prompts'),
+      ...STREAM_SCENARIOS.map((scenario, index) => Text(`${index === state.scenarioIndex ? '›' : ' '} ${scenario.prompt}`, { wrap: false })),
+      Text(''),
+      Text('Enter starts a structured stream. Esc cancels the active stream.'),
+    ],
+  });
+  const controlPane = WorkspacePane({
+    title: ' STREAM CONTROL ',
+    height: mainHeight,
+    children: [
+      Toast(state.toast),
+      Panel(' State ',
+        Text(`streaming : ${state.streaming ? 'yes' : 'no'}`),
+        Text(`progress  : ${state.streamDone}/${state.streamTotal}`),
+        ProgressBar({ value: state.streamDone, total: Math.max(1, state.streamTotal), width: 20 }),
+        Text(`last prompt: ${state.lastPrompt || '<none>'}`),
       ),
-    ),
-    Box({ border: true, padding: { left: 1, right: 1 }, title: ' Status ' }, Text(state.status)),
-  );
+      Panel(' Actions ',
+        Text('R retry last prompt'),
+        Text('G regenerate'),
+        Text('S/L shorter / longer'),
+        Text('E explain blocks'),
+      ),
+    ],
+  });
+
+  const main = layout.mode === 'wide'
+    ? Row({ gap: 2, widths: layout.widths }, promptPane, transcriptPane, controlPane)
+    : layout.mode === 'medium'
+      ? Row({ gap: 2, widths: layout.widths }, transcriptPane, controlPane)
+      : transcriptPane;
+
+  return WorkspaceShell({
+    title: 'Agent Stream Playground',
+    subtitle: 'structured streaming playground',
+    stats: [{ label: 'Streaming', value: state.streaming ? 'yes' : 'no' }, { label: 'Progress', value: `${state.streamDone}/${state.streamTotal}` }],
+    right: [{ label: 'Scenario', value: state.scenarioIndex + 1 }],
+    focus: state.streaming ? 'stream' : 'prompt',
+    tabs: [{ id: 'prompt', label: 'Prompt' }, { id: 'stream', label: 'Stream' }, { id: 'actions', label: 'Actions' }],
+    activeTab: state.streaming ? 'stream' : 'prompt',
+    tabHint: 'Enter stream · Esc cancel · R retry · G regenerate · S/L shorter/longer · E explain',
+    main,
+    command: WorkspaceCommandBar({ value: state.prompt.value, prompt: 'prompt', mode: state.streaming ? 'STREAMING' : 'READY', suggestions: ['Enter submit', 'Esc cancel', 'R retry', 'G regenerate', 'S/L rewrite', 'E explain'] }),
+    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['Enter', 'submit'], ['Esc', 'cancel'], ['↑/↓', 'sample prompt'], ['R', 'retry'], ['G', 'regenerate'], ['E', 'explain']] }),
+    footer: WorkspaceFooter({ left: [state.status], right: ['demo: agent-stream'] }),
+    height,
+  });
 }
 
 export function handleAgentStreamKey({ key, state, runtime }) {
