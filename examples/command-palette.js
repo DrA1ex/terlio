@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import {
-  Box,
   Column,
   InputEditor,
   KeyHintBar,
@@ -10,14 +9,14 @@ import {
   Text,
   Toast,
   WorkspaceCommandBar,
-  WorkspaceFooter,
   WorkspacePane,
   WorkspaceShell,
   fitInline,
+  renderNode,
   splitWorkspaceColumns,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
-import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, workspaceMainHeight } from './_workspaceExampleUtils.js';
+import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, scrollOffset, visibleScrollableRows, workspaceMainHeight } from './_workspaceExampleUtils.js';
 
 const ACTIONS = [
   ['chat.new', 'Start a new chat transcript', 'Chat', '⌘N', 'Safe reset that preserves the current session in history.'],
@@ -36,7 +35,7 @@ const ACTIONS = [
   ['theme.matrix', 'Switch to the matrix theme', 'Theme', '3', 'Dense green terminal theme for diagnostics.'],
   ['skill.code.on', 'Enable code assistant skill', 'Skill', 'C', 'Enables code-oriented mock planning and block output.'],
   ['skill.writer.on', 'Enable writer skill', 'Skill', 'W', 'Enables rewrite and tone-oriented examples.'],
-  ['skill.debugger.on', 'Enable debugger skill', 'Skill', 'B', 'Adds structured warning and tool-result suggestions.'],
+  ['skill.debugger.on', 'Enable debugger skill', 'B', 'Adds structured warning and tool-result suggestions.'],
   ['debug.keys', 'Open the key diagnostics screen', 'Diagnostics', 'K', 'Useful when terminal modifiers emit unexpected sequences.'],
   ['debug.render', 'Show renderer frame timings', 'Diagnostics', 'F', 'Displays frame diff and redraw diagnostics.'],
   ['terminal.suspend', 'Suspend rich UI and run a shell command', 'Terminal', '!', 'Leaves alternate screen before running a process.'],
@@ -58,22 +57,32 @@ export function createCommandPaletteState() {
     search: new InputEditor(''),
     selectedIndex: 0,
     accepted: [],
+    acceptedSelection: 0,
     activeTab: 'palette',
-    status: 'Command Palette: type to filter, use ↑/↓ and PageUp/PageDown, Enter accepts.',
+    paneScroll: { details: 0, accepted: 0 },
+    status: 'Type to filter actions. Enter accepts the selected action.',
   };
 }
 
 export function createCommandPaletteView({ state, width = 96, height = 30 } = {}) {
   const items = getFilteredActions(state.search.value);
   const selected = normalizeSelected(state, items.length);
+  normalizeAcceptedSelection(state);
   const selectedAction = items[selected];
   const layout = splitWorkspaceColumns(width);
-  const mainHeight = workspaceMainHeight(height, { min: 6, activityRows: 2 });
+  const helpHints = contextHelpHints(state);
+  const helpGridRows = Math.ceil(helpHints.length / 3);
+  const mainHeight = workspaceMainHeight(height, {
+    min: 6,
+    activityRows: helpGridRows ? helpGridRows * 2 + 1 : 0,
+    commandRows: state.activeTab === 'palette' ? 4 : 0,
+    footerRows: 0,
+  });
   const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['palette'] });
   const main = layout.mode === 'wide'
     ? Row({ gap: 2, widths: layout.widths },
         palettePane(state, items, selected, Math.max(30, layout.widths[0]), mainHeight),
-        detailsPane(selectedAction, Math.max(40, layout.widths[1]), mainHeight),
+        detailsPane(state, selectedAction, Math.max(40, layout.widths[1]), mainHeight),
         acceptedPane(state, Math.max(28, layout.widths[2]), mainHeight),
       )
     : layout.mode === 'medium'
@@ -81,50 +90,40 @@ export function createCommandPaletteView({ state, width = 96, height = 30 } = {}
           palettePane(state, items, selected, Math.max(30, layout.widths[0]), mainHeight),
           state.activeTab === 'accepted'
             ? acceptedPane(state, Math.max(40, layout.widths[1]), mainHeight)
-            : detailsPane(selectedAction, Math.max(40, layout.widths[1]), mainHeight),
+            : detailsPane(state, selectedAction, Math.max(40, layout.widths[1]), mainHeight),
         )
       : narrowPane(state, items, selected, selectedAction, width, mainHeight);
 
   return WorkspaceShell({
     title: 'Command Palette',
-    subtitle: 'searchable action launcher',
+    subtitle: 'action launcher workspace',
     stats: [
       { label: 'Matches', value: items.length },
       { label: 'Selected', value: selectedAction?.[0] ?? 'none' },
+      { label: 'Accepted', value: state.accepted.length },
     ],
     right: [
-      { label: 'Accepted', value: state.accepted.length },
       { label: 'Query', value: state.search.value || '<empty>' },
+      { label: 'Status', value: fitInline(state.status, 44).trimEnd() },
     ],
     focus: state.activeTab,
     tabs: visibleTabs,
     activeTab: state.activeTab,
-    tabHint: responsiveTabHint('Type to filter · ↑/↓ select · Enter accept · Esc clear · Q exit', TABS, visibleTabs),
+    tabHint: responsiveTabHint('Tab focus · Enter accept/inspect · PgUp/PgDn page active pane · Ctrl+C exit', TABS, visibleTabs),
     main,
-    command: WorkspaceCommandBar({
+    command: state.activeTab === 'palette' ? WorkspaceCommandBar({
       mode: 'PALETTE',
       prompt: 'search',
       value: `${state.search.value || '<empty>'}▌`,
       suggestions: groupCounts(items),
-      hint: 'filters by id, title and group',
+      hint: 'typing edits only while Palette is focused',
       theme: EXAMPLE_THEME,
-    }),
+    }) : null,
     activity: KeyHintBar({
       title: ' LOCAL HELP ',
-      hints: [
-        ['↑/↓', 'move selection'],
-        ['PgUp/PgDn', 'page list'],
-        ['Home/End', 'jump'],
-        ['Enter', 'accept action'],
-        ['Esc', 'clear query'],
-        ['Ctrl+U', 'clear prefix'],
-      ],
+      hints: helpHints,
       theme: EXAMPLE_THEME,
-    }),
-    footer: WorkspaceFooter({
-      left: ['Ready', state.status],
-      right: [`theme: ${EXAMPLE_THEME.name}`, 'demo: command-palette'],
-      theme: EXAMPLE_THEME,
+      gridBorder: true,
     }),
     height,
     theme: EXAMPLE_THEME,
@@ -134,15 +133,14 @@ export function createCommandPaletteView({ state, width = 96, height = 30 } = {}
 export function handleCommandPaletteKey({ key, state, runtime }) {
   const items = getFilteredActions(state.search.value);
   normalizeSelected(state, items.length);
+  normalizeAcceptedSelection(state);
 
-  if (key.name === 'escape') {
-    state.search.clear();
-    state.selectedIndex = 0;
-    state.status = 'Filter cleared.';
+  if (key.name === 'q' && key.ctrl) {
+    runtime.exit(0);
     return;
   }
 
-  if (key.name === 'q') {
+  if (key.name === 'q' && state.activeTab !== 'palette') {
     runtime.exit(0);
     return;
   }
@@ -152,113 +150,22 @@ export function handleCommandPaletteKey({ key, state, runtime }) {
     return;
   }
 
-  if (key.name === 'enter') {
-    if (!items.length) {
-      state.status = 'Nothing to accept.';
-      return;
-    }
-    const [action, description, group] = items[state.selectedIndex];
-    if (action === 'app.exit') {
-      runtime.exit(0);
-      return;
-    }
-    state.accepted.push(`${action} — ${description}`);
-    state.activeTab = 'accepted';
-    state.status = `Accepted ${action} from ${group}.`;
+  if (key.name === 'page-up' || key.name === 'page-down') {
+    pageActivePane(state, key.name === 'page-up' ? -1 : 1);
     return;
   }
 
-  if (key.name === 'up') {
-    state.selectedIndex = Math.max(0, state.selectedIndex - 1);
-    state.status = 'Moved selection up.';
+  if (state.activeTab === 'accepted') {
+    handleAcceptedKey({ key, state, runtime });
     return;
   }
 
-  if (key.name === 'down') {
-    state.selectedIndex = Math.min(Math.max(0, items.length - 1), state.selectedIndex + 1);
-    state.status = 'Moved selection down.';
+  if (state.activeTab === 'details') {
+    handleDetailsKey({ key, state, items, runtime });
     return;
   }
 
-  if (key.name === 'page-up') {
-    state.selectedIndex = Math.max(0, state.selectedIndex - WINDOW_SIZE);
-    state.status = 'Moved one page up.';
-    return;
-  }
-
-  if (key.name === 'page-down') {
-    state.selectedIndex = Math.min(Math.max(0, items.length - 1), state.selectedIndex + WINDOW_SIZE);
-    state.status = 'Moved one page down.';
-    return;
-  }
-
-  if (key.name === 'home') {
-    state.selectedIndex = 0;
-    state.status = 'Moved to first action.';
-    return;
-  }
-
-  if (key.name === 'end') {
-    state.selectedIndex = Math.max(0, items.length - 1);
-    state.status = 'Moved to last action.';
-    return;
-  }
-
-  if (key.name === 'backspace') {
-    state.search.backspace();
-    state.selectedIndex = 0;
-    state.activeTab = 'palette';
-    state.status = 'Edited filter.';
-    return;
-  }
-
-  if (key.name === 'delete') {
-    state.search.deleteForward();
-    state.selectedIndex = 0;
-    state.status = 'Deleted forward in filter.';
-    return;
-  }
-
-  if (key.name === 'kill-start') {
-    state.search.killToStart();
-    state.selectedIndex = 0;
-    state.status = 'Cleared filter prefix.';
-    return;
-  }
-
-  if (key.name === 'kill-end') {
-    state.search.killToEnd();
-    state.selectedIndex = 0;
-    state.status = 'Cleared filter suffix.';
-    return;
-  }
-
-  if (key.name === 'left') {
-    key.meta ? state.search.moveWord(-1) : state.search.move(-1);
-    state.status = 'Moved filter cursor.';
-    return;
-  }
-
-  if (key.name === 'right') {
-    key.meta ? state.search.moveWord(1) : state.search.move(1);
-    state.status = 'Moved filter cursor.';
-    return;
-  }
-
-  if (key.name === 'paste') {
-    state.search.insert(key.text);
-    state.selectedIndex = 0;
-    state.activeTab = 'palette';
-    state.status = 'Pasted into filter.';
-    return;
-  }
-
-  if (key.printable) {
-    state.search.insert(key.text);
-    state.selectedIndex = 0;
-    state.activeTab = 'palette';
-    state.status = 'Filtered actions.';
-  }
+  handlePaletteKey({ key, state, items, runtime });
 }
 
 export function getFilteredActions(query) {
@@ -270,6 +177,177 @@ export function getFilteredActions(query) {
   });
 }
 
+function handlePaletteKey({ key, state, items, runtime }) {
+  if (key.name === 'escape') {
+    if (state.search.value) {
+      state.search.clear();
+      state.selectedIndex = 0;
+      state.status = 'Filter cleared.';
+    } else {
+      state.status = 'Palette is already empty.';
+    }
+    return;
+  }
+
+  if (key.name === 'q') {
+    runtime.exit(0);
+    return;
+  }
+
+  if (key.name === 'enter') {
+    acceptSelectedAction(state, items);
+    return;
+  }
+
+  if (key.name === 'up') return moveSelection(state, -1, items.length);
+  if (key.name === 'down') return moveSelection(state, 1, items.length);
+  if (key.name === 'home') return setSelection(state, 0, items.length, 'Moved to first action.');
+  if (key.name === 'end') return setSelection(state, items.length - 1, items.length, 'Moved to last action.');
+
+  if (key.name === 'backspace') return editSearch(state, () => state.search.backspace());
+  if (key.name === 'delete') return editSearch(state, () => state.search.deleteForward());
+  if (key.name === 'kill-start') return editSearch(state, () => state.search.killToStart());
+  if (key.name === 'kill-end') return editSearch(state, () => state.search.killToEnd());
+  if (key.name === 'delete-word-left') return editSearch(state, () => state.search.deleteWordBack());
+  if (key.name === 'left') {
+    key.meta ? state.search.moveWord(-1) : state.search.move(-1);
+    state.status = 'Moved filter cursor.';
+    return;
+  }
+  if (key.name === 'right') {
+    key.meta ? state.search.moveWord(1) : state.search.move(1);
+    state.status = 'Moved filter cursor.';
+    return;
+  }
+  if (key.name === 'paste') return editSearch(state, () => state.search.insert(key.text));
+  if (key.printable) return editSearch(state, () => state.search.insert(key.text));
+}
+
+function handleDetailsKey({ key, state, items, runtime }) {
+  if (key.name === 'escape') {
+    state.activeTab = 'palette';
+    state.status = 'Returned to Palette.';
+    return;
+  }
+  if (key.name === 'q') {
+    runtime.exit(0);
+    return;
+  }
+  if (key.name === 'enter') {
+    acceptSelectedAction(state, items);
+    return;
+  }
+  if (key.name === 'up' || key.name === 'down') {
+    state.status = 'Details is read-only. Use PgUp/PgDn if content overflows.';
+  }
+}
+
+function handleAcceptedKey({ key, state, runtime }) {
+  if (key.name === 'escape') {
+    state.activeTab = 'palette';
+    state.status = 'Returned to Palette.';
+    return;
+  }
+  if (key.name === 'q') {
+    runtime.exit(0);
+    return;
+  }
+  if (key.name === 'up') {
+    moveAcceptedSelection(state, -1);
+    return;
+  }
+  if (key.name === 'down') {
+    moveAcceptedSelection(state, 1);
+    return;
+  }
+  if (key.name === 'enter') {
+    const item = state.accepted[state.acceptedSelection];
+    if (!item) {
+      state.activeTab = 'palette';
+      state.status = 'No accepted action to inspect.';
+      return;
+    }
+    const id = item.split(' — ')[0];
+    const index = getFilteredActions('').findIndex(([action]) => action === id);
+    if (index >= 0) {
+      state.search.set(id);
+      state.selectedIndex = 0;
+      state.activeTab = 'details';
+      state.status = `Inspecting accepted action ${id}.`;
+    }
+    return;
+  }
+}
+
+function acceptSelectedAction(state, items) {
+  if (!items.length) {
+    state.status = 'Nothing to accept.';
+    return;
+  }
+  const [action, description, group] = items[state.selectedIndex];
+  if (action === 'app.exit') {
+    state.status = 'Use Q to exit this example.';
+    return;
+  }
+  state.accepted.push(`${action} — ${description}`);
+  state.acceptedSelection = state.accepted.length - 1;
+  state.activeTab = 'accepted';
+  state.status = `Accepted ${action} from ${group}.`;
+  state.paneScroll.accepted = Math.max(0, state.accepted.length - 4);
+}
+
+function editSearch(state, fn) {
+  fn();
+  state.selectedIndex = 0;
+  state.activeTab = 'palette';
+  state.status = 'Filter updated.';
+}
+
+function moveSelection(state, delta, size) {
+  if (!size) {
+    state.selectedIndex = 0;
+    state.status = 'No matching actions.';
+    return;
+  }
+  state.selectedIndex = Math.max(0, Math.min(size - 1, state.selectedIndex + delta));
+  state.status = 'Moved palette selection.';
+}
+
+function setSelection(state, index, size, status) {
+  if (!size) return;
+  state.selectedIndex = Math.max(0, Math.min(size - 1, index));
+  state.status = status;
+}
+
+function moveAcceptedSelection(state, delta) {
+  if (!state.accepted.length) {
+    state.acceptedSelection = 0;
+    state.status = 'No accepted actions yet.';
+    return;
+  }
+  state.acceptedSelection = Math.max(0, Math.min(state.accepted.length - 1, state.acceptedSelection + delta));
+  state.paneScroll.accepted = Math.max(0, state.acceptedSelection - 4);
+  state.status = 'Moved accepted-action selection.';
+}
+
+function pageActivePane(state, direction) {
+  const page = WINDOW_SIZE;
+  if (state.activeTab === 'palette') {
+    const size = getFilteredActions(state.search.value).length;
+    moveSelection(state, direction * page, size);
+    state.status = direction < 0 ? 'Moved palette one page up.' : 'Moved palette one page down.';
+    return;
+  }
+  if (state.activeTab === 'accepted') {
+    state.paneScroll.accepted = scrollOffset(state.paneScroll.accepted, direction * page, Math.max(1, state.accepted.length), WINDOW_SIZE);
+    state.acceptedSelection = Math.max(0, Math.min(Math.max(0, state.accepted.length - 1), state.paneScroll.accepted));
+    state.status = direction < 0 ? 'Accepted log page up.' : 'Accepted log page down.';
+    return;
+  }
+  state.paneScroll.details = scrollOffset(state.paneScroll.details, direction * page, 18, WINDOW_SIZE);
+  state.status = direction < 0 ? 'Details page up.' : 'Details page down.';
+}
+
 function palettePane(state, items, selected, width, height) {
   return WorkspacePane({
     title: ` ${state.activeTab === 'palette' ? '▶' : ' '} ACTIONS ${items.length ? selected + 1 : 0}/${items.length} `,
@@ -278,7 +356,7 @@ function palettePane(state, items, selected, width, height) {
     children: [
       Text(`Search: ${state.search.value || '<empty>'}▌`, { wrap: false }),
       SelectList({
-        title: 'Command Palette',
+        title: 'Matches',
         items,
         selectedIndex: selected,
         windowSize: Math.min(WINDOW_SIZE, Math.max(4, height - 8)),
@@ -290,56 +368,103 @@ function palettePane(state, items, selected, width, height) {
   });
 }
 
-function detailsPane(action, width, height) {
+function detailsPane(state, action, width, height) {
   if (!action) {
     return WorkspacePane({
-      title: ' DETAILS ',
+      title: ` ${state.activeTab === 'details' ? '▶' : ' '} DETAILS `,
+      active: state.activeTab === 'details',
       height,
       children: [Toast({ level: 'warning', message: 'No command matches the current query.' })],
     });
   }
   const [id, description, group, shortcut, detail] = action;
+  const lines = renderNode(Column(
+    Panel(' Selected action ',
+      Text(`id       ${id}`, { wrap: false }),
+      Text(`group    ${group}`, { wrap: false }),
+      Text(`shortcut ${shortcut}`, { wrap: false }),
+    ),
+    Panel(' Runtime effect ',
+      Text(fitInline(description, Math.max(20, width - 10)), { wrap: false }),
+      Text(fitInline(detail, Math.max(20, width - 10)), { wrap: false }),
+    ),
+    Panel(' Payload ',
+      Text(`{ id: '${id}', group: '${group}', shortcut: '${shortcut}' }`, { wrap: false }),
+      Text('Enter accepts this action. Esc returns to the palette.', { wrap: false }),
+    ),
+  ), Math.max(20, width - 4));
+  const window = visibleScrollableRows(lines, {
+    scroll: state.paneScroll.details,
+    height: Math.max(3, height - 2),
+    width: Math.max(20, width - 4),
+    footer: lines.length > Math.max(3, height - 3),
+  });
+  state.paneScroll.details = window.scroll;
   return WorkspacePane({
-    title: ' DETAILS ',
+    title: ` ${state.activeTab === 'details' ? '▶' : ' '} DETAILS `,
     height,
-    active: false,
-    children: [
-      Panel(' Selected action ',
-        Text(`id       ${id}`, { wrap: false }),
-        Text(`group    ${group}`, { wrap: false }),
-        Text(`shortcut ${shortcut}`, { wrap: false }),
-      ),
-      Panel(' Behavior ',
-        Text(fitInline(description, Math.max(20, width - 6)), { wrap: false }),
-        Text(fitInline(detail, Math.max(20, width - 6)), { wrap: false }),
-      ),
-      Panel(' Integration notes ',
-        Text('Palette actions are data records, not hard-coded UI rows.'),
-        Text('The app decides whether an accepted item inserts text, opens a modal, runs a command or exits.'),
-      ),
-    ],
+    active: state.activeTab === 'details',
+    children: window.rows.map((line) => Text(line, { wrap: false })),
   });
 }
 
 function acceptedPane(state, width, height) {
-  const rows = state.accepted.length
-    ? state.accepted.slice(-Math.max(4, height - 8)).map((line, index) => Text(`${index + 1}. ${fitInline(line, Math.max(16, width - 8))}`, { wrap: false }))
-    : [Text('Accept actions to build a visible audit trail.')];
+  normalizeAcceptedSelection(state);
+  const contentRows = state.accepted.length
+    ? state.accepted.map((line, index) => `${index === state.acceptedSelection ? '›' : ' '} ${fitInline(line, Math.max(16, width - 8))}`)
+    : ['No accepted actions yet.', 'Go to Palette, select an action and press Enter.'];
+  const window = visibleScrollableRows(contentRows, {
+    scroll: state.paneScroll.accepted,
+    height: Math.max(3, height - 5),
+    width: Math.max(20, width - 4),
+    footer: contentRows.length > Math.max(3, height - 6),
+  });
+  state.paneScroll.accepted = window.scroll;
   return WorkspacePane({
     title: ` ${state.activeTab === 'accepted' ? '▶' : ' '} ACCEPTED `,
     active: state.activeTab === 'accepted',
     height,
     children: [
       Toast({ level: state.accepted.length ? 'success' : 'info', message: state.accepted.length ? `${state.accepted.length} action(s) accepted.` : 'No accepted actions yet.' }),
-      ...rows,
+      ...window.rows.map((line) => Text(line, { wrap: false })),
     ],
   });
 }
 
 function narrowPane(state, items, selected, action, width, height) {
   if (state.activeTab === 'accepted') return acceptedPane(state, width, height);
-  if (state.activeTab === 'details') return detailsPane(action, width, height);
+  if (state.activeTab === 'details') return detailsPane(state, action, width, height);
   return palettePane(state, items, selected, width, height);
+}
+
+function contextHelpHints(state) {
+  if (state.activeTab === 'accepted') {
+    return [
+      ['↑/↓', 'select log row'],
+      ['Enter', 'inspect selected'],
+      ['PgUp/PgDn', 'scroll log'],
+      ['Esc', 'back to palette'],
+      ['Tab', 'switch pane'],
+      ['Q', 'exit'],
+    ];
+  }
+  if (state.activeTab === 'details') {
+    return [
+      ['Enter', 'accept selected'],
+      ['PgUp/PgDn', 'scroll details'],
+      ['Esc', 'back to palette'],
+      ['Tab', 'switch pane'],
+      ['Q', 'exit'],
+    ];
+  }
+  return [
+    ['Type', 'filter actions'],
+    ['↑/↓', 'select action'],
+    ['PgUp/PgDn', 'page list'],
+    ['Enter', 'accept action'],
+    ['Esc', 'clear filter'],
+    ['Tab', 'switch pane'],
+  ];
 }
 
 function normalizeSelected(state, size) {
@@ -349,6 +474,14 @@ function normalizeSelected(state, size) {
   }
   state.selectedIndex = Math.max(0, Math.min(size - 1, state.selectedIndex));
   return state.selectedIndex;
+}
+
+function normalizeAcceptedSelection(state) {
+  if (!state.accepted.length) {
+    state.acceptedSelection = 0;
+    return;
+  }
+  state.acceptedSelection = Math.max(0, Math.min(state.accepted.length - 1, state.acceptedSelection));
 }
 
 function groupCounts(items) {

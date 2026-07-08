@@ -1,14 +1,17 @@
-import { themes, visibleLength } from '../src/lib/index.js';
+import { themes, visibleLength, fitInline } from '../src/lib/index.js';
 
 export const EXAMPLE_THEME = themes.ocean;
 
-export function workspaceMainHeight(height = 28, { min = 6, activityRows = 2 } = {}) {
-  const header = 4;
-  const tabs = 4;
-  const command = 4;
-  const footer = 3;
+export function workspaceMainHeight(height = 28, {
+  min = 6,
+  activityRows = 2,
+  headerRows = 4,
+  tabsRows = 4,
+  commandRows = 4,
+  footerRows = 3,
+} = {}) {
   const activity = activityRows > 0 ? activityRows + 2 : 0;
-  return Math.max(min, Math.max(0, Number(height) || 0) - header - tabs - command - activity - footer);
+  return Math.max(min, Math.max(0, Number(height) || 0) - headerRows - tabsRows - commandRows - activity - footerRows);
 }
 
 export function responsiveTabs(tabs = [], activeTab = '', width = 80, { pinned = [] } = {}) {
@@ -70,4 +73,35 @@ function tabsLineWidth(tabs) {
 function sortTabsByOriginalOrder(items, tabs) {
   const order = new Map(tabs.map((tab, index) => [tab.id, index]));
   return [...items].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+}
+
+export function scrollOffset(current = 0, delta = 0, totalRows = 0, visibleRows = 1) {
+  const max = Math.max(0, Number(totalRows) - Math.max(1, Number(visibleRows) || 1));
+  return Math.max(0, Math.min(max, (Number(current) || 0) + (Number(delta) || 0)));
+}
+
+export function scrollToVisible(current = 0, index = 0, visibleRows = 1, totalRows = 0) {
+  const safeVisible = Math.max(1, Number(visibleRows) || 1);
+  const safeIndex = Math.max(0, Number(index) || 0);
+  const max = Math.max(0, Number(totalRows) - safeVisible);
+  if (safeIndex < current) return Math.max(0, Math.min(max, safeIndex));
+  if (safeIndex >= current + safeVisible) return Math.max(0, Math.min(max, safeIndex - safeVisible + 1));
+  return Math.max(0, Math.min(max, Number(current) || 0));
+}
+
+export function visibleScrollableRows(lines = [], { scroll = 0, height = 8, width = 80, footer = true } = {}) {
+  const safeLines = Array.from(lines, (line) => String(line ?? ''));
+  const footerRows = footer ? 1 : 0;
+  const visibleHeight = Math.max(1, (Number(height) || 1) - footerRows);
+  const maxScroll = Math.max(0, safeLines.length - visibleHeight);
+  const safeScroll = Math.max(0, Math.min(maxScroll, Number(scroll) || 0));
+  const rows = safeLines.slice(safeScroll, safeScroll + visibleHeight);
+  while (rows.length < visibleHeight) rows.push('');
+  const fitted = rows.map((line) => fitInline(line, Math.max(1, width)));
+  if (footer) {
+    const end = safeLines.length ? Math.min(safeLines.length, safeScroll + visibleHeight) : 0;
+    const range = safeLines.length ? `${safeScroll + 1}-${end}/${safeLines.length}` : '0/0';
+    fitted.push(fitInline(`PgUp/PgDn scroll · ${range}`, Math.max(1, width)));
+  }
+  return { rows: fitted, scroll: safeScroll, maxScroll };
 }

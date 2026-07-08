@@ -42,7 +42,7 @@ examples/support-desk/
 
 ## Product-grade examples
 
-The product-grade examples use the same overall UI/UX standard as the demos: a stable workspace shell, header stats, navigation tabs, a responsive main area, command bar, local help, footer status, visible mode state, and testable pure render functions.
+The product-grade examples use the same overall UI/UX standard as the demos: a stable workspace shell, header stats, navigation tabs, a responsive main area, contextual local help, visible mode state, explicit keyboard routing, and testable pure render functions.
 
 ### Chat
 
@@ -58,7 +58,7 @@ The full mock AI terminal app.
 npm run example:editor
 ```
 
-A polished InputEditor workspace with a live draft buffer, visible cursor state, history recall, submitted-line audit trail, command bar, and diagnostics pane.
+A polished InputEditor workspace with a live draft buffer, visible cursor state, editable saved drafts, an explicit `+ Add another` draft slot for creating new drafts, PgUp/PgDn-scrollable diagnostics/history panes, and bordered-grid local help.
 
 ### Command Palette
 
@@ -66,7 +66,7 @@ A polished InputEditor workspace with a live draft buffer, visible cursor state,
 npm run example:palette
 ```
 
-A product-style command launcher with grouped actions, searchable metadata, selected-action details, accepted-action log, responsive layout, and pinned command/footer sections.
+A product-style command launcher with grouped actions, searchable metadata, selected-action details, accepted-action log, responsive layout, tab-scoped keyboard handling, PgUp/PgDn scrolling for long panes, and bordered-grid local help.
 
 ### Streaming Workbench
 
@@ -74,7 +74,7 @@ A product-style command launcher with grouped actions, searchable metadata, sele
 npm run example:stream
 ```
 
-A streaming workspace with prompt queue, transcript pane, runtime control rail, chunk progress, cancellation path, sample prompts, and stable footer state.
+A streaming workspace with an explicit prompt editor, Ctrl+J newline support, transcript scrolling, runtime control rail, chunk progress, cancellation path, sample prompts loaded with bracket shortcuts, and bordered-grid local help.
 
 ### Interaction Kit
 
@@ -82,7 +82,7 @@ A streaming workspace with prompt queue, transcript pane, runtime control rail, 
 npm run example:kit
 ```
 
-A palette-driven interaction workspace showing toasts, modal overlays, confirmation prompts, progress, mode-stack routing, and action history in one cohesive flow.
+A palette-driven interaction workspace showing toasts, modal overlays, confirmation prompts, progress, mode-stack routing, tab-scoped keyboard handling, scrollable runtime/activity panes, and action history in one cohesive flow.
 
 ### Prompt Composer
 

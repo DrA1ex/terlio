@@ -13,6 +13,7 @@ import {
   visibleWindowLines,
   InputEditor,
   parseKey,
+  Grid,
   stripAnsi,
   Text,
   WorkspaceShell,
@@ -60,6 +61,38 @@ test('status components render modal, toast, progress and spinner', () => {
   assert.match(help, /accept/);
 });
 
+
+
+test('Grid renders equal-width aligned columns', () => {
+  const output = stripAnsi(renderToString(Grid({
+    columns: 3,
+    items: [['A', 'alpha'], ['LongKey', 'beta'], ['C', 'gamma'], ['D', 'delta']],
+    renderItem: ([key, label]) => `${key} ${label}`,
+  }), { width: 60, height: 2 }));
+
+  const [first, second] = output.split('\n');
+  assert.match(first, /A alpha/);
+  assert.match(first, /LongKey beta/);
+  assert.match(first, /C gamma/);
+  assert.match(second, /D delta/);
+  assert.ok(first.indexOf('LongKey beta') >= 20);
+  assert.ok(first.indexOf('C gamma') >= 40);
+});
+
+test('Grid can render compact table borders', () => {
+  const output = stripAnsi(renderToString(Grid({
+    columns: 2,
+    border: true,
+    items: [['Enter', 'open'], ['Tab', 'switch'], ['Esc', 'close']],
+    renderItem: ([key, label]) => `${key} ${label}`,
+  }), { width: 40, height: 5 }));
+
+  assert.match(output, /┌/);
+  assert.match(output, /┬/);
+  assert.match(output, /┼/);
+  assert.match(output, /Enter open/);
+  assert.match(output, /Esc close/);
+});
 
 test('Text editor view wraps long draft text and keeps cursor visible', () => {
   const editor = new InputEditor('Hello customer, this line is intentionally long so it wraps.');

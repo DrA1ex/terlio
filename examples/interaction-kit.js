@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import {
+  Column,
   ConfirmPrompt,
-  HelpOverlay,
   KeyHintBar,
   Modal,
   ModeManager,
@@ -11,19 +11,19 @@ import {
   Spinner,
   Text,
   Toast,
-  WorkspaceCommandBar,
-  WorkspaceFooter,
   WorkspacePane,
   WorkspaceShell,
   createCommandPaletteState,
   fitInline,
+  getCommandPaletteMatches,
   getPaletteQuery,
   handleCommandPaletteKey,
   renderCommandPalette,
+  renderNode,
   splitWorkspaceColumns,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
-import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, workspaceMainHeight } from './_workspaceExampleUtils.js';
+import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, scrollOffset, visibleScrollableRows, workspaceMainHeight } from './_workspaceExampleUtils.js';
 
 const TABS = [
   { id: 'palette', label: 'Palette' },
@@ -51,15 +51,26 @@ export function createInteractionKitState() {
     progress: 20,
     frame: 0,
     accepted: [],
+    activitySelection: 0,
     activeTab: 'palette',
+    paneScroll: { runtime: 0, activity: 0 },
+    status: 'Type in Palette and press Enter to run an interaction action.',
   };
 }
 
 export function createInteractionKitView({ state, width = 100, height = 30 } = {}) {
   state.frame += 1;
+  normalizeActivitySelection(state);
   const currentMode = state.modes.current();
   const layout = splitWorkspaceColumns(width);
-  const mainHeight = workspaceMainHeight(height, { min: 6, activityRows: 2 });
+  const helpHints = contextHelpHints(state, currentMode);
+  const helpGridRows = Math.ceil(helpHints.length / 3);
+  const mainHeight = workspaceMainHeight(height, {
+    min: 6,
+    activityRows: helpGridRows ? helpGridRows * 2 + 1 : 0,
+    commandRows: 0,
+    footerRows: 0,
+  });
   const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['palette'] });
   const overlay = overlayNode(state, currentMode);
   const main = layout.mode === 'wide'
@@ -79,44 +90,26 @@ export function createInteractionKitView({ state, width = 100, height = 30 } = {
 
   return WorkspaceShell({
     title: 'Interaction Kit',
-    subtitle: 'palette, overlay and mode-stack playground',
+    subtitle: 'palette, overlays and mode stack',
     stats: [
       { label: 'Mode', value: currentMode },
       { label: 'Progress', value: `${state.progress}%` },
+      { label: 'Accepted', value: state.accepted.length },
     ],
     right: [
-      { label: 'Accepted', value: state.accepted.length },
       { label: 'Query', value: getPaletteQuery(state.palette) || '<empty>' },
+      { label: 'Status', value: fitInline(state.status, 46).trimEnd() },
     ],
     focus: state.activeTab,
     tabs: visibleTabs,
     activeTab: state.activeTab,
-    tabHint: responsiveTabHint('Type action · Enter accept · Esc close overlay · ←/→ confirm choice · Tab focus', TABS, visibleTabs),
+    tabHint: responsiveTabHint('Tab focus · Palette receives typing · Enter runs focused action · Esc closes overlays', TABS, visibleTabs),
     main,
-    command: WorkspaceCommandBar({
-      mode: String(currentMode).toUpperCase(),
-      prompt: 'palette',
-      value: getPaletteQuery(state.palette) || '<empty>',
-      suggestions: ['toast', 'modal', 'confirm', 'progress', 'reset', 'exit'],
-      hint: 'mode stack routes keys',
-      theme: EXAMPLE_THEME,
-    }),
     activity: overlay ?? KeyHintBar({
       title: ' LOCAL HELP ',
-      hints: [
-        ['Type', 'filter palette'],
-        ['↑/↓', 'move selection'],
-        ['Enter', 'accept / confirm'],
-        ['Esc', 'clear / close'],
-        ['←/→', 'switch confirm'],
-        ['Tab', 'switch pane'],
-      ],
+      hints: helpHints,
       theme: EXAMPLE_THEME,
-    }),
-    footer: WorkspaceFooter({
-      left: [currentMode, state.palette.status],
-      right: [`theme: ${EXAMPLE_THEME.name}`, 'demo: kit'],
-      theme: EXAMPLE_THEME,
+      gridBorder: true,
     }),
     height,
     theme: EXAMPLE_THEME,
@@ -127,35 +120,12 @@ export function handleInteractionKitKey({ key, state, runtime }) {
   const mode = state.modes.current();
 
   if (mode === 'confirm') {
-    if (key.name === 'escape') {
-      state.modes.pop();
-      state.toast = { level: 'info', message: 'Confirm prompt cancelled.' };
-      return;
-    }
-    if (key.name === 'left' || key.name === 'right') {
-      state.confirmSelected = state.confirmSelected === 'confirm' ? 'cancel' : 'confirm';
-      return;
-    }
-    if (key.name === 'enter') {
-      const action = state.modes.currentEntry().data?.action;
-      state.modes.pop();
-      if (state.confirmSelected === 'confirm') {
-        state.accepted.push(`${action?.id ?? 'action'} confirmed`);
-        state.toast = { level: 'success', message: `${action?.title ?? 'Action'} confirmed.` };
-        state.activeTab = 'activity';
-      } else {
-        state.toast = { level: 'info', message: 'Action cancelled.' };
-      }
-      state.confirmSelected = 'confirm';
-    }
+    handleConfirmModeKey({ key, state });
     return;
   }
 
   if (mode === 'modal') {
-    if (key.name === 'escape' || key.name === 'enter') {
-      state.modes.pop();
-      state.toast = { level: 'info', message: 'Modal closed.' };
-    }
+    handleModalModeKey({ key, state });
     return;
   }
 
@@ -164,11 +134,111 @@ export function handleInteractionKitKey({ key, state, runtime }) {
     return;
   }
 
+  if (key.name === 'page-up' || key.name === 'page-down') {
+    pageActivePane(state, key.name === 'page-up' ? -1 : 1);
+    return;
+  }
+
+  if (state.activeTab === 'runtime') {
+    handleRuntimeKey({ key, state });
+    return;
+  }
+
+  if (state.activeTab === 'activity') {
+    handleActivityKey({ key, state, runtime });
+    return;
+  }
+
+  handlePaletteTabKey({ key, state, runtime });
+}
+
+function handleConfirmModeKey({ key, state }) {
+  if (key.name === 'escape') {
+    state.modes.pop();
+    state.toast = { level: 'info', message: 'Confirm prompt cancelled.' };
+    state.status = 'Confirm prompt cancelled.';
+    return;
+  }
+  if (key.name === 'left' || key.name === 'right') {
+    state.confirmSelected = state.confirmSelected === 'confirm' ? 'cancel' : 'confirm';
+    state.status = `Confirm choice: ${state.confirmSelected}.`;
+    return;
+  }
+  if (key.name === 'enter') {
+    const action = state.modes.currentEntry().data?.action;
+    state.modes.pop();
+    if (state.confirmSelected === 'confirm') {
+      recordAccepted(state, `${action?.id ?? 'action'} confirmed`);
+      state.toast = { level: 'success', message: `${action?.title ?? 'Action'} confirmed.` };
+      state.activeTab = 'activity';
+      state.status = `${action?.id ?? 'action'} confirmed.`;
+    } else {
+      state.toast = { level: 'info', message: 'Action cancelled.' };
+      state.status = 'Action cancelled.';
+    }
+    state.confirmSelected = 'confirm';
+  }
+}
+
+function handleModalModeKey({ key, state }) {
+  if (key.name === 'escape' || key.name === 'enter') {
+    state.modes.pop();
+    state.toast = { level: 'info', message: 'Modal closed.' };
+    state.status = 'Modal closed.';
+  }
+}
+
+function handleRuntimeKey({ key, state }) {
+  if (key.name === 'enter') {
+    state.progress = state.progress >= 100 ? 0 : state.progress + 10;
+    state.toast = { level: 'info', message: `Progress is now ${state.progress}%.` };
+    state.status = 'Runtime progress advanced.';
+    return;
+  }
+  if (key.name === 'escape') {
+    state.activeTab = 'palette';
+    state.status = 'Returned to Palette.';
+    return;
+  }
+  if (key.name === 'up' || key.name === 'down') {
+    state.status = 'Runtime is read-only. Use Enter for progress or PgUp/PgDn for overflow.';
+  }
+}
+
+function handleActivityKey({ key, state, runtime }) {
+  if (key.name === 'escape') {
+    state.activeTab = 'palette';
+    state.status = 'Returned to Palette.';
+    return;
+  }
+  if (key.name === 'q') {
+    runtime.exit(0);
+    return;
+  }
+  if (key.name === 'up') {
+    moveActivitySelection(state, -1);
+    return;
+  }
+  if (key.name === 'down') {
+    moveActivitySelection(state, 1);
+    return;
+  }
+  if (key.name === 'enter') {
+    const item = state.accepted[state.activitySelection];
+    state.toast = { level: item ? 'info' : 'warning', message: item ? `Selected ${item}.` : 'No activity row selected.' };
+    state.status = item ? `Selected activity row: ${item}.` : 'No activity row selected.';
+  }
+}
+
+function handlePaletteTabKey({ key, state, runtime }) {
   const result = handleCommandPaletteKey(state.palette, key);
-  if (result.type !== 'accept') return;
+  if (result.type !== 'accept') {
+    if (result.type === 'edit' || result.type === 'move' || result.type === 'clear') state.status = state.palette.status;
+    return;
+  }
 
   const action = result.item;
-  state.accepted.push(action.id);
+  recordAccepted(state, action.id);
 
   if (action.id === 'app.exit') {
     runtime.exit(0);
@@ -178,6 +248,7 @@ export function handleInteractionKitKey({ key, state, runtime }) {
     state.modes.push('modal');
     state.toast = { level: 'info', message: 'Modal opened.' };
     state.activeTab = 'runtime';
+    state.status = 'Modal mode pushed.';
     return;
   }
   if (action.id === 'confirm.apply') {
@@ -185,82 +256,112 @@ export function handleInteractionKitKey({ key, state, runtime }) {
     state.confirmSelected = 'confirm';
     state.toast = { level: 'warning', message: 'Confirm prompt is active.' };
     state.activeTab = 'runtime';
+    state.status = 'Confirm mode pushed.';
     return;
   }
   if (action.id === 'progress.tick') {
     state.progress = state.progress >= 100 ? 0 : state.progress + 10;
     state.toast = { level: 'info', message: `Progress is now ${state.progress}%.` };
     state.activeTab = 'runtime';
+    state.status = 'Progress advanced from Palette.';
     return;
   }
   if (action.id === 'mode.reset') {
     state.modes.reset();
     state.toast = { level: 'info', message: 'Mode stack reset.' };
     state.activeTab = 'palette';
+    state.status = 'Mode stack reset.';
     return;
   }
   if (action.id.startsWith('toast.')) {
     const level = action.id.split('.')[1];
     state.toast = { level, message: `${action.title} rendered.` };
     state.activeTab = 'runtime';
+    state.status = `${action.id} rendered.`;
   }
 }
 
+function pageActivePane(state, direction) {
+  const page = 7;
+  if (state.activeTab === 'palette') {
+    const result = handleCommandPaletteKey(state.palette, { name: direction < 0 ? 'page-up' : 'page-down' });
+    state.status = result.type === 'move' ? state.palette.status : 'Palette page navigation.';
+    return;
+  }
+  if (state.activeTab === 'runtime') {
+    state.paneScroll.runtime = scrollOffset(state.paneScroll.runtime, direction * page, runtimeLineCount(), page);
+    state.status = direction < 0 ? 'Runtime page up.' : 'Runtime page down.';
+    return;
+  }
+  state.paneScroll.activity = scrollOffset(state.paneScroll.activity, direction * page, Math.max(1, state.accepted.length), page);
+  state.activitySelection = Math.max(0, Math.min(Math.max(0, state.accepted.length - 1), state.paneScroll.activity));
+  state.status = direction < 0 ? 'Activity page up.' : 'Activity page down.';
+}
+
 function palettePane(state, width, height) {
+  const matches = getCommandPaletteMatches(state.palette);
+  const selected = matches[state.palette.selectedIndex];
   return WorkspacePane({
-    title: ` ${state.activeTab === 'palette' ? '▶' : ' '} Command Palette `,
+    title: ` ${state.activeTab === 'palette' ? '▶' : ' '} PALETTE `,
     active: state.activeTab === 'palette',
     height,
     children: [
-      Spinner({ frame: state.frame, label: 'renderer alive' }),
-      renderCommandPalette(state.palette, { showHelp: false }),
-      Panel(' Palette contract ',
-        Text('Items are plain objects with id, title, description and keywords.'),
-        Text('The handler converts accepted items into toasts, modals, confirmations or runtime updates.'),
+      renderCommandPalette(state.palette, { title: 'Actions', showHelp: false }),
+      Panel(' Selected ',
+        selected
+          ? Text(fitInline(`${selected.id} — ${selected.description}`, Math.max(16, width - 10)), { wrap: false })
+          : Text('No matching action.'),
       ),
     ],
   });
 }
 
 function runtimePane(state, width, height) {
+  const lines = renderNode(Column(
+    Toast(state.toast),
+    Panel(' Live widgets ',
+      Spinner({ frame: state.frame, label: 'renderer alive' }),
+      ProgressBar({ value: state.progress, total: 100, width: Math.min(26, Math.max(10, width - 20)), label: 'Progress' }),
+      Text(`Mode stack: ${state.modes.toJSON().map((entry) => entry.name).join(' → ')}`),
+      Text(`Query     : ${getPaletteQuery(state.palette) || '<empty>'}`),
+    ),
+    Panel(' Overlay ',
+      Text(state.modes.current() === 'palette' ? 'No overlay is active.' : `Overlay mode: ${state.modes.current()}`),
+      Text('Open modal.help or confirm.apply from Palette to test modal routing.'),
+    ),
+  ), Math.max(20, width - 4));
+  const window = visibleScrollableRows(lines, {
+    scroll: state.paneScroll.runtime,
+    height: Math.max(3, height - 2),
+    width: Math.max(20, width - 4),
+    footer: lines.length > Math.max(3, height - 3),
+  });
+  state.paneScroll.runtime = window.scroll;
   return WorkspacePane({
     title: ` ${state.activeTab === 'runtime' ? '▶' : ' '} RUNTIME `,
     active: state.activeTab === 'runtime',
     height,
-    children: [
-      Toast(state.toast),
-      Panel(' Live widgets ',
-        Spinner({ frame: state.frame, label: 'renderer alive' }),
-        ProgressBar({ value: state.progress, total: 100, width: Math.min(26, Math.max(10, width - 20)), label: 'Progress' }),
-        Text(`Mode stack: ${state.modes.toJSON().map((entry) => entry.name).join(' → ')}`),
-        Text(`Query     : ${getPaletteQuery(state.palette) || '<empty>'}`),
-      ),
-      Panel(' Active overlay ',
-        Text(state.modes.current() === 'palette' ? 'No overlay. Accept modal.help or confirm.apply.' : `Overlay mode: ${state.modes.current()}`),
-      ),
-    ],
+    children: window.rows.map((line) => Text(line, { wrap: false })),
   });
 }
 
 function activityPane(state, width, height) {
+  normalizeActivitySelection(state);
+  const rows = state.accepted.length
+    ? state.accepted.map((item, index) => `${index === state.activitySelection ? '›' : ' '} ${fitInline(item, Math.max(16, width - 8))}`)
+    : ['No accepted actions yet.', 'Switch to Palette and run toast.info, modal.help or confirm.apply.'];
+  const window = visibleScrollableRows(rows, {
+    scroll: state.paneScroll.activity,
+    height: Math.max(3, height - 2),
+    width: Math.max(20, width - 4),
+    footer: rows.length > Math.max(3, height - 3),
+  });
+  state.paneScroll.activity = window.scroll;
   return WorkspacePane({
     title: ` ${state.activeTab === 'activity' ? '▶' : ' '} ACTIVITY `,
     active: state.activeTab === 'activity',
     height,
-    children: [
-      Panel(' Accepted actions ',
-        ...(state.accepted.length ? state.accepted.slice(-Math.max(5, height - 9)).map((item, index) => Text(`${index + 1}. ${fitInline(item, Math.max(16, width - 10))}`, { wrap: false })) : [Text('No actions accepted yet.')]),
-      ),
-      HelpOverlay({
-        title: ' Keys ',
-        shortcuts: [
-          ['Type', 'filter palette'],
-          ['Enter', 'accept selected item'],
-          ['Esc', 'close modal or clear query'],
-          ['←/→', 'switch confirm choice'],
-        ],
-      }),
-    ],
+    children: window.rows.map((line) => Text(line, { wrap: false })),
   });
 }
 
@@ -276,10 +377,10 @@ function overlayNode(state, currentMode) {
     return Modal({
       title: ' Help Modal ',
       children: [
-        'This modal is a normal UI node. The mode stack decides where keys go.',
-        'Esc or Enter closes it and returns to the palette.',
+        'This modal is rendered as a normal UI node.',
+        'Esc or Enter closes it and returns to Palette mode.',
       ],
-      footer: 'Modal → Palette is handled by ModeManager.pop().',
+      footer: 'ModeManager.pop() restores the previous mode.',
     });
   }
   return null;
@@ -289,6 +390,77 @@ function narrowPane(state, width, height) {
   if (state.activeTab === 'runtime') return runtimePane(state, width, height);
   if (state.activeTab === 'activity') return activityPane(state, width, height);
   return palettePane(state, width, height);
+}
+
+function recordAccepted(state, item) {
+  state.accepted.push(item);
+  state.activitySelection = state.accepted.length - 1;
+  state.paneScroll.activity = Math.max(0, state.accepted.length - 4);
+}
+
+function moveActivitySelection(state, delta) {
+  if (!state.accepted.length) {
+    state.activitySelection = 0;
+    state.status = 'No activity rows yet.';
+    return;
+  }
+  state.activitySelection = Math.max(0, Math.min(state.accepted.length - 1, state.activitySelection + delta));
+  state.paneScroll.activity = Math.max(0, state.activitySelection - 4);
+  state.status = 'Moved activity selection.';
+}
+
+function normalizeActivitySelection(state) {
+  if (!state.accepted.length) {
+    state.activitySelection = 0;
+    return;
+  }
+  state.activitySelection = Math.max(0, Math.min(state.accepted.length - 1, state.activitySelection));
+}
+
+function runtimeLineCount() {
+  return 18;
+}
+
+function contextHelpHints(state, mode) {
+  if (mode === 'confirm') {
+    return [
+      ['←/→', 'choose option'],
+      ['Enter', 'accept choice'],
+      ['Esc', 'cancel confirm'],
+    ];
+  }
+  if (mode === 'modal') {
+    return [
+      ['Enter', 'close modal'],
+      ['Esc', 'close modal'],
+    ];
+  }
+  if (state.activeTab === 'runtime') {
+    return [
+      ['Enter', 'advance progress'],
+      ['PgUp/PgDn', 'scroll runtime'],
+      ['Esc', 'back to palette'],
+      ['Tab', 'switch pane'],
+      ['↑/↓', 'not used here'],
+    ];
+  }
+  if (state.activeTab === 'activity') {
+    return [
+      ['↑/↓', 'select row'],
+      ['Enter', 'show toast'],
+      ['PgUp/PgDn', 'scroll activity'],
+      ['Esc', 'back to palette'],
+      ['Tab', 'switch pane'],
+    ];
+  }
+  return [
+    ['Type', 'filter actions'],
+    ['↑/↓', 'move selection'],
+    ['PgUp/PgDn', 'page list'],
+    ['Enter', 'run action'],
+    ['Esc', 'clear query'],
+    ['Tab', 'switch pane'],
+  ];
 }
 
 if (isDirectRun(import.meta.url)) {

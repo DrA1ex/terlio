@@ -137,6 +137,25 @@ CommandBar({
 FooterStatusBar({ left: ['Ready'], right: ['theme dark', 'mock provider'] })
 ```
 
+### Grid
+
+```js
+Grid({
+  columns: 3,
+  items: [['Enter', 'submit'], ['Tab', 'switch'], ['PgDn', 'scroll']],
+  renderItem: ([key, label]) => `${key} ${label}`,
+})
+
+Grid({
+  columns: 3,
+  border: true,
+  items: [['Enter', 'open'], ['Tab', 'switch'], ['Esc', 'close']],
+  renderItem: ([key, label]) => `${key} ${label}`,
+})
+```
+
+`Grid` renders equal-width terminal columns using the same layout rules as the rest of the UI system. It is useful for shortcut bars, compact status rows, and other footer-like blocks where wrapped text should stay aligned across rows. Set `border: true` to render a compact table-like grid with shared row and column separators.
+
 ### PropertyRows
 
 ```js
@@ -247,7 +266,7 @@ WorkspacePane({
 
 ### WorkspaceHeader, WorkspaceTabs, KeyHintBar, WorkspaceCommandBar, WorkspaceFooter
 
-These are smaller building blocks used by `WorkspaceShell`. Use them directly when you need a custom shell.
+These are smaller building blocks used by `WorkspaceShell`. `KeyHintBar` is backed by `Grid`, so multi-row shortcut blocks keep stable column alignment instead of relying on manually joined strings.
 
 ### splitWorkspaceColumns
 

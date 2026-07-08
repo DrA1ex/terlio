@@ -239,9 +239,15 @@ HelpOverlay({ title, shortcuts })
 
 Renders shortcut rows.
 
-### Badge, SectionTabs, CommandBar, FooterStatusBar, PropertyRows, ChipLine
+### Badge, SectionTabs, CommandBar, FooterStatusBar, Grid, PropertyRows, ChipLine
 
-Small components for status labels, tab rows, command input display, footer status, key/value details, and chip controls.
+Small components for status labels, tab rows, command input display, footer status, aligned grids, key/value details, and chip controls.
+
+```js
+Grid({ items, columns = 3, gap = 2, renderItem, emptyText, border = false, borderColor, padding })
+```
+
+`Grid` renders equal-width rows and columns. It is intended for shortcut bars and footer-like blocks where each row should keep the same column starts. Set `border: true` to render a compact table grid with horizontal and vertical separators.
 
 ### TextEditorView / renderTextEditorLines
 
@@ -298,10 +304,10 @@ Renders a bordered application pane. Active panes get a highlighted border by de
 ### KeyHintBar
 
 ```js
-KeyHintBar({ title, hints })
+KeyHintBar({ title, hints, columns = 3, gridBorder = false })
 ```
 
-Renders grouped key hints.
+Renders grouped key hints using the shared `Grid` component, so wrapped rows stay aligned across columns. `gridBorder: true` enables the bordered-grid mode for shortcut-heavy examples.
 
 ### WorkspaceCommandBar
 

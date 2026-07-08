@@ -1,6 +1,6 @@
 import { color } from '../ansi.js';
 import { Box, Column, Row, Text } from './node.js';
-import { CommandBar, FooterStatusBar, SectionTabs, fitInline } from './components.js';
+import { CommandBar, FooterStatusBar, Grid, SectionTabs, fitInline } from './components.js';
 
 export function WorkspaceHeader({
   title = 'Workspace',
@@ -49,14 +49,23 @@ export function WorkspacePane({
   }, ...nodes);
 }
 
-export function KeyHintBar({ title = ' Keys ', hints = [], theme = null } = {}) {
-  const rows = chunk(hints, 3).map((items) => items.map(([key, label]) => {
-    const keyText = theme ? color(theme, 'accent', key) : key;
-    const labelText = theme ? color(theme, 'muted', label) : label;
-    return `${keyText} ${labelText}`;
-  }).join(theme ? color(theme, 'border', '   │   ') : '   │   '));
+export function KeyHintBar({ title = ' Keys ', hints = [], columns = 3, theme = null, gridBorder = false } = {}) {
+  const items = Array.from(hints ?? []);
   return Box({ border: true, borderColor: theme?.border, padding: { left: 1, right: 1 }, title },
-    ...(rows.length ? rows.map((line) => Text(line, { wrap: false })) : [Text(theme ? color(theme, 'muted', 'No shortcuts registered.') : 'No shortcuts registered.', { wrap: false })]),
+    items.length
+      ? Grid({
+          items,
+          columns,
+          gap: 2,
+          border: gridBorder,
+          borderColor: theme?.border,
+          renderItem: ([key, label]) => {
+            const keyText = theme ? color(theme, 'accent', key) : key;
+            const labelText = theme ? color(theme, 'muted', label) : label;
+            return `${keyText} ${labelText}`;
+          },
+        })
+      : Text(theme ? color(theme, 'muted', 'No shortcuts registered.') : 'No shortcuts registered.', { wrap: false }),
   );
 }
 
@@ -165,8 +174,3 @@ function normalizeChildren(children) {
     .map((item) => typeof item === 'string' || typeof item === 'number' ? Text(String(item)) : item);
 }
 
-function chunk(items, size) {
-  const result = [];
-  for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));
-  return result;
-}

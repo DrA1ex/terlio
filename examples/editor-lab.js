@@ -6,17 +6,15 @@ import {
   Row,
   Text,
   TextEditorView,
-  Toast,
+  renderNode,
   color,
-  WorkspaceCommandBar,
-  WorkspaceFooter,
   WorkspacePane,
   WorkspaceShell,
   fitInline,
   splitWorkspaceColumns,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
-import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, workspaceMainHeight } from './_workspaceExampleUtils.js';
+import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, scrollOffset, scrollToVisible, visibleScrollableRows, workspaceMainHeight } from './_workspaceExampleUtils.js';
 
 const TABS = [
   { id: 'editor', label: 'Editor' },
@@ -36,15 +34,28 @@ export function createEditorLabState() {
     editor: new InputEditor('try Alt+←, Ctrl+W, paste text, then Enter'),
     history: [...SAMPLE_HISTORY],
     historyIndex: null,
+    editingHistoryIndex: null,
+    historySelection: 0,
     submitted: [],
     activeTab: 'editor',
-    status: 'Editor Lab: type, edit, recall previous drafts with ↑/↓, then press Enter to submit.',
+    paneScroll: { diagnostics: 0, history: 0 },
+    paneRows: { diagnostics: 6, history: 6 },
+    ensureHistoryVisible: false,
+    status: 'Type and edit the draft, then press Enter to submit. Use PgUp/PgDn for long panes.',
   };
 }
 
 export function createEditorLabView({ state, width = 92, height = 28 } = {}) {
   const layout = splitWorkspaceColumns(width);
-  const mainHeight = workspaceMainHeight(height, { min: 6, activityRows: 3 });
+  const helpHints = contextHelpHints(state, height);
+  const showCommand = false;
+  const helpGridRows = helpHints.length ? Math.ceil(helpHints.length / 3) : 0;
+  const mainHeight = workspaceMainHeight(height, {
+    min: 6,
+    activityRows: helpGridRows ? helpGridRows * 2 + 1 : 0,
+    commandRows: showCommand ? 4 : 0,
+    footerRows: 0,
+  });
   const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['editor'] });
   const editor = state.editor;
   const main = layout.mode === 'wide'
@@ -66,46 +77,25 @@ export function createEditorLabView({ state, width = 92, height = 28 } = {}) {
     stats: [
       { label: 'value', value: editor.value || '<empty>' },
       { label: 'cursor', value: `${editor.cursor}/${Array.from(editor.value).length}` },
+      { label: 'line', value: `${editor.getCursorPosition().line + 1}:${editor.getCursorPosition().column + 1}` },
     ],
     right: [
       { label: 'Submitted', value: state.submitted.length },
       { label: 'History', value: state.history.length },
+      { label: 'Status', value: fitInline(state.status, 42).trimEnd() },
     ],
     focus: state.activeTab,
     tabs: visibleTabs,
     activeTab: state.activeTab,
-    tabHint: responsiveTabHint('Type text · Enter submit · ↑/↓ recall stack · Tab focus · Ctrl+C exit', TABS, visibleTabs),
+    tabHint: responsiveTabHint('Type text · Ctrl+J newline · Enter submit/load · PgUp/PgDn scroll pane · Tab focus · Ctrl+C exit', TABS, visibleTabs),
     main,
-    command: WorkspaceCommandBar({
-      mode: 'EDITOR',
-      prompt: 'draft',
-      value: `${editor.value || '<empty>'}▌`,
-      suggestions: ['Alt+←/→ word', 'Ctrl+K kill end', 'Ctrl+U kill start', 'Ctrl+W delete word'],
-      hint: state.historyIndex === null ? 'editing the new draft slot' : `recalling history #${state.historyIndex + 1}`,
-      theme: EXAMPLE_THEME,
-    }),
-    activity: KeyHintBar({
+    command: null,
+    activity: helpHints.length ? KeyHintBar({
       title: ' LOCAL HELP ',
-      hints: [
-        ['←/→', 'move char'],
-        ['Alt+←/→', 'move word'],
-        ['Ctrl+A/E', 'home/end'],
-        ['Ctrl+K/U', 'kill line'],
-        ['Ctrl+W', 'delete word'],
-        ['Enter', 'submit draft'],
-        ['↑/↓', 'recall history'],
-        ['Tab', 'switch visible tab'],
-        ['History + new', 'clears to blank draft'],
-        ['Diagnostics', 'shows raw keys'],
-        ['Resize', 'layout recomputes'],
-      ],
+      hints: helpHints,
       theme: EXAMPLE_THEME,
-    }),
-    footer: WorkspaceFooter({
-      left: ['Ready', state.status],
-      right: [`theme: ${EXAMPLE_THEME.name}`, 'demo: editor'],
-      theme: EXAMPLE_THEME,
-    }),
+      gridBorder: true,
+    }) : null,
     height,
     theme: EXAMPLE_THEME,
   });
@@ -119,45 +109,63 @@ export function handleEditorLabKey({ key, state }) {
     return;
   }
 
+  if (key.name === 'enter' && key.ctrl) {
+    editor.insertLineBreak();
+    state.historyIndex = null;
+    state.activeTab = 'editor';
+    state.status = 'Inserted newline.';
+    return;
+  }
+
   if (key.name === 'enter') {
+    if (state.activeTab === 'history') {
+      activateHistorySelection(state);
+      return;
+    }
+
     const line = editor.value.trim();
     if (line) {
+      const editIndex = Number.isInteger(state.editingHistoryIndex) ? state.editingHistoryIndex : null;
+      const isEditingSavedDraft = editIndex !== null && editIndex >= 0 && editIndex < state.history.length;
       state.submitted.push(line);
-      state.history.push(line);
-      if (state.history.length > 40) state.history = state.history.slice(-40);
-      state.status = `Submitted: ${line}`;
+      if (isEditingSavedDraft) {
+        state.history[editIndex] = line;
+        state.historySelection = editIndex;
+        state.status = `Updated saved draft ${editIndex + 1}/${state.history.length}.`;
+      } else {
+        state.history.push(line);
+        if (state.history.length > 40) state.history = state.history.slice(-40);
+        state.historySelection = Math.max(0, state.history.length - 1);
+        state.status = `Saved new draft: ${line}`;
+      }
       state.activeTab = 'history';
+      state.paneScroll.history = Math.max(0, state.history.length - 5);
+      state.ensureHistoryVisible = true;
     } else {
       state.status = 'Ignored empty submit.';
     }
     state.historyIndex = null;
+    state.editingHistoryIndex = null;
     editor.clear();
     return;
   }
 
-  if (key.name === 'up') {
-    if (!state.history.length) return;
-    if (state.historyIndex === null) state.historyIndex = state.history.length - 1;
-    else state.historyIndex = Math.max(0, state.historyIndex - 1);
-    editor.set(state.history[state.historyIndex]);
-    state.activeTab = 'history';
-    state.status = 'History: older entry.';
+  if (key.name === 'page-up' || key.name === 'page-down') {
+    scrollActivePane(state, key.name === 'page-up' ? -1 : 1);
     return;
   }
 
-  if (key.name === 'down') {
-    if (state.historyIndex === null) return;
-    if (state.historyIndex >= state.history.length - 1) {
-      state.historyIndex = null;
-      editor.clear();
-      state.activeTab = 'history';
-      state.status = 'History: selected + New draft, editor cleared for a fresh line.';
+  if (key.name === 'up' || key.name === 'down') {
+    if (state.activeTab === 'editor') {
+      editor.moveVertical(key.name === 'up' ? -1 : 1);
+      state.status = 'Moved inside the editor pane.';
       return;
     }
-    state.historyIndex += 1;
-    editor.set(state.history[state.historyIndex]);
-    state.activeTab = 'history';
-    state.status = 'History: newer entry.';
+    if (state.activeTab === 'history') {
+      moveHistorySelection(state, key.name === 'up' ? -1 : 1);
+      return;
+    }
+    state.status = 'Diagnostics uses PageUp/PageDown only.';
     return;
   }
 
@@ -246,7 +254,7 @@ function editorPane(state, width, height) {
         Text(color(EXAMPLE_THEME, 'accent', `value : ${state.editor.value || '<empty>'}`)),
         Text(`cursor: ${state.editor.cursor}/${Array.from(state.editor.value).length}`),
         Text(`words : ${wordCount(state.editor.value)}`),
-        Text(`recall: ${state.historyIndex === null ? '+ new draft' : `history #${state.historyIndex + 1}`}`),
+        Text(`line  : ${state.editor.getCursorPosition().line + 1}:${state.editor.getCursorPosition().column + 1}`),
       ),
       TextEditorView({
         title: ' Draft buffer ',
@@ -254,7 +262,7 @@ function editorPane(state, width, height) {
         cursor: state.editor.cursor,
         width: Math.max(24, width - 4),
         height: Math.max(3, Math.min(5, height - 9)),
-        placeholder: 'type a message, or press ↑ to recall history...',
+        placeholder: 'type a message, then press Enter to submit...',
         lineNumbers: false,
       }),
     ],
@@ -262,43 +270,53 @@ function editorPane(state, width, height) {
 }
 
 function diagnosticsPane(state, width, height) {
-  const parts = state.editor.getParts();
-  const cursorPreview = `${parts.before}█${parts.current === ' ' ? '' : parts.current}${parts.after}`;
+  const innerWidth = Math.max(16, width - 4);
+  const bodyHeight = Math.max(1, height - 3);
+  const rows = diagnosticsRows(state, innerWidth);
+  const visibleRows = Math.max(1, bodyHeight - 1);
+  if (!state.paneRows) state.paneRows = { diagnostics: 6, history: 6 };
+  state.paneRows.diagnostics = visibleRows;
+  if (!state.paneTotals) state.paneTotals = {};
+  state.paneTotals.diagnostics = rows.length;
+  const window = visibleScrollableRows(rows, {
+    scroll: state.paneScroll?.diagnostics ?? 0,
+    height: bodyHeight,
+    width: innerWidth,
+  });
+  state.paneScroll.diagnostics = window.scroll;
   return WorkspacePane({
     title: ` ${state.activeTab === 'diagnostics' ? '▶' : ' '} DIAGNOSTICS `,
     active: state.activeTab === 'diagnostics',
     height,
-    children: [
-      Toast({ level: 'info', message: 'Inspect cursor state, submitted lines and recent raw keys.' }),
-      Panel(' Cursor preview ',
-        Text(fitInline(cursorPreview, Math.max(20, width - 8)), { wrap: false }),
-      ),
-      Panel(' Last keys ',
-        ...((state.keyLog?.length ? state.keyLog.slice(-7) : ['No keys yet.']).map((line) => Text(fitInline(line, Math.max(16, width - 8)), { wrap: false }))),
-      ),
-      Panel(' Submitted lines ',
-        ...(state.submitted.length ? state.submitted.slice(-5).map((line, index) => Text(`${index + 1}. ${fitInline(line, Math.max(16, width - 10))}`, { wrap: false })) : [Text('No submitted lines yet. Press Enter to submit the current input.')]),
-      ),
-    ],
+    children: window.rows.map((line) => Text(line, { wrap: false })),
   });
 }
 
 function historyPane(state, width, height) {
+  const innerWidth = Math.max(16, width - 4);
+  const bodyHeight = Math.max(1, height - 3);
+  const rows = historyDetailLines(state, innerWidth);
+  const visibleRows = Math.max(1, bodyHeight - 1);
+  if (!state.paneRows) state.paneRows = { diagnostics: 6, history: 6 };
+  state.paneRows.history = visibleRows;
+  if (!state.paneTotals) state.paneTotals = {};
+  state.paneTotals.history = rows.length;
+  const selectedRow = historySelectedRowIndex(state);
+  if ((state.activeTab === 'history' || state.ensureHistoryVisible) && selectedRow !== null) {
+    state.paneScroll.history = scrollToVisible(state.paneScroll?.history ?? 0, selectedRow, visibleRows, rows.length);
+    state.ensureHistoryVisible = false;
+  }
+  const window = visibleScrollableRows(rows, {
+    scroll: state.paneScroll?.history ?? 0,
+    height: bodyHeight,
+    width: innerWidth,
+  });
+  state.paneScroll.history = window.scroll;
   return WorkspacePane({
-    title: ` ${state.activeTab === 'history' ? '▶' : ' '} History `,
+    title: ` ${state.activeTab === 'history' ? '▶' : ' '} HISTORY `,
     active: state.activeTab === 'history',
     height,
-    children: [
-      Panel(' Recall stack ',
-        ...historyLines(state, Math.max(16, width - 8)).slice(-Math.max(4, height - 10)).map((line) => Text(line, { wrap: false })),
-      ),
-      Panel(' Behavior ',
-        Text('↑ loads an older item into the live editor.'),
-        Text('↓ moves toward + New draft.'),
-        Text('The + New draft row clears the editor for a fresh line.'),
-        Text('Enter submits the current editor value and appends it here.'),
-      ),
-    ],
+    children: window.rows.map((line) => Text(line, { wrap: false })),
   });
 }
 
@@ -312,15 +330,148 @@ function narrowPane(state, width, height) {
   return editorPane(state, width, height);
 }
 
-function historyLines(state, width) {
-  const recent = state.history.slice(-9).map((line, index, list) => {
-    const absoluteIndex = state.history.length - list.length + index;
-    const marker = absoluteIndex === state.historyIndex ? '›' : ' ';
-    return `${marker} ${fitInline(line, Math.max(8, width - 2))}`;
+function diagnosticsRows(state, width) {
+  const parts = state.editor.getParts();
+  const cursorPreview = `${parts.before}█${parts.current === ' ' ? '' : parts.current}${parts.after}`;
+  const submitted = state.submitted.length
+    ? state.submitted.slice(-8).map((line, index) => `${index + 1}. ${fitInline(line, Math.max(8, width - 6)).trimEnd()}`)
+    : ['No submitted lines yet. Press Enter to submit the current draft.'];
+
+  const blocks = [
+    Text('Inspect cursor state, submitted lines and recent raw keys. PageUp/PageDown scrolls this pane.'),
+    Panel(' Cursor preview ',
+      Text(fitInline(cursorPreview, Math.max(8, width - 4)).trimEnd(), { wrap: false }),
+    ),
+    Panel(' Editor state ',
+      Text(`value   ${state.editor.value || '<empty>'}`, { wrap: false }),
+      Text(`cursor  ${state.editor.cursor}/${Array.from(state.editor.value).length}`, { wrap: false }),
+      Text(`line    ${state.editor.getCursorPosition().line + 1}:${state.editor.getCursorPosition().column + 1}`, { wrap: false }),
+      Text(`words   ${wordCount(state.editor.value)}`, { wrap: false }),
+    ),
+    Panel(' Last keys ',
+      ...((state.keyLog?.length ? state.keyLog.slice(-10) : ['No keys yet.']).map((line) => Text(`• ${fitInline(line, Math.max(8, width - 8)).trimEnd()}`, { wrap: false }))),
+    ),
+    Panel(' Submitted lines ',
+      ...submitted.map((line) => Text(line, { wrap: false })),
+    ),
+  ];
+
+  const rows = [];
+  blocks.forEach((block, index) => {
+    if (index > 0) rows.push('');
+    rows.push(...renderNode(block, width));
   });
-  const draftMarker = state.historyIndex === null ? '›' : ' ';
-  recent.push(`${draftMarker} ${fitInline('+ New draft — blank editor slot', Math.max(8, width - 2))}`);
-  return recent;
+  return rows;
+}
+
+function historyDetailLines(state, width) {
+  return [
+    'Submitted drafts',
+    ...historyLines(state, width),
+  ];
+}
+
+function historyLines(state, width) {
+  const items = [
+    ...state.history.map((line, index) => ({ type: 'saved', line, index })),
+    { type: 'new', line: '+ Add another', index: state.history.length },
+  ];
+  const selected = clampIndex(state.historySelection ?? Math.max(0, state.history.length - 1), items.length);
+  state.historySelection = selected;
+  return items.map((item) => {
+    const marker = state.activeTab === 'history' && item.index === selected ? '›' : ' ';
+    if (item.type === 'new') {
+      return `${marker}  + ${fitInline('Add another', Math.max(8, width - 6)).trimEnd()}`;
+    }
+    const number = String(item.index + 1).padStart(2, ' ');
+    return `${marker} ${number}. ${fitInline(item.line, Math.max(8, width - 7)).trimEnd()}`;
+  });
+}
+
+function historySelectedRowIndex(state) {
+  return 1 + clampIndex(state.historySelection ?? Math.max(0, state.history.length - 1), state.history.length + 1);
+}
+
+
+
+function moveHistorySelection(state, delta) {
+  const total = state.history.length + 1;
+  state.historySelection = clampIndex((state.historySelection ?? Math.max(0, state.history.length - 1)) + delta, total);
+  state.ensureHistoryVisible = true;
+  state.status = state.historySelection === state.history.length
+    ? 'Selected new draft slot.'
+    : `Selected saved draft ${state.historySelection + 1}/${state.history.length}.`;
+}
+
+function activateHistorySelection(state) {
+  const selected = clampIndex(state.historySelection ?? Math.max(0, state.history.length - 1), state.history.length + 1);
+  state.historySelection = selected;
+  state.historyIndex = null;
+  if (selected >= state.history.length) {
+    state.editor.clear();
+    state.editingHistoryIndex = null;
+    state.activeTab = 'editor';
+    state.status = 'Opened a blank draft.';
+    return;
+  }
+  const draft = state.history[selected] ?? '';
+  state.editor.set(draft);
+  state.editingHistoryIndex = selected;
+  state.activeTab = 'editor';
+  state.status = `Loaded saved draft ${selected + 1}/${state.history.length}.`;
+}
+
+function clampIndex(index, length) {
+  const safeLength = Math.max(1, Number(length) || 1);
+  return Math.max(0, Math.min(safeLength - 1, Number(index) || 0));
+}
+
+function scrollActivePane(state, direction) {
+  const id = state.activeTab === 'diagnostics' ? 'diagnostics' : state.activeTab === 'history' ? 'history' : null;
+  if (!id) {
+    state.status = 'PageUp/PageDown scroll History or Diagnostics; the editor uses ↑/↓ for cursor movement.';
+    return;
+  }
+  if (!state.paneScroll) state.paneScroll = { diagnostics: 0, history: 0 };
+  const total = state.paneTotals?.[id] ?? (id === 'history' ? historyDetailLines(state, 80).length : diagnosticsRows(state, 80).length);
+  const visibleRows = Math.max(1, state.paneRows?.[id] ?? 6);
+  const page = Math.max(1, visibleRows - 1);
+  state.paneScroll[id] = scrollOffset(state.paneScroll[id] ?? 0, direction * page, total, visibleRows);
+  state.status = `${id === 'history' ? 'History' : 'Diagnostics'} scrolled ${direction < 0 ? 'up' : 'down'}.`;
+}
+
+function contextHelpHints(state, height = 28) {
+  if (height < 19) return [];
+  if (state.activeTab === 'editor') {
+    return [
+      ['Enter', 'submit draft'],
+      ['Ctrl+J', 'new line'],
+      ['↑/↓', 'move cursor'],
+      ['Alt+←/→', 'word move'],
+      ['Tab', 'switch pane'],
+      ['Ctrl+C', 'exit'],
+    ];
+  }
+  if (state.activeTab === 'history') {
+    return [
+      ['↑/↓', 'select history item'],
+      ['PgUp/PgDn', 'scroll history'],
+      ['Tab', 'switch tab'],
+      ['Enter', 'load draft / add another'],
+      ['Ctrl+J', 'newline in editor'],
+      ['Ctrl+C', 'exit'],
+    ];
+  }
+  if (state.activeTab === 'diagnostics') {
+    return [
+      ['PgUp/PgDn', 'scroll diagnostics'],
+      ['Tab', 'switch tab'],
+      ['↑/↓', 'disabled here'],
+      ['Ctrl+J', 'newline in editor'],
+      ['Ctrl+C', 'exit'],
+    ];
+  }
+  return [];
 }
 
 function wordCount(value) {

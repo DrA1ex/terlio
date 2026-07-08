@@ -1,5 +1,5 @@
 import { color, visibleLength, truncateVisible } from '../ansi.js';
-import { Box, Column, Panel, Row, Text } from './node.js';
+import { Box, Column, Panel, Row, Text, createNode } from './node.js';
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
@@ -170,6 +170,33 @@ export function FooterStatusBar({ left = [], right = [], theme = null } = {}) {
   const rhs = right.filter(Boolean).join('  │  ');
   const line = `${lhs}${rhs ? `  │  ${rhs}` : ''}`;
   return Text(theme ? color(theme, 'muted', line) : line, { wrap: false });
+}
+
+export function Grid({
+  items = [],
+  columns = 3,
+  gap = 2,
+  renderItem = defaultGridItem,
+  emptyText = '',
+  border = false,
+  borderColor = '',
+  padding = border ? { left: 1, right: 1 } : 0,
+} = {}) {
+  return createNode('grid', {
+    items: Array.from(items ?? []),
+    columns,
+    gap,
+    renderItem,
+    emptyText,
+    border,
+    borderColor,
+    padding,
+  }, []);
+}
+
+function defaultGridItem(item) {
+  if (Array.isArray(item)) return item.filter(Boolean).join(' ');
+  return String(item ?? '');
 }
 
 export function PropertyRows({ title = ' Properties ', rows = [] } = {}) {

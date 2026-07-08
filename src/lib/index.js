@@ -30,6 +30,7 @@ export {
   SectionTabs,
   CommandBar,
   FooterStatusBar,
+  Grid,
   PropertyRows,
   ChipLine,
   TextEditorView,
