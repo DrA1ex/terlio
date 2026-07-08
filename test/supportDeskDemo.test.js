@@ -81,12 +81,12 @@ test('support desk filters, theme switching and live tick state are pure-testabl
 
 test('support desk only renders the third context column in truly wide terminals', () => {
   const state = createSupportDeskState();
-  for (const width of [119, 140, 179]) {
+  for (const width of [119, 140, 159]) {
     const output = stripAnsi(renderToString(createSupportDeskView({ state, width, height: 38 }), { width, height: 38 }));
     assert.doesNotMatch(output, /TICKET PROPERTIES/);
   }
 
-  const wide = stripAnsi(renderToString(createSupportDeskView({ state, width: 180, height: 42 }), { width: 180, height: 42 }));
+  const wide = stripAnsi(renderToString(createSupportDeskView({ state, width: 160, height: 42 }), { width: 160, height: 42 }));
   assert.match(wide, /TICKET PROPERTIES/);
   assert.match(wide, /ACTIONS/);
 });
@@ -144,9 +144,54 @@ test('support desk focus zones and activity pagination are keyboard reachable', 
 
   executeSupportCommand(state, '/activity');
   assert.equal(state.activeTab, 'activity');
-  assert.equal(state.focus, 'activity');
+  assert.equal(state.focus, 'work');
   handleSupportDeskKey({ key: { name: 'down' }, state, runtime });
   assert.equal(state.activitySelectedIndex, 1);
   handleSupportDeskKey({ key: { name: 'page-down' }, state, runtime });
   assert.ok(state.activityPage >= 0);
+});
+
+
+test('support desk renders visible modal overlays for palette and help', () => {
+  const state = createSupportDeskState();
+  handleSupportDeskKey({ key: { name: 'command-palette' }, state });
+  const palette = stripAnsi(renderToString(createSupportDeskView({ state, width: 120, height: 30 }), { width: 120, height: 30 }));
+  assert.match(palette, /Command Palette/);
+  assert.match(palette, /Product actions/);
+
+  handleSupportDeskKey({ key: { name: 'escape' }, state });
+  executeSupportCommand(state, '/help');
+  const help = stripAnsi(renderToString(createSupportDeskView({ state, width: 120, height: 30 }), { width: 120, height: 30 }));
+  assert.match(help, /Support Desk Help/);
+  assert.match(help, /Slash commands/);
+});
+
+test('support desk command escape clears command and keeps command focus visible', () => {
+  const state = createSupportDeskState();
+  handleSupportDeskKey({ key: { name: '/', printable: true, text: '/' }, state });
+  handleSupportDeskKey({ key: { name: 'r', printable: true, text: 'r' }, state });
+  assert.equal(state.commandActive, true);
+  assert.match(state.input.value, /r/);
+  handleSupportDeskKey({ key: { name: 'escape' }, state });
+  assert.equal(state.commandActive, false);
+  assert.equal(state.input.value, '');
+  assert.equal(state.focus, 'command');
+  const output = stripAnsi(renderToString(createSupportDeskView({ state, width: 120, height: 32 }), { width: 120, height: 32 }));
+  assert.match(output, /press \/ to start a slash command/);
+});
+
+test('support desk inbox controls cycle filters and sort visually', () => {
+  const state = createSupportDeskState();
+  state.focus = 'inbox';
+  handleSupportDeskKey({ key: { name: 'right' }, state });
+  assert.equal(state.inboxControl, 'queue');
+  handleSupportDeskKey({ key: { name: 'enter' }, state });
+  assert.equal(state.filter.queue, 'billing');
+  assert.equal(state.activeTab, 'inbox');
+  handleSupportDeskKey({ key: { name: 'right' }, state });
+  handleSupportDeskKey({ key: { name: 'right' }, state });
+  handleSupportDeskKey({ key: { name: 'right' }, state });
+  assert.equal(state.inboxControl, 'sort');
+  handleSupportDeskKey({ key: { name: 'enter' }, state });
+  assert.equal(state.sort, 'sla');
 });

@@ -72,6 +72,9 @@ export function setSort(state, sort = 'updated') {
   }
   state.sort = next;
   state.selectedIndex = 0;
+  state.activeTab = 'inbox';
+  state.focus = 'inbox';
+  state.lastWorkflowAction = `Queue sorted by ${next}`;
   state.toasts.show(`Sorted by ${next}.`, 'info');
   return { ok: true };
 }
@@ -79,17 +82,21 @@ export function setSort(state, sort = 'updated') {
 export function setFilter(state, patch = {}) {
   state.filter = { ...state.filter, ...patch };
   state.selectedIndex = 0;
+  state.activeTab = 'inbox';
+  state.focus = 'inbox';
   const parts = [];
   if (state.filter.text) parts.push(`text=${state.filter.text}`);
   if (state.filter.queue !== 'all') parts.push(`queue=${state.filter.queue}`);
   if (state.filter.priority !== 'all') parts.push(`priority=${state.filter.priority}`);
   if (state.filter.status !== 'all') parts.push(`status=${state.filter.status}`);
+  state.lastWorkflowAction = parts.length ? `Filter: ${parts.join(', ')}` : 'Filters cleared';
   state.toasts.show(parts.length ? `Filter applied: ${parts.join(', ')}` : 'Filters cleared.', 'info');
 }
 
 export function resetFilters(state) {
   state.filter = { text: '', queue: 'all', priority: 'all', status: 'all' };
   state.selectedIndex = 0;
+  state.lastWorkflowAction = 'Filters cleared';
 }
 
 export function assignTicket(state, assignee = 'me') {
@@ -97,6 +104,9 @@ export function assignTicket(state, assignee = 'me') {
   const next = assignee === 'me' ? state.agent : normalizeTitle(assignee);
   const previous = ticket.assignee || 'unassigned';
   ticket.assignee = next;
+  state.activeTab = 'ticket';
+  state.focus = 'work';
+  state.lastWorkflowAction = `${ticket.id}: assignee ${previous} → ${next}`;
   pushTicketEvent(state, ticket, 'field_change', `assignee changed ${previous} → ${next}`, state.agent);
   state.toasts.show(`${ticket.id} assigned to ${next}.`, 'success');
   return { ok: true, ticket };
@@ -111,6 +121,9 @@ export function setTicketStatus(state, status) {
   }
   const previous = ticket.status;
   ticket.status = next;
+  state.activeTab = 'ticket';
+  state.focus = 'work';
+  state.lastWorkflowAction = `${ticket.id}: status ${previous} → ${next}`;
   pushTicketEvent(state, ticket, 'field_change', `status changed ${previous} → ${next}`, state.agent);
   state.toasts.show(`${ticket.id} status set to ${next}.`, next === 'solved' || next === 'closed' ? 'success' : 'info');
   return { ok: true, ticket };
@@ -125,6 +138,9 @@ export function setTicketPriority(state, priority) {
   }
   const previous = ticket.priority;
   ticket.priority = next;
+  state.activeTab = 'ticket';
+  state.focus = 'work';
+  state.lastWorkflowAction = `${ticket.id}: priority ${previous} → ${next}`;
   pushTicketEvent(state, ticket, 'field_change', `priority changed ${previous} → ${next}`, state.agent);
   state.toasts.show(`${ticket.id} priority set to ${next}.`, next === 'Urgent' || next === 'High' ? 'warning' : 'success');
   return { ok: true, ticket };
@@ -135,6 +151,9 @@ export function addTag(state, tag) {
   const normalized = String(tag ?? '').trim().toLowerCase();
   if (!normalized) return { ok: false, reason: 'empty-tag' };
   if (!ticket.tags.includes(normalized)) ticket.tags.push(normalized);
+  state.activeTab = 'ticket';
+  state.focus = 'work';
+  state.lastWorkflowAction = `${ticket.id}: tag added ${normalized}`;
   pushTicketEvent(state, ticket, 'field_change', `tag added: ${normalized}`, state.agent);
   state.toasts.show(`Tag ${normalized} added.`, 'success');
   return { ok: true, ticket };
@@ -144,6 +163,9 @@ export function removeTag(state, tag) {
   const ticket = getSelectedTicket(state);
   const normalized = String(tag ?? '').trim().toLowerCase();
   ticket.tags = ticket.tags.filter((item) => item !== normalized);
+  state.activeTab = 'ticket';
+  state.focus = 'work';
+  state.lastWorkflowAction = `${ticket.id}: tag removed ${normalized}`;
   pushTicketEvent(state, ticket, 'field_change', `tag removed: ${normalized}`, state.agent);
   state.toasts.show(`Tag ${normalized} removed.`, 'success');
   return { ok: true, ticket };
@@ -185,6 +207,7 @@ export function submitComposer(state) {
     ticket.notes.unshift({ author: state.agent, body: text, time: new Date().toISOString() });
     pushTicketEvent(state, ticket, 'internal_note', `internal note added (${text.length} chars)`, state.agent);
     state.actionLog.unshift(`note ${ticket.id}: ${text.slice(0, 48)}`);
+    state.lastWorkflowAction = `${ticket.id}: internal note added`;
     state.toasts.show(`Internal note added to ${ticket.id}.`, 'success');
   } else {
     ticket.messages.push({ id: `msg_${Date.now()}`, role: 'agent', author: state.agent, body: text, time: new Date().toISOString() });
@@ -193,6 +216,7 @@ export function submitComposer(state) {
     pushTicketEvent(state, ticket, 'agent_reply', `reply sent to ${ticket.customer.name}`, state.agent);
     if (previous !== 'pending') pushTicketEvent(state, ticket, 'field_change', `status changed ${previous} → pending`, state.agent);
     state.actionLog.unshift(`reply ${ticket.id}: ${text.slice(0, 48)}`);
+    state.lastWorkflowAction = `${ticket.id}: reply sent, status ${previous} → pending`;
     state.toasts.show(`Reply sent to ${ticket.customer.name}.`, 'success');
   }
 
@@ -208,7 +232,7 @@ export function cancelComposer(state) {
   state.composer.clear();
   state.composerMode = 'reply';
   if (['reply', 'note'].includes(state.modes.current())) state.modes.pop();
-  state.focus = 'ticket';
+  state.focus = 'work';
   state.toasts.show('Composer cancelled.', 'info');
 }
 

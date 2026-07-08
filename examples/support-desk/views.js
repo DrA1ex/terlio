@@ -36,13 +36,22 @@ export const SUPPORT_TABS = [
 export function createSupportDeskView({ state, width = 118, height = 34 } = {}) {
   const mode = getResponsiveMode(width);
   const theme = getSupportTheme(state.themeName);
-  const node = mode === 'wide'
+  const overlay = overlayLayer({ state, theme, width });
+  if (overlay) return modalLayout({ state, width, height, theme, overlay });
+
+  return mode === 'wide'
     ? wideLayout({ state, width, height, theme })
     : mode === 'medium'
       ? mediumLayout({ state, width, height, theme })
       : narrowLayout({ state, width, height, theme });
+}
 
-  return Column(node, overlayLayer({ state, theme }));
+function modalLayout({ state, width, height, theme, overlay }) {
+  const header = appHeader({ state, width, theme, compact: width < 150 });
+  const footer = footerBar({ state, theme, compact: width < 150 });
+  const mainHeight = fixedMainHeight({ width, height, fixed: [header, footer] });
+  const body = Box({ border: false, height: mainHeight, padding: { top: 1, left: 2, right: 2 } }, overlay);
+  return Column(header, body, footer);
 }
 
 function wideLayout({ state, width, height, theme }) {
@@ -109,9 +118,10 @@ function appHeader({ state, width, theme, compact = false }) {
   const main = compact
     ? `${brand(theme)}  Queue ${tag(queueLabel, theme, 'accent')}  Open ${color(theme, 'ok', open)}  Risk ${color(theme, 'error', atRisk)}  ${color(theme, 'muted', mode)}`
     : `${brand(theme)}  │  Queue ${tag(queueLabel, theme, 'accent')}  │  Open ${color(theme, 'ok', open)}  │  Unassigned ${color(theme, 'system', unassigned)}  │  SLA at Risk ${color(theme, 'error', atRisk)}  │  ${color(theme, 'ok', live)} Agent ${color(theme, 'accent', state.agent)}  │  Theme ${color(theme, 'accent', state.themeName)}`;
+  const modeLabel = modeStatus(state) || (state.commandActive ? 'command' : 'browse');
   const secondary = compact
-    ? `Focus ${color(theme, 'accent', state.focus)} · Selected ${color(theme, 'accent', selected.id)} ${truncateVisible(selected.subject, Math.max(22, width - 46))}`
-    : `Focus ${color(theme, 'accent', state.focus)}${state.commandActive ? color(theme, 'system', ' · COMMAND') : ''}   │   Shortcuts: / Command   Tab Focus   [/] Tabs   Ctrl+P Palette   ? Help   q Quit   │   Selected ${color(theme, 'accent', selected.id)} ${truncateVisible(selected.subject, 38)}`;
+    ? `Mode ${color(theme, 'accent', modeLabel)} · Selected ${color(theme, 'accent', selected.id)} ${truncateVisible(selected.subject, Math.max(22, width - 46))}`
+    : `Mode ${color(theme, 'accent', modeLabel)}   │   Shortcuts: / Command   Tab Focus   [/] Tabs   Ctrl+P Palette   ? Help   q Quit   │   Selected ${color(theme, 'accent', selected.id)} ${truncateVisible(selected.subject, 38)}`;
 
   return pane({ title: ' support-desk — Support Triage Desk ', theme },
     Text(main, { wrap: false }),
@@ -126,7 +136,7 @@ function tabsBar({ state, theme, compact = false }) {
     return active ? color(theme, state.focus === 'tabs' ? 'selected' : 'accent', label) : color(theme, 'muted', label);
   });
   const help = compact ? '[/] tabs · /goto <tab>' : '[/] tabs · / command · Tab focus · Enter acts in focused pane';
-  return pane({ title: state.focus === 'tabs' ? ' TABS FOCUSED ' : '', theme },
+  return pane({ title: state.focus === 'tabs' ? ' TABS FOCUSED ' : '', theme, active: state.focus === 'tabs' },
     Text(`${parts.join('   ')}${compact ? '' : `       ${color(theme, 'muted', help)}`}`, { wrap: false }),
   );
 }
@@ -138,7 +148,8 @@ function inboxPane({ state, theme, width, height = 36, compact = false }) {
   const inner = Math.max(32, width - 4);
   const rows = slice.items.map((ticket, offset) => ticketRow({ ticket, selected: slice.start + offset === slice.selected, theme, width: inner }));
 
-  return pane({ title: `${state.focus === 'inbox' ? '▶' : ' '} INBOX ${spinner(state.frame)} Live `, theme },
+  return pane({ title: `${state.focus === 'inbox' ? '▶' : ' '} INBOX ${spinner(state.frame)} Live `, theme, active: state.focus === 'inbox' },
+    Text(inboxControlsLine(state, theme, inner), { wrap: false }),
     Text(filterLine(state, theme, inner), { wrap: false }),
     Text(quickFilterLine(state, theme, inner), { wrap: false }),
     Text(searchLine(state, theme, inner), { wrap: false }),
@@ -158,7 +169,7 @@ function activeWorkArea({ state, theme, mode, width, height }) {
 }
 
 function inboxFocusView({ state, ticket, theme, width, mode }) {
-  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} QUEUE OVERVIEW `, theme },
+  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} QUEUE OVERVIEW `, theme, active: state.focus === 'work' },
     Text(`Visible ${color(theme, 'accent', getVisibleTickets(state).length)} / ${state.tickets.length} tickets`, { wrap: false }),
     Text(`Queue ${tag(state.filter.queue, theme, 'accent')}  Status ${tag(state.filter.status, theme, 'muted')}  Priority ${tag(state.filter.priority, theme, 'muted')}`, { wrap: false }),
     Text(color(theme, 'muted', 'Use ↑/↓ to move, Enter to open, /search or /filter to narrow the queue.'), { wrap: false }),
@@ -170,10 +181,11 @@ function inboxFocusView({ state, ticket, theme, width, mode }) {
 function ticketView({ state, ticket, theme, mode, width }) {
   const inner = Math.max(48, width - 4);
   const limit = mode === 'wide' ? 9 : mode === 'medium' ? 8 : 6;
-  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} TICKET ${ticket.id} `, theme },
+  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} TICKET ${ticket.id} `, theme, active: state.focus === 'work' },
     Text(`${color(theme, 'title', truncateVisible(ticket.subject, Math.max(18, inner - 36)))}  ${queueBadge(ticket.queue, theme)}  ${color(theme, 'muted', `Created ${relativeAge(ticket)} · Updated ${clockTime()}`)}`, { wrap: false }),
     Text(`Status ${statusBadge(ticket.status, theme)}  Priority ${priorityBadge(ticket.priority, theme)}  Assignee ${color(theme, 'accent', ticket.assignee || 'unassigned')}  Customer ${color(theme, 'accent', ticket.customer.contact)}`, { wrap: false }),
     Text(`Tags ${ticket.tags.map((item) => tag(item, theme, 'muted')).join(' ')}  ${color(theme, 'muted', '+ Add tag')}`, { wrap: false }),
+    state.lastWorkflowAction ? Text(`${color(theme, 'ok', 'Last action')} ${truncateVisible(state.lastWorkflowAction, Math.max(18, inner - 12))}`, { wrap: false }) : null,
     ...wrapTextLines(ticket.summary, inner).slice(0, 2).map((line) => Text(color(theme, 'subtle', line), { wrap: false })),
     divider(theme, inner),
     Text(color(theme, 'muted', 'THREAD'), { wrap: false }),
@@ -190,7 +202,7 @@ function replyView({ state, ticket, theme, mode, width }) {
   const previewLimit = mode === 'wide' ? 5 : 3;
   const templateNames = Object.keys(SUPPORT_TEMPLATES).slice(0, 4);
 
-  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} REPLY TO ${ticket.id} `, theme },
+  return pane({ title: `${state.focus === 'work' || state.focus === 'composer' ? '▶' : ' '} REPLY TO ${ticket.id} `, theme, active: state.focus === 'work' || state.focus === 'composer' },
     Text(`${color(theme, 'title', truncateVisible(ticket.subject, Math.max(20, inner - 34)))}  ${color(theme, 'ok', '●')} Autosaved ${clockTime()}  Tone ${tag('Empathetic ▾', theme, 'accent')}`, { wrap: false }),
     Text(`Template  ${templateNames.map((name) => tag(name, theme, state.composerTemplate === name ? 'ok' : 'muted')).join(' ')}`, { wrap: false }),
     divider(theme, inner),
@@ -211,7 +223,7 @@ function replyView({ state, ticket, theme, mode, width }) {
 
 function customerFocusView({ ticket, theme, width }) {
   const inner = Math.max(48, width - 4);
-  return pane({ title: ' CUSTOMER PROFILE ', theme },
+  return pane({ title: ' CUSTOMER PROFILE ', theme, active: false },
     Text(`${color(theme, 'title', ticket.customer.name)}  ${color(theme, 'accent', ticket.customer.contact)}  ${color(theme, 'muted', ticket.customer.timezone)}`, { wrap: false }),
     Text(`${ticket.customer.email}  ·  Plan ${color(theme, 'accent', ticket.customer.plan)}  MRR ${ticket.customer.mrr}  Health ${healthText(ticket.customer.health, theme)}`, { wrap: false }),
     divider(theme, inner),
@@ -233,7 +245,7 @@ function activityFocusView({ state, ticket, theme, width, mode }) {
   const page = clamp(state.activityPage || 0, 0, maxPage);
   const start = page * pageSize;
   const events = allEvents.slice(start, start + pageSize);
-  return pane({ title: `${state.focus === 'activity' || state.focus === 'work' ? '▶' : ' '} ACTIVITY TIMELINE ${spinner(state.frame)} Live `, theme },
+  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} ACTIVITY TIMELINE ${spinner(state.frame)} Live `, theme, active: state.focus === 'work' },
     Text(`Time [Last 24h]  Queues [All]  Types [All]  Agents [All]  Search ${state.filter.text || '<none>'}`, { wrap: false }),
     Text(metricLine({ state, theme }), { wrap: false }),
     divider(theme, inner),
@@ -248,7 +260,7 @@ function contextRail({ state, theme, width }) {
   const ticket = getSelectedTicket(state);
   if (state.activeTab === 'reply') {
     return Column(
-      customerCard({ ticket, theme, width }),
+      customerCard({ ticket, theme, width, active: state.focus === 'rail' }),
       accountCard({ ticket, theme, width }),
       summaryCard({ ticket, theme, width }),
       checklistCard({ ticket, theme, width }),
@@ -263,16 +275,16 @@ function contextRail({ state, theme, width }) {
     );
   }
   return Column(
-    propertiesCard({ ticket, theme, width }),
+    propertiesCard({ ticket, theme, width, active: state.focus === 'rail' }),
     slaCard({ ticket, state, theme, width }),
     customerCard({ ticket, theme, width }),
     actionsCard({ theme, width }),
   );
 }
 
-function propertiesCard({ ticket, theme, width }) {
+function propertiesCard({ ticket, theme, width, active = false }) {
   const inner = Math.max(28, width - 4);
-  return pane({ title: ' TICKET PROPERTIES ', theme },
+  return pane({ title: `${active ? '▶' : ' '} TICKET PROPERTIES `, theme, active },
     Text(prop('Status', statusBadge(ticket.status, theme), inner), { wrap: false }),
     Text(prop('Priority', priorityBadge(ticket.priority, theme), inner), { wrap: false }),
     Text(prop('Assignee', color(theme, 'accent', ticket.assignee || 'unassigned'), inner), { wrap: false }),
@@ -295,8 +307,8 @@ function slaCard({ ticket, state, theme, width }) {
   );
 }
 
-function customerCard({ ticket, theme }) {
-  return pane({ title: ' CUSTOMER ', theme },
+function customerCard({ ticket, theme, active = false }) {
+  return pane({ title: `${active ? '▶' : ' '} CUSTOMER `, theme, active },
     Text(`${color(theme, 'title', ticket.customer.name)}  ${color(theme, 'accent', ticket.customer.contact)}`, { wrap: false }),
     Text(`${ticket.customer.email}  ·  ${ticket.customer.timezone}`, { wrap: false }),
     Text(`Plan ${color(theme, 'accent', ticket.customer.plan)}  MRR ${ticket.customer.mrr}  Health ${healthText(ticket.customer.health, theme)}`, { wrap: false }),
@@ -384,8 +396,8 @@ function commandArea({ state, theme, compact = false }) {
 
 function idleCommandArea({ state, theme }) {
   const focus = state.focus === 'command' ? color(theme, 'selected', 'COMMAND') : 'COMMAND';
-  return pane({ title: ` ${focus} `, theme },
-    Text(`${color(theme, 'muted', 'Press / to enter slash commands. Ctrl+P opens product palette. Tab switches focus zones.')}`, { wrap: false }),
+  return pane({ title: ` ${focus} `, theme, active: state.focus === 'command' },
+    Text(`${color(theme, 'accent', '›')} ${color(theme, 'muted', 'press / to start a slash command')}`, { wrap: false }),
     Text(color(theme, 'muted', 'Useful: /reply · /note · /assign me · /status pending · /filter queue billing · /sort sla · /activity'), { wrap: false }),
   );
 }
@@ -394,7 +406,7 @@ function activeCommandArea({ state, theme, compact = false }) {
   const suggestions = slashSuggestionRows(state, theme, compact ? 4 : 6);
   const parts = state.input.getParts?.() ?? { before: state.input.value, current: ' ', after: '' };
   const inputLine = `${parts.before}${color(theme, 'selected', parts.current || ' ')}${parts.after}`;
-  return pane({ title: ' COMMAND MODE — slash suggestions ', theme },
+  return pane({ title: ' COMMAND MODE — slash suggestions ', theme, active: true },
     Text(inputLine, { wrap: false }),
     ...suggestions.map((line) => Text(line, { wrap: false })),
     Text(color(theme, 'muted', '↑/↓ choose · Tab insert · Enter execute/apply · Esc cancel'), { wrap: false }),
@@ -433,7 +445,7 @@ function footerBar({ state, theme, compact = false }) {
   );
 }
 
-function overlayLayer({ state, theme }) {
+function overlayLayer({ state, theme, width = 100 }) {
   const mode = state.modes.current();
   if (mode === 'confirm') {
     return ConfirmPrompt({
@@ -445,18 +457,7 @@ function overlayLayer({ state, theme }) {
     });
   }
   if (mode === 'help') {
-    return HelpOverlay({
-      title: ' Support Desk Help ',
-      shortcuts: [
-        ['Tab / Shift+Tab', 'switch focus zone'],
-        ['↑/↓', 'move inside focused zone'],
-        ['[/]', 'switch product tabs'],
-        ['/', 'open slash-command suggestions'],
-        ['Enter', 'open / execute / send in focused mode'],
-        ['Ctrl+P', 'product command palette'],
-        ['/theme', SUPPORT_THEME_NAMES.join(', ')],
-      ],
-    });
+    return supportHelpModal({ theme, width });
   }
   if (mode === 'palette') {
     return Modal({ title: ' Command Palette ', children: [renderCommandPalette(state.palette, { title: ' Product actions ', showHelp: true })], footer: 'Type to search · Enter inserts command · Esc closes' });
@@ -465,6 +466,42 @@ function overlayLayer({ state, theme }) {
     return Modal({ title: ` Editing ${state.editField} `, children: [Text('Enter saves the field. Esc cancels.'), Text(color(theme, 'accent', '› ') + state.fieldEditor.value)] });
   }
   return null;
+}
+
+
+function supportHelpModal({ theme, width }) {
+  const commands = [
+    '/ticket TCK-1042     open ticket by id',
+    '/reply template refund   open reply composer with template',
+    '/note text          add an internal note draft',
+    '/assign me          assign selected ticket to current agent',
+    '/status pending     change selected ticket status',
+    '/priority high      change priority',
+    '/tag regression     add tag',
+    '/filter queue billing  filter inbox visually and by command',
+    '/sort sla           sort queue by SLA',
+    '/activity next      open activity timeline / paginate',
+    '/theme support-paper  switch theme',
+  ];
+  return Modal({
+    title: ' Support Desk Help ',
+    children: [
+      Text(color(theme, 'title', 'Navigation'), { wrap: false }),
+      Text('Tab / Shift+Tab       move between visible focus zones', { wrap: false }),
+      Text('[/]                   switch product tabs without leaving current focus', { wrap: false }),
+      Text('↑/↓ / Enter           operate the focused pane', { wrap: false }),
+      Text('Esc                   close modal or clear command input', { wrap: false }),
+      Text('', { wrap: false }),
+      Text(color(theme, 'title', 'Inbox controls'), { wrap: false }),
+      Text('When Inbox is focused: ←/→ selects Tickets / Queue / Priority / Status / Sort, Enter cycles value.', { wrap: false }),
+      Text('', { wrap: false }),
+      Text(color(theme, 'title', 'Slash commands'), { wrap: false }),
+      ...commands.map((line) => Text(truncateVisible(line, Math.max(40, width - 10)), { wrap: false })),
+      Text('', { wrap: false }),
+      Text(color(theme, 'muted', 'Press Esc to close this help dialog.'), { wrap: false }),
+    ],
+    footer: 'Ctrl+P opens the product command palette · / opens slash suggestions',
+  });
 }
 
 function ticketRow({ ticket, selected, theme, width }) {
@@ -524,6 +561,20 @@ function quickReplyStripLine({ state, theme, width }) {
     : 'Reply · Note · Customer Visible    Use /reply or /note to open composer';
   const actions = 'Actions: /reply  /note  /assign  /status  /close  /escalate';
   return Text(`${truncateVisible(placeholder, Math.max(18, width - 2))}\n${color(theme, 'muted', truncateVisible(actions, Math.max(18, width - 2)))}`, { wrap: false });
+}
+
+
+function inboxControlsLine(state, theme, width) {
+  const control = state.inboxControl || 'tickets';
+  const items = [
+    ['tickets', 'Tickets'],
+    ['queue', `Queue:${state.filter.queue}`],
+    ['priority', `Priority:${state.filter.priority}`],
+    ['status', `Status:${state.filter.status}`],
+    ['sort', `Sort:${state.sort}`],
+  ];
+  const rendered = items.map(([id, label]) => id === control ? color(theme, 'selected', ` ${label} `) : color(theme, 'muted', ` ${label} `));
+  return truncateVisible(`Controls: ${rendered.join(' ')}  ${color(theme, 'muted', '←/→ choose · Enter cycle · ↑/↓ tickets')}`, width);
 }
 
 function filterLine(state, theme, width) {
@@ -615,8 +666,8 @@ function modeStatus(state) {
   return '';
 }
 
-function pane({ title = '', theme, padding = { left: 1, right: 1 } } = {}, ...children) {
-  return Box({ border: true, borderColor: theme?.border, padding, title }, ...children);
+function pane({ title = '', theme, padding = { left: 1, right: 1 }, active = false } = {}, ...children) {
+  return Box({ border: true, borderColor: active ? theme?.accent : theme?.border, padding, title }, ...children);
 }
 
 function divider(theme, width) {

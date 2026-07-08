@@ -97,8 +97,16 @@ import { RichTerminalApp } from './src/lib/index.js';
 
 ## Что добавлено в текущем инкременте
 
+- `demo:support-desk` получил доработанный interaction layer: активная видимая зона теперь выделяется цветом рамки, а не только текстом в header.
+- `Tab` теперь переключает только реально видимые focus zones: tabs/inbox/work/rail/command в wide, tabs/inbox/work/command в medium, tabs/work/command в narrow.
+- `Ctrl+P` и `/help` теперь открываются как видимые modal overlays, закрываются через `Esc` и не рендерятся ниже viewport.
+- `Esc` в command mode очищает текущую команду и оставляет focus на command bar, чтобы состояние не терялось.
+- Idle command bar теперь выглядит как поле ввода и явно подсказывает, что нужно нажать `/` для slash-команд.
+- Inbox получил визуальные controls для `Tickets / Queue / Priority / Status / Sort`; ими можно управлять стрелками и Enter, не только slash-командами.
+- Workflow-команды вроде `/assign me`, `/status pending`, `/priority high`, `/tag ...` теперь переключают UI на Ticket tab, показывают изменённые поля и оставляют last-action строку в ticket pane.
+
 - `demo:support-desk` визуально пересобран под дизайн-цель из reference mockup: top header, product tabs, пропорциональный main area, command bar, live activity feed и footer status bar.
-- Responsive breakpoints стали строже: `wide >= 180` показывает 3 колонки, `medium 120–179` показывает 2 колонки, `narrow < 120` переключается в single-pane tab workflow.
+- Responsive breakpoints обновлены под реальные размеры терминала: `wide >= 160` показывает 3 колонки, `medium 120–159` показывает 2 колонки, `narrow < 120` переключается в single-pane tab workflow.
 - В medium/narrow больше не рендерится third context rail: `TICKET PROPERTIES`, SLA/customer/actions rail появляется только в действительно широком терминале.
 - Wide layout получил нормальные пропорции: inbox слева, более широкая рабочая область в центре, compact context rail справа.
 - Табовая навигация упрощена до читаемых product tabs без «сломанных» pseudo-icons.
@@ -108,7 +116,7 @@ import { RichTerminalApp } from './src/lib/index.js';
 - `Activity` tab стал отдельным dashboard/timeline экраном с filters, metrics, event details и operational feed.
 - `Box` получил опциональный `borderColor`, а Support Desk использует muted theme borders вместо ярко-белой «стены рамок».
 - В library UI добавлены reusable primitives: `Badge`, `SectionTabs`, `CommandBar`, `FooterStatusBar`, `PropertyRows`, `ChipLine`; `Row` поддерживает explicit `widths`, чтобы делать нормальные pane proportions.
-- Добавлены render-тесты на breakpoints: 119/140/179 columns не показывают третий rail, а 180 columns уже показывает wide layout.
+- Добавлены render-тесты на breakpoints: 119/140/159 columns не показывают третий rail, а 160 columns уже показывает wide layout.
 
 - `demo:support-desk` переписан из короткой тех-демки в полноценное mini-product TUI-приложение для support triage.
 - Добавлена отдельная структура `examples/support-desk/`: `app.js`, `data.js`, `commands.js`, `reducers.js`, `views.js`, `themes.js`, `templates.js`. Старый `examples/support-desk.js` теперь thin launcher/re-export.

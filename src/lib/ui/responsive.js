@@ -1,6 +1,6 @@
 export function getResponsiveMode(width = 80) {
   const columns = Number(width) || 80;
-  if (columns >= 180) return 'wide';
+  if (columns >= 160) return 'wide';
   if (columns >= 120) return 'medium';
   return 'narrow';
 }
@@ -8,9 +8,9 @@ export function getResponsiveMode(width = 80) {
 export function responsiveColumns(width = 80, mode = getResponsiveMode(width)) {
   const columns = Math.max(40, Number(width) || 80);
   if (mode === 'wide') {
-    const left = clamp(Math.floor(columns * 0.29), 50, 58);
-    const right = clamp(Math.floor(columns * 0.25), 44, 54);
-    const middle = Math.max(72, columns - left - right - 4);
+    const left = clamp(Math.floor(columns * 0.28), 44, 54);
+    const right = clamp(Math.floor(columns * 0.24), 38, 48);
+    const middle = Math.max(68, columns - left - right - 4);
     return { mode, left, middle, right };
   }
   if (mode === 'medium') {
