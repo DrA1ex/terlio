@@ -1,7 +1,7 @@
 {
   "name": "mock-ai-terminal",
   "version": "0.1.0",
-  "description": "Dependency-free rich terminal prototype that imitates AI chat.",
+  "description": "Dependency-free rich terminal UI library and examples for Node.js.",
   "type": "module",
   "bin": {
     "mock-ai": "./examples/mock-ai-terminal.js"
@@ -42,6 +42,7 @@
     "src/lib",
     "src/index.js",
     "examples",
-    "README.md"
+    "README.md",
+    "docs"
   ]
 }
