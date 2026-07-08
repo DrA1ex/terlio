@@ -1,79 +1,126 @@
 #!/usr/bin/env node
-import { Box, Column, InputEditor, Panel, Row, Text } from '../src/lib/index.js';
+import {
+  Box,
+  Column,
+  InputEditor,
+  KeyHintBar,
+  Panel,
+  Row,
+  SelectList,
+  Text,
+  Toast,
+  WorkspaceCommandBar,
+  WorkspaceFooter,
+  WorkspacePane,
+  WorkspaceShell,
+  fitInline,
+  splitWorkspaceColumns,
+} from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
 
 const ACTIONS = [
-  ['chat.new', 'Start a new chat transcript'],
-  ['chat.retry', 'Retry the last user request'],
-  ['chat.regenerate', 'Regenerate the last assistant answer'],
-  ['message.copy-last', 'Copy the last assistant answer'],
-  ['message.shorter', 'Ask the model to shorten the last answer'],
-  ['message.longer', 'Ask the model to expand the last answer'],
-  ['session.save', 'Save the current session'],
-  ['session.open', 'Open the session picker'],
-  ['session.delete', 'Delete a saved session'],
-  ['provider.mock', 'Switch to the regex mock provider'],
-  ['provider.replay', 'Switch to the deterministic replay provider'],
-  ['theme.dark', 'Switch to the dark theme'],
-  ['theme.ocean', 'Switch to the ocean theme'],
-  ['theme.matrix', 'Switch to the matrix theme'],
-  ['skill.code.on', 'Enable code assistant skill'],
-  ['skill.writer.on', 'Enable writer skill'],
-  ['skill.debugger.on', 'Enable debugger skill'],
-  ['debug.keys', 'Open the key diagnostics screen'],
-  ['debug.render', 'Show renderer frame timings'],
-  ['terminal.suspend', 'Suspend rich UI and run a shell command'],
-  ['terminal.redraw', 'Reset renderer and redraw the frame'],
-  ['help.shortcuts', 'Show keyboard shortcuts'],
-  ['help.commands', 'Show slash command reference'],
-  ['app.exit', 'Exit the example'],
+  ['chat.new', 'Start a new chat transcript', 'Chat', '⌘N', 'Safe reset that preserves the current session in history.'],
+  ['chat.retry', 'Retry the last user request', 'Chat', 'R', 'Replays the last prompt against the active provider.'],
+  ['chat.regenerate', 'Regenerate the last assistant answer', 'Chat', 'G', 'Keeps the prompt and replaces only the final assistant turn.'],
+  ['message.copy-last', 'Copy the last assistant answer', 'Message', 'Y', 'Copies text and structured block summaries.'],
+  ['message.shorter', 'Ask the model to shorten the last answer', 'Message', 'S', 'Queues a rewrite instruction against the current answer.'],
+  ['message.longer', 'Ask the model to expand the last answer', 'Message', 'L', 'Requests a more detailed answer while keeping context.'],
+  ['session.save', 'Save the current session', 'Session', '⌘S', 'Persists messages, provider, theme and enabled skills.'],
+  ['session.open', 'Open the session picker', 'Session', 'O', 'Shows recent sessions with preview and delete confirmation.'],
+  ['session.delete', 'Delete a saved session', 'Session', 'D', 'Requires confirmation before removing local data.'],
+  ['provider.mock', 'Switch to the regex mock provider', 'Provider', 'M', 'Fast deterministic replies for demos and tests.'],
+  ['provider.replay', 'Switch to the deterministic replay provider', 'Provider', 'P', 'Replays scripted chunks to validate streaming UI.'],
+  ['theme.dark', 'Switch to the dark theme', 'Theme', '1', 'Default high-contrast theme for long terminal sessions.'],
+  ['theme.ocean', 'Switch to the ocean theme', 'Theme', '2', 'Cool accent theme for product demos.'],
+  ['theme.matrix', 'Switch to the matrix theme', 'Theme', '3', 'Dense green terminal theme for diagnostics.'],
+  ['skill.code.on', 'Enable code assistant skill', 'Skill', 'C', 'Enables code-oriented mock planning and block output.'],
+  ['skill.writer.on', 'Enable writer skill', 'Skill', 'W', 'Enables rewrite and tone-oriented examples.'],
+  ['skill.debugger.on', 'Enable debugger skill', 'Skill', 'B', 'Adds structured warning and tool-result suggestions.'],
+  ['debug.keys', 'Open the key diagnostics screen', 'Diagnostics', 'K', 'Useful when terminal modifiers emit unexpected sequences.'],
+  ['debug.render', 'Show renderer frame timings', 'Diagnostics', 'F', 'Displays frame diff and redraw diagnostics.'],
+  ['terminal.suspend', 'Suspend rich UI and run a shell command', 'Terminal', '!', 'Leaves alternate screen before running a process.'],
+  ['terminal.redraw', 'Reset renderer and redraw the frame', 'Terminal', 'Ctrl+L', 'Clears stale artifacts and forces a full frame render.'],
+  ['help.shortcuts', 'Show keyboard shortcuts', 'Help', '?', 'Opens contextual key help.'],
+  ['help.commands', 'Show slash command reference', 'Help', '/', 'Lists command usage and argument hints.'],
+  ['app.exit', 'Exit the example', 'App', 'Q', 'Restores the terminal and exits cleanly.'],
 ];
 
 const WINDOW_SIZE = 9;
+const TABS = [
+  { id: 'palette', label: 'Palette' },
+  { id: 'details', label: 'Details' },
+  { id: 'accepted', label: 'Accepted' },
+];
 
 export function createCommandPaletteState() {
   return {
     search: new InputEditor(''),
     selectedIndex: 0,
     accepted: [],
+    activeTab: 'palette',
     status: 'Command Palette: type to filter, use ↑/↓ and PageUp/PageDown, Enter accepts.',
   };
 }
 
-export function createCommandPaletteView({ state, width = 96 }) {
+export function createCommandPaletteView({ state, width = 96, height = 30 } = {}) {
   const items = getFilteredActions(state.search.value);
   const selected = normalizeSelected(state, items.length);
-  const windowed = getWindow(items, selected, WINDOW_SIZE);
+  const selectedAction = items[selected];
+  const layout = splitWorkspaceColumns(width);
+  const mainHeight = Math.max(10, height - 12);
+  const main = layout.mode === 'wide'
+    ? Row({ gap: 2, widths: layout.widths },
+        palettePane(state, items, selected, Math.max(30, layout.widths[0]), mainHeight),
+        detailsPane(selectedAction, Math.max(40, layout.widths[1]), mainHeight),
+        acceptedPane(state, Math.max(28, layout.widths[2]), mainHeight),
+      )
+    : layout.mode === 'medium'
+      ? Row({ gap: 2, widths: layout.widths },
+          palettePane(state, items, selected, Math.max(30, layout.widths[0]), mainHeight),
+          detailsPane(selectedAction, Math.max(40, layout.widths[1]), mainHeight),
+        )
+      : narrowPane(state, items, selected, selectedAction, width, mainHeight);
 
-  return Column(
-    Box({ border: true, padding: { left: 1, right: 1 }, title: ' Command Palette ' },
-      Text('A palette-style editor example: fuzzy filtering, selected row, scrolling list, and accepted actions.'),
-      Text(`Search: ${state.search.value || '<empty>'}█`),
-    ),
-    Row({ gap: 2, distribute: true },
-      Box({ border: true, padding: 1, title: ` Actions ${items.length ? selected + 1 : 0}/${items.length} ` },
-        ...windowed.map(({ action, description, index }) => Text(formatActionRow(action, description, index === selected, width - 8))),
-        ...(items.length ? [] : [Text('No matching actions.')]),
-      ),
-      Panel(' Accepted ',
-        ...(state.accepted.length ? state.accepted.slice(-10).map((line) => Text(line)) : [Text('Press Enter on an action to record it here.')]),
-      ),
-    ),
-    Row({ gap: 2, distribute: true },
-      Panel(' Keys ',
-        Text('↑ / ↓       move selection'),
-        Text('PageUp/Down jump by a page'),
-        Text('Backspace   edit filter'),
-        Text('Ctrl+U      clear filter'),
-        Text('Enter       accept action'),
-        Text('Esc         clear filter'),
-      ),
-      Panel(' Last keys ',
-        ...((state.keyLog?.length ? state.keyLog : ['No keys yet.']).map((line) => Text(line))),
-      ),
-    ),
-    Box({ border: true, padding: { left: 1, right: 1 }, title: ' Status ' }, Text(state.status)),
-  );
+  return WorkspaceShell({
+    title: 'Command Palette',
+    subtitle: 'searchable action launcher',
+    stats: [
+      { label: 'Matches', value: items.length },
+      { label: 'Selected', value: selectedAction?.[0] ?? 'none' },
+    ],
+    right: [
+      { label: 'Accepted', value: state.accepted.length },
+      { label: 'Query', value: state.search.value || '<empty>' },
+    ],
+    focus: state.activeTab,
+    tabs: TABS,
+    activeTab: state.activeTab,
+    tabHint: 'Type to filter · ↑/↓ select · Enter accept · Esc clear · Q exit',
+    main,
+    command: WorkspaceCommandBar({
+      mode: 'PALETTE',
+      prompt: 'search',
+      value: `${state.search.value || '<empty>'}▌`,
+      suggestions: groupCounts(items),
+      hint: 'filters by id, title and group',
+    }),
+    activity: KeyHintBar({
+      title: ' LOCAL HELP ',
+      hints: [
+        ['↑/↓', 'move selection'],
+        ['PgUp/PgDn', 'page list'],
+        ['Home/End', 'jump'],
+        ['Enter', 'accept action'],
+        ['Esc', 'clear query'],
+        ['Ctrl+U', 'clear prefix'],
+      ],
+    }),
+    footer: WorkspaceFooter({
+      left: ['Ready', state.status],
+      right: ['demo: command-palette'],
+    }),
+    height,
+  });
 }
 
 export function handleCommandPaletteKey({ key, state, runtime }) {
@@ -87,18 +134,32 @@ export function handleCommandPaletteKey({ key, state, runtime }) {
     return;
   }
 
+  if (key.name === 'q') {
+    runtime.exit(0);
+    return;
+  }
+
+  if (key.name === 'tab') {
+    const current = TABS.findIndex((tab) => tab.id === state.activeTab);
+    const next = ((current + (key.shift ? -1 : 1)) % TABS.length + TABS.length) % TABS.length;
+    state.activeTab = TABS[next].id;
+    state.status = `Focus moved to ${state.activeTab}.`;
+    return;
+  }
+
   if (key.name === 'enter') {
     if (!items.length) {
       state.status = 'Nothing to accept.';
       return;
     }
-    const [action, description] = items[state.selectedIndex];
+    const [action, description, group] = items[state.selectedIndex];
     if (action === 'app.exit') {
       runtime.exit(0);
       return;
     }
     state.accepted.push(`${action} — ${description}`);
-    state.status = `Accepted ${action}.`;
+    state.activeTab = 'accepted';
+    state.status = `Accepted ${action} from ${group}.`;
     return;
   }
 
@@ -141,6 +202,7 @@ export function handleCommandPaletteKey({ key, state, runtime }) {
   if (key.name === 'backspace') {
     state.search.backspace();
     state.selectedIndex = 0;
+    state.activeTab = 'palette';
     state.status = 'Edited filter.';
     return;
   }
@@ -181,6 +243,7 @@ export function handleCommandPaletteKey({ key, state, runtime }) {
   if (key.name === 'paste') {
     state.search.insert(key.text);
     state.selectedIndex = 0;
+    state.activeTab = 'palette';
     state.status = 'Pasted into filter.';
     return;
   }
@@ -188,6 +251,7 @@ export function handleCommandPaletteKey({ key, state, runtime }) {
   if (key.printable) {
     state.search.insert(key.text);
     state.selectedIndex = 0;
+    state.activeTab = 'palette';
     state.status = 'Filtered actions.';
   }
 }
@@ -195,10 +259,82 @@ export function handleCommandPaletteKey({ key, state, runtime }) {
 export function getFilteredActions(query) {
   const terms = String(query ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (!terms.length) return ACTIONS;
-  return ACTIONS.filter(([action, description]) => {
-    const haystack = `${action} ${description}`.toLowerCase();
+  return ACTIONS.filter(([action, description, group, shortcut, detail]) => {
+    const haystack = `${action} ${description} ${group} ${shortcut} ${detail}`.toLowerCase();
     return terms.every((term) => haystack.includes(term));
   });
+}
+
+function palettePane(state, items, selected, width, height) {
+  return WorkspacePane({
+    title: ` ${state.activeTab === 'palette' ? '▶' : ' '} ACTIONS ${items.length ? selected + 1 : 0}/${items.length} `,
+    active: state.activeTab === 'palette',
+    height,
+    children: [
+      Text(`Search: ${state.search.value || '<empty>'}▌`, { wrap: false }),
+      SelectList({
+        title: 'Command Palette',
+        items,
+        selectedIndex: selected,
+        windowSize: Math.min(WINDOW_SIZE, Math.max(4, height - 8)),
+        emptyText: 'No matching actions.',
+        getLabel: (item) => item[0],
+        getDescription: (item) => `${item[2]} · ${item[1]}`,
+      }),
+    ],
+  });
+}
+
+function detailsPane(action, width, height) {
+  if (!action) {
+    return WorkspacePane({
+      title: ' DETAILS ',
+      height,
+      children: [Toast({ level: 'warning', message: 'No command matches the current query.' })],
+    });
+  }
+  const [id, description, group, shortcut, detail] = action;
+  return WorkspacePane({
+    title: ' DETAILS ',
+    height,
+    active: false,
+    children: [
+      Panel(' Selected action ',
+        Text(`id       ${id}`, { wrap: false }),
+        Text(`group    ${group}`, { wrap: false }),
+        Text(`shortcut ${shortcut}`, { wrap: false }),
+      ),
+      Panel(' Behavior ',
+        Text(fitInline(description, Math.max(20, width - 6)), { wrap: false }),
+        Text(fitInline(detail, Math.max(20, width - 6)), { wrap: false }),
+      ),
+      Panel(' Integration notes ',
+        Text('Palette actions are data records, not hard-coded UI rows.'),
+        Text('The app decides whether an accepted item inserts text, opens a modal, runs a command or exits.'),
+      ),
+    ],
+  });
+}
+
+function acceptedPane(state, width, height) {
+  const rows = state.accepted.length
+    ? state.accepted.slice(-Math.max(4, height - 8)).map((line, index) => Text(`${index + 1}. ${fitInline(line, Math.max(16, width - 8))}`, { wrap: false }))
+    : [Text('Accept actions to build a visible audit trail.')];
+  return WorkspacePane({
+    title: ` ${state.activeTab === 'accepted' ? '▶' : ' '} ACCEPTED `,
+    active: state.activeTab === 'accepted',
+    height,
+    children: [
+      Toast({ level: state.accepted.length ? 'success' : 'info', message: state.accepted.length ? `${state.accepted.length} action(s) accepted.` : 'No accepted actions yet.' }),
+      ...rows,
+    ],
+  });
+}
+
+function narrowPane(state, items, selected, action, width, height) {
+  if (state.activeTab === 'accepted') return acceptedPane(state, width, height);
+  if (state.activeTab === 'details') return detailsPane(action, width, height);
+  return palettePane(state, items, selected, width, height);
 }
 
 function normalizeSelected(state, size) {
@@ -210,19 +346,10 @@ function normalizeSelected(state, size) {
   return state.selectedIndex;
 }
 
-function getWindow(items, selectedIndex, size) {
-  const start = Math.max(0, Math.min(selectedIndex - Math.floor(size / 2), items.length - size));
-  return items.slice(start, start + size).map(([action, description], offset) => ({
-    action,
-    description,
-    index: start + offset,
-  }));
-}
-
-function formatActionRow(action, description, selected, width) {
-  const marker = selected ? '›' : ' ';
-  const body = `${marker} ${action.padEnd(20)} ${description}`;
-  return body.length > width ? body.slice(0, Math.max(0, width - 1)) + '…' : body;
+function groupCounts(items) {
+  const counts = new Map();
+  for (const item of items) counts.set(item[2], (counts.get(item[2]) ?? 0) + 1);
+  return [...counts.entries()].slice(0, 6).map(([group, count]) => `${group.toLowerCase()} ${count}`);
 }
 
 if (isDirectRun(import.meta.url)) {

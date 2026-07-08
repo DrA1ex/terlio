@@ -86,10 +86,14 @@ npm run demo:chat
 npm run demo:support-desk
 ```
 
-Product examples:
+Product-grade examples:
 
 ```bash
 npm run example:chat
+npm run example:editor
+npm run example:palette
+npm run example:stream
+npm run example:kit
 npm run example:composer
 npm run example:code-review
 npm run example:command-center
@@ -105,16 +109,6 @@ npm run example:themes
 npm run example:blocks
 npm run example:components
 ```
-
-Focused labs:
-
-```bash
-npm run example:editor
-npm run example:palette
-npm run example:stream
-npm run example:kit
-```
-
 Interactive examples require a real terminal. `example:components` renders to normal stdout and is useful as a quick smoke test.
 
 ## Library usage

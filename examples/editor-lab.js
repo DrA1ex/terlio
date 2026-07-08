@@ -1,60 +1,112 @@
 #!/usr/bin/env node
-import { Box, Column, InputEditor, Panel, Row, Text } from '../src/lib/index.js';
+import {
+  InputEditor,
+  KeyHintBar,
+  Panel,
+  Row,
+  Text,
+  TextEditorView,
+  Toast,
+  WorkspaceCommandBar,
+  WorkspaceFooter,
+  WorkspacePane,
+  WorkspaceShell,
+  fitInline,
+  splitWorkspaceColumns,
+} from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
+
+const SAMPLE_HISTORY = [
+  'write a release note for terminal renderer',
+  '/theme ocean',
+  'explain how frame diffing reduces flicker',
+  'draft an answer with code, warning and command blocks',
+];
 
 export function createEditorLabState() {
   return {
     editor: new InputEditor('try Alt+←, Ctrl+W, paste text, then Enter'),
-    history: [
-      'write a release note for terminal renderer',
-      '/theme ocean',
-      'explain how frame diffing reduces flicker',
-    ],
+    history: [...SAMPLE_HISTORY],
     historyIndex: null,
     submitted: [],
+    activeTab: 'editor',
     status: 'Editor Lab: type, move cursor, edit words, paste text, submit lines.',
   };
 }
 
-export function createEditorLabView({ state, width = 92 }) {
+export function createEditorLabView({ state, width = 92, height = 28 } = {}) {
+  const layout = splitWorkspaceColumns(width);
+  const mainHeight = Math.max(10, height - 12);
   const editor = state.editor;
-  const parts = editor.getParts();
-  const cursorPreview = `${parts.before}█${parts.current === ' ' ? '' : parts.current}${parts.after}`;
-  const leftWidth = Math.max(28, Math.floor(width * 0.56));
-  const rightWidth = Math.max(24, width - leftWidth - 3);
+  const main = layout.mode === 'wide'
+    ? Row({ gap: 2, widths: layout.widths },
+        editorPane(state, Math.max(30, layout.widths[0]), mainHeight),
+        diagnosticsPane(state, Math.max(40, layout.widths[1]), mainHeight),
+        historyPane(state, Math.max(28, layout.widths[2]), mainHeight),
+      )
+    : layout.mode === 'medium'
+      ? Row({ gap: 2, widths: layout.widths },
+          editorPane(state, Math.max(32, layout.widths[1]), mainHeight),
+          historyPane(state, Math.max(28, layout.widths[0]), mainHeight),
+        )
+      : narrowPane(state, width, mainHeight);
 
-  return Column(
-    Box({ border: true, padding: { left: 1, right: 1 }, title: ' Editor Lab ' },
-      Text('A focused playground for the dependency-free InputEditor. Ctrl+C exits, Ctrl+D exits cleanly.'),
-    ),
-    Row({ gap: 2, distribute: true },
-      Box({ border: true, padding: 1, title: ' Live input ' },
-        Text(`value : ${editor.value || '<empty>'}`),
-        Text(`cursor: ${editor.cursor}/${Array.from(editor.value).length}`),
-        Text(`view  : ${cursorPreview}`),
-        Text(''),
-        Text('Try: letters, ←/→, Home/End, Ctrl+A/E, Ctrl+K/U/W, Alt+←/→, paste, Enter.'),
-      ),
-      Box({ border: true, padding: 1, title: ' History ' },
-        ...historyLines(state, rightWidth - 4).map((line) => Text(line)),
-      ),
-    ),
-    Row({ gap: 2, distribute: true },
-      Panel(' Submitted lines ',
-        ...(state.submitted.length ? state.submitted.slice(-6).map((line, index) => Text(`${index + 1}. ${line}`)) : [Text('No submitted lines yet. Press Enter to submit the current input.')]),
-      ),
-      Panel(' Last keys ',
-        ...((state.keyLog?.length ? state.keyLog : ['No keys yet.']).map((line) => Text(line))),
-      ),
-    ),
-    Box({ border: true, padding: { left: 1, right: 1 }, title: ' Status ' },
-      Text(state.status),
-    ),
-  );
+  return WorkspaceShell({
+    title: 'Editor Lab',
+    subtitle: 'InputEditor compatibility desk',
+    stats: [
+      { label: 'value', value: editor.value || '<empty>' },
+      { label: 'cursor', value: `${editor.cursor}/${Array.from(editor.value).length}` },
+    ],
+    right: [
+      { label: 'Submitted', value: state.submitted.length },
+      { label: 'History', value: state.history.length },
+    ],
+    focus: state.activeTab,
+    tabs: [
+      { id: 'editor', label: 'Editor' },
+      { id: 'diagnostics', label: 'Diagnostics' },
+      { id: 'history', label: 'History' },
+    ],
+    activeTab: state.activeTab,
+    tabHint: 'Type text · Enter submit · ↑/↓ history · Tab focus · Ctrl+C exit',
+    main,
+    command: WorkspaceCommandBar({
+      mode: 'EDITOR',
+      prompt: 'draft',
+      value: `${editor.value || '<empty>'}▌`,
+      suggestions: ['Alt+←/→ word', 'Ctrl+K kill end', 'Ctrl+U kill start', 'Ctrl+W delete word'],
+      hint: 'raw InputEditor state',
+    }),
+    activity: KeyHintBar({
+      title: ' LOCAL HELP ',
+      hints: [
+        ['←/→', 'move char'],
+        ['Alt+←/→', 'move word'],
+        ['Ctrl+A/E', 'home/end'],
+        ['Ctrl+K/U', 'kill line'],
+        ['Ctrl+W', 'delete word'],
+        ['Enter', 'submit'],
+      ],
+    }),
+    footer: WorkspaceFooter({
+      left: ['Ready', state.status],
+      right: ['demo: editor'],
+    }),
+    height,
+  });
 }
 
 export function handleEditorLabKey({ key, state }) {
   const editor = state.editor;
+
+  if (key.name === 'tab') {
+    const tabs = ['editor', 'diagnostics', 'history'];
+    const index = tabs.indexOf(state.activeTab);
+    state.activeTab = tabs[((index + (key.shift ? -1 : 1)) % tabs.length + tabs.length) % tabs.length];
+    state.status = `Focus moved to ${state.activeTab}.`;
+    return;
+  }
 
   if (key.name === 'enter') {
     const line = editor.value.trim();
@@ -63,6 +115,7 @@ export function handleEditorLabKey({ key, state }) {
       state.history.push(line);
       if (state.history.length > 40) state.history = state.history.slice(-40);
       state.status = `Submitted: ${line}`;
+      state.activeTab = 'history';
     } else {
       state.status = 'Ignored empty submit.';
     }
@@ -76,6 +129,7 @@ export function handleEditorLabKey({ key, state }) {
     if (state.historyIndex === null) state.historyIndex = state.history.length - 1;
     else state.historyIndex = Math.max(0, state.historyIndex - 1);
     editor.set(state.history[state.historyIndex]);
+    state.activeTab = 'history';
     state.status = 'History: older entry.';
     return;
   }
@@ -90,6 +144,7 @@ export function handleEditorLabKey({ key, state }) {
     }
     state.historyIndex += 1;
     editor.set(state.history[state.historyIndex]);
+    state.activeTab = 'history';
     state.status = 'History: newer entry.';
     return;
   }
@@ -156,31 +211,99 @@ export function handleEditorLabKey({ key, state }) {
   if (key.name === 'paste') {
     editor.insert(key.text);
     state.historyIndex = null;
+    state.activeTab = 'editor';
     state.status = `Pasted ${Array.from(key.text).length} characters.`;
-    return;
-  }
-
-  if (key.name === 'tab') {
-    editor.insert('  ');
-    state.historyIndex = null;
-    state.status = 'Inserted two spaces for Tab.';
     return;
   }
 
   if (key.printable) {
     editor.insert(key.text);
     state.historyIndex = null;
+    state.activeTab = 'editor';
     state.status = `Inserted ${JSON.stringify(key.text)}.`;
   }
+}
+
+function editorPane(state, width, height) {
+  return WorkspacePane({
+    title: ` ${state.activeTab === 'editor' ? '▶' : ' '} LIVE EDITOR `,
+    active: state.activeTab === 'editor',
+    height,
+    children: [
+      Panel(' State ',
+        Text(`value : ${state.editor.value || '<empty>'}`),
+        Text(`cursor: ${state.editor.cursor}/${Array.from(state.editor.value).length}`),
+        Text(`words : ${wordCount(state.editor.value)}`),
+      ),
+      TextEditorView({
+        title: ' Draft buffer ',
+        value: state.editor.value,
+        cursor: state.editor.cursor,
+        width: Math.max(24, width - 4),
+        height: Math.max(3, Math.min(5, height - 9)),
+        placeholder: 'type a message...',
+        lineNumbers: false,
+      }),
+    ],
+  });
+}
+
+function diagnosticsPane(state, width, height) {
+  const parts = state.editor.getParts();
+  const cursorPreview = `${parts.before}█${parts.current === ' ' ? '' : parts.current}${parts.after}`;
+  return WorkspacePane({
+    title: ` ${state.activeTab === 'diagnostics' ? '▶' : ' '} DIAGNOSTICS `,
+    active: state.activeTab === 'diagnostics',
+    height,
+    children: [
+      Toast({ level: 'info', message: 'Inspect cursor state, submitted lines and recent raw keys.' }),
+      Panel(' Cursor preview ',
+        Text(fitInline(cursorPreview, Math.max(20, width - 8)), { wrap: false }),
+      ),
+      Panel(' Last keys ',
+        ...((state.keyLog?.length ? state.keyLog.slice(-7) : ['No keys yet.']).map((line) => Text(fitInline(line, Math.max(16, width - 8)), { wrap: false }))),
+      ),
+      Panel(' Submitted lines ',
+        ...(state.submitted.length ? state.submitted.slice(-5).map((line, index) => Text(`${index + 1}. ${fitInline(line, Math.max(16, width - 10))}`, { wrap: false })) : [Text('No submitted lines yet. Press Enter to submit the current input.')]),
+      ),
+    ],
+  });
+}
+
+function historyPane(state, width, height) {
+  return WorkspacePane({
+    title: ` ${state.activeTab === 'history' ? '▶' : ' '} History `,
+    active: state.activeTab === 'history',
+    height,
+    children: [
+      Panel(' Recall stack ',
+        ...historyLines(state, Math.max(16, width - 8)).slice(-Math.max(5, height - 9)).map((line) => Text(line, { wrap: false })),
+      ),
+      Panel(' Behavior ',
+        Text('↑ loads older history'),
+        Text('↓ loads newer history'),
+        Text('Enter submits and appends'),
+      ),
+    ],
+  });
+}
+
+function narrowPane(state, width, height) {
+  if (state.activeTab === 'history') return historyPane(state, width, height);
+  if (state.activeTab === 'diagnostics') return diagnosticsPane(state, width, height);
+  return editorPane(state, width, height);
 }
 
 function historyLines(state, width) {
   return state.history.slice(-9).map((line, index, list) => {
     const absoluteIndex = state.history.length - list.length + index;
     const marker = absoluteIndex === state.historyIndex ? '›' : ' ';
-    const text = line.length > width - 4 ? line.slice(0, Math.max(0, width - 5)) + '…' : line;
-    return `${marker} ${text}`;
+    return `${marker} ${fitInline(line, Math.max(8, width - 2))}`;
   });
+}
+
+function wordCount(value) {
+  return String(value ?? '').trim().split(/\s+/).filter(Boolean).length;
 }
 
 if (isDirectRun(import.meta.url)) {

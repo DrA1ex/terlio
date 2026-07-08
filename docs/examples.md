@@ -40,7 +40,9 @@ examples/support-desk/
   views.js
 ```
 
-## Product examples
+## Product-grade examples
+
+The product-grade examples use the same overall UI/UX standard as the demos: a stable workspace shell, header stats, navigation tabs, a responsive main area, command bar, local help, footer status, visible mode state, and testable pure render functions.
 
 ### Chat
 
@@ -49,6 +51,38 @@ npm run example:chat
 ```
 
 The full mock AI terminal app.
+
+### Editor Lab
+
+```bash
+npm run example:editor
+```
+
+A polished InputEditor workspace with a live draft buffer, visible cursor state, history recall, submitted-line audit trail, command bar, and diagnostics pane.
+
+### Command Palette
+
+```bash
+npm run example:palette
+```
+
+A product-style command launcher with grouped actions, searchable metadata, selected-action details, accepted-action log, responsive layout, and pinned command/footer sections.
+
+### Streaming Workbench
+
+```bash
+npm run example:stream
+```
+
+A streaming workspace with prompt queue, transcript pane, runtime control rail, chunk progress, cancellation path, sample prompts, and stable footer state.
+
+### Interaction Kit
+
+```bash
+npm run example:kit
+```
+
+A palette-driven interaction workspace showing toasts, modal overlays, confirmation prompts, progress, mode-stack routing, and action history in one cohesive flow.
 
 ### Prompt Composer
 
@@ -123,40 +157,6 @@ npm run example:components
 ```
 
 Non-interactive UI runtime showcase. It can run in regular stdout, so it is useful for quick smoke checks and CI-style output inspection.
-
-## Focused labs
-
-### Editor Lab
-
-```bash
-npm run example:editor
-```
-
-Tests `InputEditor` behavior: cursor movement, history, deletion, paste, and key diagnostics.
-
-### Command Palette Lab
-
-```bash
-npm run example:palette
-```
-
-Shows filterable command palette state, selected rows, and scrollable suggestions.
-
-### Streaming Workbench
-
-```bash
-npm run example:stream
-```
-
-Shows fake incremental model output and cancellation behavior.
-
-### Interaction Kit
-
-```bash
-npm run example:kit
-```
-
-Shows reusable interaction primitives together: select list, modal, confirm prompt, toast, progress, and mode stack.
 
 ## Running examples directly
 
