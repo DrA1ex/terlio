@@ -195,3 +195,52 @@ test('support desk inbox controls cycle filters and sort visually', () => {
   handleSupportDeskKey({ key: { name: 'enter' }, state });
   assert.equal(state.sort, 'sla');
 });
+
+
+test('support desk reply composer accepts Ctrl+J newline and renders draft editor separately from preview', () => {
+  const state = createSupportDeskState();
+  executeSupportCommand(state, '/reply');
+  handleSupportDeskKey({ key: { name: 'H', printable: true, text: 'H' }, state });
+  handleSupportDeskKey({ key: { name: 'i', printable: true, text: 'i' }, state });
+  handleSupportDeskKey({ key: { name: 'enter', ctrl: true }, state });
+  handleSupportDeskKey({ key: { name: 't', printable: true, text: 't' }, state });
+  assert.equal(state.composer.value, 'Hi\nt');
+  const output = stripAnsi(renderToString(createSupportDeskView({ state, width: 160, height: 42 }), { width: 160, height: 42 }));
+  assert.match(output, /DRAFT REPLY/);
+  assert.match(output, /PREVIEW/);
+  assert.match(output, /Hi/);
+});
+
+test('support desk provides argument suggestions for status, sort and filter commands', () => {
+  const state = createSupportDeskState();
+  state.input.set('/status ');
+  assert.ok(getSlashSuggestions(state).some((item) => item.insert === '/status pending'));
+  state.input.set('/sort ');
+  assert.ok(getSlashSuggestions(state).some((item) => item.insert === '/sort priority'));
+  state.input.set('/filter status ');
+  assert.ok(getSlashSuggestions(state).some((item) => item.insert === '/filter status solved'));
+});
+
+test('support desk scrolls ticket thread and context rail with focused panes', () => {
+  const state = createSupportDeskState();
+  const runtime = { output: { columns: 180 } };
+  state.activeTab = 'ticket';
+  state.focus = 'work';
+  handleSupportDeskKey({ key: { name: 'down' }, state, runtime });
+  assert.equal(state.scroll.ticketThread, 1);
+  state.focus = 'rail';
+  handleSupportDeskKey({ key: { name: 'page-down' }, state, runtime });
+  assert.equal(state.scroll.rail, 5);
+});
+
+
+test('support desk Enter on incomplete argument command applies selected argument suggestion', () => {
+  const state = createSupportDeskState();
+  handleSupportDeskKey({ key: { name: '/', printable: true, text: '/' }, state });
+  for (const char of 'status ') handleSupportDeskKey({ key: { name: char, printable: true, text: char }, state });
+  assert.equal(state.input.value, '/status ');
+  handleSupportDeskKey({ key: { name: 'down' }, state });
+  handleSupportDeskKey({ key: { name: 'enter' }, state });
+  assert.match(state.input.value, /^\/status /);
+  assert.equal(state.commandActive, true);
+});

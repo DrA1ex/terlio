@@ -9,7 +9,7 @@ import {
 import { isDirectRun, runInteractiveDemo } from '../_demoRuntime.js';
 import { createSupportTickets, createInitialTimeline } from './data.js';
 import { createSupportDeskView } from './views.js';
-import { createSupportPaletteItems, createSupportCommandRegistry, executeSupportCommand } from './commands.js';
+import { createSupportPaletteItems, createSupportCommandRegistry, executeSupportCommand, getSupportSlashSuggestions } from './commands.js';
 import {
   addTag,
   applyConfirm,
@@ -66,6 +66,7 @@ export function createSupportDeskState() {
     highlightedEventId: '',
     activityPage: 0,
     activitySelectedIndex: 0,
+    scroll: { ticketThread: 0, reply: 0, rail: 0, customer: 0 },
     themeName: 'support-ocean',
     frame: 0,
     pipeline: { status: 'idle', progress: 0, label: '' },
@@ -114,6 +115,7 @@ export function handleSupportDeskKey({ key, state, runtime }) {
 
   if (state.focus === 'tabs') return handleTabsFocusKey(key, state);
   if (state.focus === 'activity' || (state.activeTab === 'activity' && andFocusWork(state))) return handleActivityFocusKey(key, state);
+  if (state.focus === 'rail') return handleRailFocusKey(key, state);
   if (state.focus === 'inbox') return handleInboxFocusKey(key, state);
   if (state.focus === 'work') return handleWorkFocusKey(key, state);
 
@@ -175,9 +177,15 @@ function handleConfirmKey(key, state) {
 
 function handleComposerKey(key, state) {
   if (key.name === 'escape') return cancelComposer(state);
+  if (key.name === 'enter' && (key.shift || key.ctrl)) {
+    state.composer.insertLineBreak();
+    state.scroll.reply = Math.max(0, Number(state.scroll?.reply) || 0);
+    return;
+  }
   if (key.name === 'enter') return submitComposer(state);
-  editInput(state.composer, key, { allowNewline: key.shift || key.ctrl });
+  editInput(state.composer, key);
 }
+
 
 function handleEditKey(key, state) {
   if (key.name === 'escape') {
@@ -218,8 +226,10 @@ function handleSlashCommandKey(key, state) {
   if (key.name === 'tab') return key.shift ? moveCommandSelection(state, -1) : applySelectedCommandSuggestion(state);
 
   if (key.name === 'enter') {
-    const raw = state.input.value.trim();
+    const rawInput = state.input.value;
+    const raw = rawInput.trim();
     if (!raw || raw === '/') return applySelectedCommandSuggestion(state);
+    if (/\s$/.test(rawInput) && suggestions[state.commandSuggestionIndex]?.kind === 'argument') return applySelectedCommandSuggestion(state);
     if (shouldApplySuggestionInsteadOfExecuting(state, raw, suggestions)) return applySelectedCommandSuggestion(state);
     executeSupportCommand(state, raw);
     deactivateSlashCommand(state);
@@ -257,16 +267,9 @@ function applySelectedCommandSuggestion(state) {
 }
 
 export function getSlashSuggestions(state) {
-  const query = state.input.value || '/';
-  const suggestions = state.registry.suggestions(query).slice(0, 10);
-  return suggestions.map((item) => {
-    const example = item.entry?.examples?.[0];
-    return {
-      ...item,
-      insert: example || `/${item.entry?.name ?? item.label.replace(/^\//, '')}`,
-    };
-  });
+  return getSupportSlashSuggestions(state, state.input.value || '/');
 }
+
 
 function handleInboxFocusKey(key, state) {
   if (key.name === 'left') return cycleInboxControl(state, -1);
@@ -293,8 +296,39 @@ function handleActivityFocusKey(key, state) {
 
 function handleWorkFocusKey(key, state) {
   if (state.activeTab === 'activity') return handleActivityFocusKey(key, state);
-  if (state.activeTab === 'ticket' && key.name === 'enter') return startReply(state, suggestedTemplate(getSelectedTicket(state)));
+  if (state.activeTab === 'ticket') {
+    if (key.name === 'up') return scrollState(state, 'ticketThread', -1);
+    if (key.name === 'down') return scrollState(state, 'ticketThread', 1);
+    if (key.name === 'page-up') return scrollState(state, 'ticketThread', -5);
+    if (key.name === 'page-down') return scrollState(state, 'ticketThread', 5);
+    if (key.name === 'enter') return startReply(state, suggestedTemplate(getSelectedTicket(state)));
+  }
+  if (state.activeTab === 'reply') {
+    if (key.name === 'up') return scrollState(state, 'reply', -1);
+    if (key.name === 'down') return scrollState(state, 'reply', 1);
+    if (key.name === 'page-up') return scrollState(state, 'reply', -5);
+    if (key.name === 'page-down') return scrollState(state, 'reply', 5);
+  }
+  if (state.activeTab === 'customer') {
+    if (key.name === 'up') return scrollState(state, 'customer', -1);
+    if (key.name === 'down') return scrollState(state, 'customer', 1);
+    if (key.name === 'page-up') return scrollState(state, 'customer', -5);
+    if (key.name === 'page-down') return scrollState(state, 'customer', 5);
+  }
 }
+
+function handleRailFocusKey(key, state) {
+  if (key.name === 'up') return scrollState(state, 'rail', -1);
+  if (key.name === 'down') return scrollState(state, 'rail', 1);
+  if (key.name === 'page-up') return scrollState(state, 'rail', -5);
+  if (key.name === 'page-down') return scrollState(state, 'rail', 5);
+}
+
+function scrollState(state, key, delta) {
+  state.scroll = state.scroll || {};
+  state.scroll[key] = Math.max(0, (Number(state.scroll[key]) || 0) + delta);
+}
+
 
 function andFocusWork(state) {
   return state.focus === 'work';
@@ -374,7 +408,7 @@ function editInput(editor, key, { allowNewline = false } = {}) {
   if (key.name === 'kill-start') return editor.killToStart();
   if (key.name === 'delete-word-left') return editor.deleteWordBack();
   if (key.name === 'paste') return editor.insert(key.text);
-  if (allowNewline && key.name === 'enter') return editor.insert('\n');
+  if (allowNewline && key.name === 'enter') return editor.insertLineBreak();
   if (key.printable || isPrintable(key.text)) return editor.insert(key.text);
 }
 

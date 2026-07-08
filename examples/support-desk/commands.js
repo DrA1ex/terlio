@@ -77,6 +77,90 @@ export function createSupportPaletteItems(state) {
   ];
 }
 
+
+export const SUPPORT_COMMAND_ARGUMENTS = {
+  sort: ['updated', 'sla', 'priority', 'status', 'queue'],
+  status: ['open', 'pending', 'snoozed', 'solved', 'closed'],
+  priority: ['low', 'medium', 'high', 'urgent'],
+  assign: ['me', 'payments', 'support lead', 'platform team', 'product team'],
+  theme: SUPPORT_THEME_NAMES,
+  goto: ['inbox', 'ticket', 'reply', 'customer', 'activity'],
+  activity: ['next', 'prev'],
+};
+
+const FILTER_FIELDS = ['queue', 'priority', 'status', 'text'];
+const FILTER_VALUES = {
+  queue: ['all', 'billing', 'product', 'auth', 'platform'],
+  priority: ['all', 'urgent', 'high', 'medium', 'low'],
+  status: ['all', 'open', 'pending', 'snoozed', 'solved', 'closed'],
+};
+
+export function getSupportSlashSuggestions(state, raw = '/') {
+  const input = String(raw || '/');
+  const parsed = input.startsWith('/') ? input.slice(1) : input;
+  const endsWithSpace = /\s$/.test(input);
+  const tokens = parsed.trim().split(/\s+/).filter(Boolean);
+  const commandName = tokens[0] || '';
+  const argIndex = Math.max(0, endsWithSpace ? tokens.length - 1 : tokens.length - 2);
+  const currentArg = endsWithSpace ? '' : (tokens.at(-1) || '');
+
+  if (commandName === 'reply' && (argIndex === 0 || tokens[1] === 'template')) {
+    if (argIndex === 0 && !endsWithSpace && currentArg && currentArg !== 'template') return commandMatches(state, input);
+    return optionSuggestions('Reply template', Object.keys(SUPPORT_TEMPLATES), currentArg === 'template' ? '' : currentArg, (value) => `/reply template ${value}`);
+  }
+
+  if (commandName === 'filter') {
+    if (argIndex === 0) return optionSuggestions('Filter field', ['clear', ...FILTER_FIELDS], currentArg, (value) => `/filter ${value}`);
+    const field = tokens[1];
+    if (FILTER_VALUES[field]) return optionSuggestions(`Filter ${field}`, FILTER_VALUES[field], currentArg, (value) => `/filter ${field} ${value}`);
+  }
+
+  if (SUPPORT_COMMAND_ARGUMENTS[commandName]) {
+    return optionSuggestions(commandName, SUPPORT_COMMAND_ARGUMENTS[commandName], currentArg, (value) => `/${commandName} ${value}`);
+  }
+
+  if (commandName === 'tag' || commandName === 'untag') {
+    const ticket = state?.tickets ? state.tickets[state.selectedIndex] : null;
+    const values = commandName === 'untag' ? (ticket?.tags || []) : ['billing', 'regression', 'refund', 'safari', 'api', 'vip', 'escalated'];
+    return optionSuggestions(commandName, values, currentArg, (value) => `/${commandName} ${value}`);
+  }
+
+  if (commandName === 'ticket') {
+    const values = (state?.tickets || []).map((ticket) => ticket.id);
+    return optionSuggestions('Ticket', values, currentArg, (value) => `/ticket ${value}`);
+  }
+
+  return commandMatches(state, input);
+}
+
+function commandMatches(state, input) {
+  const registry = state?.registry ?? createSupportCommandRegistry();
+  return registry.suggestions(input).slice(0, 10).map((item) => {
+    const example = item.entry?.examples?.[0];
+    return {
+      ...item,
+      insert: example || `/${item.entry?.name ?? item.label.replace(/^\//, '')}`,
+      kind: 'command',
+    };
+  });
+}
+
+function optionSuggestions(category, values, current, insertFor) {
+  const needle = String(current || '').toLowerCase();
+  return values
+    .filter((value) => !needle || String(value).toLowerCase().includes(needle))
+    .slice(0, 10)
+    .map((value) => ({
+      label: String(value),
+      detail: category,
+      description: `Use ${value}`,
+      command: insertFor(value),
+      insert: insertFor(value),
+      kind: 'argument',
+      entry: { name: String(value), category, examples: [insertFor(value)] },
+    }));
+}
+
 export function executeSupportCommand(state, rawCommand) {
   const registry = state.registry ?? createSupportCommandRegistry();
   const result = registry.execute(rawCommand, { state });

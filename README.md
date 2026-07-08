@@ -97,6 +97,14 @@ import { RichTerminalApp } from './src/lib/index.js';
 
 ## Что добавлено в текущем инкременте
 
+- `demo:support-desk` получил полноценный reply editor: draft теперь переносится по строкам, показывает видимый курсор и отделён от read-only preview.
+- В reply/note composer добавлен перенос строки через `Ctrl+J` и поддержка Shift+Enter-последовательностей там, где терминал их отдаёт; обычный `Enter` отправляет draft.
+- Ticket thread, Reply view, Customer/work panes и wide context rail получили scroll-state: `↑/↓` и `PageUp/PageDown` теперь реально меняют видимый фрагмент, когда соответствующая зона в фокусе.
+- Slash autocomplete теперь подсказывает не только команды, но и аргументы: `/status `, `/sort `, `/filter status `, `/assign `, `/reply template `, `/theme ` и `/ticket `.
+- Inbox controls показывают доступные варианты для текущего control: queue, priority, status и sort теперь можно выбирать визуально, не помня команду.
+- В библиотеку добавлены reusable editor/scroll primitives: `TextEditorView`, `renderTextEditorLines`, `visibleWindowLines`, `ScrollPane`; для них добавлены тесты.
+- `InputEditor` получил `insertLineBreak()`, а `keyParser` теперь отличает `Ctrl+J` от обычного Enter и распознаёт несколько Shift+Enter escape-последовательностей.
+
 - `demo:support-desk` получил доработанный interaction layer: активная видимая зона теперь выделяется цветом рамки, а не только текстом в header.
 - `Tab` теперь переключает только реально видимые focus zones: tabs/inbox/work/rail/command в wide, tabs/inbox/work/command в medium, tabs/work/command в narrow.
 - `Ctrl+P` и `/help` теперь открываются как видимые modal overlays, закрываются через `Esc` и не рендерятся ниже viewport.

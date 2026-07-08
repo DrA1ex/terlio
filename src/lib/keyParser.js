@@ -13,7 +13,7 @@ const NAMED = new Map([
   ['\x10', { name: 'command-palette', ctrl: true }],
   ['\x1b', { name: 'escape' }],
   ['\r', { name: 'enter' }],
-  ['\n', { name: 'enter' }],
+  ['\n', { name: 'enter', ctrl: true }],
   ['\t', { name: 'tab' }],
   ['\x1b[Z', { name: 'tab', shift: true }],
   ['\x7f', { name: 'backspace' }],
@@ -63,6 +63,17 @@ export function parseKey(data) {
     const modifier = Number(csi[1]);
     return key({ sequence, name: ARROW_BY_FINAL[csi[2]], ...modifierFlags(modifier), word: modifier === 3 });
   }
+
+
+  const csiU = /^\x1b\[(\d+);(\d+)u$/.exec(sequence);
+  if (csiU) {
+    const code = Number(csiU[1]);
+    const modifier = Number(csiU[2]);
+    if (code === 13 || code === 10) return key({ sequence, name: 'enter', ...modifierFlags(modifier) });
+  }
+
+  const modifiedEnter = /^\x1b\[27;(\d+);13~$/.exec(sequence);
+  if (modifiedEnter) return key({ sequence, name: 'enter', ...modifierFlags(Number(modifiedEnter[1])) });
 
   if (isPrintable(sequence)) {
     return key({ name: sequence, sequence, text: sequence, printable: true });

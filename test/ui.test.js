@@ -47,3 +47,20 @@ test('Box height reserves vertical space for fixed footer layouts', () => {
     'bottom  ',
   ]);
 });
+
+
+test('Column grow child pins following footer to the bottom', () => {
+  const view = Column({ height: 6 },
+    Text('top'),
+    Box({ border: false, grow: true }, Text('main')),
+    Text('bottom'),
+  );
+  assert.deepEqual(renderToFrame(view, { width: 8, height: 6 }).toLines(), [
+    'top     ',
+    'main    ',
+    '        ',
+    '        ',
+    '        ',
+    'bottom  ',
+  ]);
+});

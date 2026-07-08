@@ -22,6 +22,13 @@ export class InputEditor {
     this.cursor += charLength(inserted);
   }
 
+  insertLineBreak() {
+    const chars = Array.from(this.value);
+    chars.splice(this.cursor, 0, '\n');
+    this.value = chars.join('');
+    this.cursor += 1;
+  }
+
   backspace() {
     const chars = Array.from(this.value);
     if (this.cursor <= 0) return false;

@@ -9,6 +9,10 @@ import {
   Spinner,
   HelpOverlay,
   renderToString,
+  renderTextEditorLines,
+  visibleWindowLines,
+  InputEditor,
+  parseKey,
 } from '../src/lib/index.js';
 
 test('SelectList renders a scrollable selected window', () => {
@@ -47,4 +51,31 @@ test('status components render modal, toast, progress and spinner', () => {
   assert.match(spinner, /Thinking/);
   assert.match(help, /Esc/);
   assert.match(help, /accept/);
+});
+
+
+test('Text editor view wraps long draft text and keeps cursor visible', () => {
+  const editor = new InputEditor('Hello customer, this line is intentionally long so it wraps.');
+  editor.move(-12);
+  const lines = renderTextEditorLines({ value: editor.value, cursor: editor.cursor, width: 24, height: 4 });
+  assert.equal(lines.length, 4);
+  assert.ok(lines.some((line) => line.includes('█')));
+  assert.ok(lines.some((line) => /│/.test(line)));
+});
+
+test('InputEditor supports explicit line breaks and key parser recognizes Ctrl+J', () => {
+  const editor = new InputEditor('hello');
+  editor.insertLineBreak();
+  editor.insert('world');
+  assert.equal(editor.value, 'hello\nworld');
+  const key = parseKey('\n');
+  assert.equal(key.name, 'enter');
+  assert.equal(key.ctrl, true);
+});
+
+test('visibleWindowLines returns a clamped scrollable window', () => {
+  const window = visibleWindowLines(['a', 'b', 'c', 'd'], { height: 2, scroll: 10 });
+  assert.deepEqual(window.lines, ['c', 'd']);
+  assert.equal(window.scroll, 2);
+  assert.equal(window.maxScroll, 2);
 });

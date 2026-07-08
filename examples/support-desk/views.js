@@ -18,12 +18,15 @@ import {
   responsiveColumns,
   stripAnsi,
   takeVisible,
+  renderTextEditorLines,
+  visibleWindowLines,
   truncateVisible,
   visibleLength,
 } from '../../src/lib/index.js';
 import { getActivityEvents, getSelectedTicket, getVisibleTickets } from './reducers.js';
 import { getSupportTheme, SUPPORT_THEME_NAMES } from './themes.js';
 import { SUPPORT_TEMPLATES, renderTemplate } from './templates.js';
+import { getSupportSlashSuggestions } from './commands.js';
 
 export const SUPPORT_TABS = [
   { id: 'inbox', label: 'Inbox' },
@@ -51,7 +54,7 @@ function modalLayout({ state, width, height, theme, overlay }) {
   const footer = footerBar({ state, theme, compact: width < 150 });
   const mainHeight = fixedMainHeight({ width, height, fixed: [header, footer] });
   const body = Box({ border: false, height: mainHeight, padding: { top: 1, left: 2, right: 2 } }, overlay);
-  return Column(header, body, footer);
+  return Column({ height }, header, Box({ border: false, grow: true }, body), footer);
 }
 
 function wideLayout({ state, width, height, theme }) {
@@ -66,10 +69,10 @@ function wideLayout({ state, width, height, theme }) {
     Row({ gap: 2, widths: [columns.left, columns.middle, columns.right] },
       inboxPane({ state, theme, width: columns.left, height: mainHeight }),
       activeWorkArea({ state, theme, mode: 'wide', width: columns.middle, height: mainHeight }),
-      contextRail({ state, theme, width: columns.right }),
+      contextRail({ state, theme, width: columns.right, height: mainHeight }),
     ),
   );
-  return Column(header, tabs, main, command, activity, footer);
+  return Column({ height }, header, tabs, { ...main, props: { ...main.props, grow: true } }, command, activity, footer);
 }
 
 function mediumLayout({ state, width, height, theme }) {
@@ -86,7 +89,7 @@ function mediumLayout({ state, width, height, theme }) {
       activeWorkArea({ state, theme, mode: 'medium', width: columns.middle, height: mainHeight }),
     ),
   );
-  return Column(header, tabs, main, command, activity, footer);
+  return Column({ height }, header, tabs, { ...main, props: { ...main.props, grow: true } }, command, activity, footer);
 }
 
 function narrowLayout({ state, width, height, theme }) {
@@ -98,7 +101,7 @@ function narrowLayout({ state, width, height, theme }) {
   const main = Box({ border: false, height: mainHeight },
     activeWorkArea({ state, theme, mode: 'narrow', width, height: mainHeight }),
   );
-  return Column(header, tabs, main, command, footer);
+  return Column({ height }, header, tabs, { ...main, props: { ...main.props, grow: true } }, command, footer);
 }
 
 function fixedMainHeight({ width, height, fixed }) {
@@ -150,6 +153,7 @@ function inboxPane({ state, theme, width, height = 36, compact = false }) {
 
   return pane({ title: `${state.focus === 'inbox' ? '▶' : ' '} INBOX ${spinner(state.frame)} Live `, theme, active: state.focus === 'inbox' },
     Text(inboxControlsLine(state, theme, inner), { wrap: false }),
+    Text(controlOptionsLine(state, theme, inner), { wrap: false }),
     Text(filterLine(state, theme, inner), { wrap: false }),
     Text(quickFilterLine(state, theme, inner), { wrap: false }),
     Text(searchLine(state, theme, inner), { wrap: false }),
@@ -178,9 +182,9 @@ function inboxFocusView({ state, ticket, theme, width, mode }) {
   );
 }
 
-function ticketView({ state, ticket, theme, mode, width }) {
+function ticketView({ state, ticket, theme, mode, width, height = 24 }) {
   const inner = Math.max(48, width - 4);
-  const limit = mode === 'wide' ? 9 : mode === 'medium' ? 8 : 6;
+  const threadLimit = Math.max(2, Math.min(mode === 'wide' ? 5 : 4, Math.floor(Math.max(4, height - 12) / 4))); 
   return pane({ title: `${state.focus === 'work' ? '▶' : ' '} TICKET ${ticket.id} `, theme, active: state.focus === 'work' },
     Text(`${color(theme, 'title', truncateVisible(ticket.subject, Math.max(18, inner - 36)))}  ${queueBadge(ticket.queue, theme)}  ${color(theme, 'muted', `Created ${relativeAge(ticket)} · Updated ${clockTime()}`)}`, { wrap: false }),
     Text(`Status ${statusBadge(ticket.status, theme)}  Priority ${priorityBadge(ticket.priority, theme)}  Assignee ${color(theme, 'accent', ticket.assignee || 'unassigned')}  Customer ${color(theme, 'accent', ticket.customer.contact)}`, { wrap: false }),
@@ -188,36 +192,37 @@ function ticketView({ state, ticket, theme, mode, width }) {
     state.lastWorkflowAction ? Text(`${color(theme, 'ok', 'Last action')} ${truncateVisible(state.lastWorkflowAction, Math.max(18, inner - 12))}`, { wrap: false }) : null,
     ...wrapTextLines(ticket.summary, inner).slice(0, 2).map((line) => Text(color(theme, 'subtle', line), { wrap: false })),
     divider(theme, inner),
-    Text(color(theme, 'muted', 'THREAD'), { wrap: false }),
-    ...threadRows({ ticket, theme, width: inner, limit }),
+    Text(color(theme, 'muted', `THREAD — ↑/↓ scroll · Enter reply`), { wrap: false }),
+    ...scrollingThreadRows({ ticket, theme, width: inner, limit: threadLimit, scroll: state.scroll?.ticketThread || 0 }),
     divider(theme, inner),
     quickReplyStripLine({ state, theme, width: inner }),
   );
 }
 
-function replyView({ state, ticket, theme, mode, width }) {
+function replyView({ state, ticket, theme, mode, width, height = 24 }) {
   const inner = Math.max(48, width - 4);
   const draft = draftText(state, ticket);
-  const editorLimit = mode === 'wide' ? 9 : 7;
-  const previewLimit = mode === 'wide' ? 5 : 3;
   const templateNames = Object.keys(SUPPORT_TEMPLATES).slice(0, 4);
+  const activeComposer = state.modes.current() === 'reply' || state.modes.current() === 'note';
+  const editorHeight = Math.max(5, Math.min(mode === 'wide' ? 10 : 8, height - 16));
+  const previewHeight = Math.max(2, Math.min(5, height - editorHeight - 14));
 
   return pane({ title: `${state.focus === 'work' || state.focus === 'composer' ? '▶' : ' '} REPLY TO ${ticket.id} `, theme, active: state.focus === 'work' || state.focus === 'composer' },
     Text(`${color(theme, 'title', truncateVisible(ticket.subject, Math.max(20, inner - 34)))}  ${color(theme, 'ok', '●')} Autosaved ${clockTime()}  Tone ${tag('Empathetic ▾', theme, 'accent')}`, { wrap: false }),
     Text(`Template  ${templateNames.map((name) => tag(name, theme, state.composerTemplate === name ? 'ok' : 'muted')).join(' ')}`, { wrap: false }),
     divider(theme, inner),
     Text(color(theme, 'subtle', 'Internal context (not visible to customer)'), { wrap: false }),
-    ...wrapTextLines(internalContext(ticket), inner).slice(0, 3).map((line) => Text(line, { wrap: false })),
+    ...wrapTextLines(internalContext(ticket), inner).slice(0, 2).map((line) => Text(line, { wrap: false })),
     divider(theme, inner),
-    Text(color(theme, 'muted', 'DRAFT REPLY — Markdown supported'), { wrap: false }),
-    ...editorLines(draft, editorLimit, inner).map((line) => Text(line, { wrap: false })),
+    Text(color(theme, activeComposer ? 'selected' : 'muted', activeComposer ? 'DRAFT REPLY — active editor · Enter sends · Ctrl+J/Shift+Enter newline' : 'DRAFT REPLY — open /reply to edit'), { wrap: false }),
+    ...renderEditorBlockLines({ text: draft, cursor: activeComposer ? state.composer.cursor : draft.length, width: inner, height: editorHeight, active: activeComposer, theme }),
     Text(color(theme, 'muted', `Lines ${draft.split('\n').length} · Words ${wordCount(draft)} · Chars ${draft.length}`), { wrap: false }),
     divider(theme, inner),
-    Text(color(theme, 'muted', 'PREVIEW'), { wrap: false }),
-    ...wrapTextLines(draft, inner).filter(Boolean).slice(0, previewLimit).map((line) => Text(line, { wrap: false })),
+    Text(color(theme, 'muted', 'PREVIEW — read-only live rendering'), { wrap: false }),
+    ...previewLines(draft, inner, previewHeight).map((line) => Text(line, { wrap: false })),
     divider(theme, inner),
     Text(`${color(theme, 'system', 'Internal note')} ${truncateVisible(ticket.notes[0]?.body || 'No note yet. Use /note.', Math.max(20, inner - 34))}`, { wrap: false }),
-    Text(`${sendReady(draft) ? color(theme, 'ok', '✓ Ready to send') : color(theme, 'system', '○ Draft incomplete')}    ${color(theme, 'accent', 'Send Reply ↵')}    ${color(theme, 'muted', '/send /save-draft /insert macro')}`, { wrap: false }),
+    Text(`${sendReady(draft) ? color(theme, 'ok', '✓ Ready to send') : color(theme, 'system', '○ Draft incomplete')}    ${color(theme, 'accent', 'Enter sends')}    ${color(theme, 'muted', 'Esc cancel · Ctrl+J newline · /templates')}`, { wrap: false }),
   );
 }
 
@@ -256,30 +261,33 @@ function activityFocusView({ state, ticket, theme, width, mode }) {
   );
 }
 
-function contextRail({ state, theme, width }) {
+function contextRail({ state, theme, width, height = 30 }) {
   const ticket = getSelectedTicket(state);
+  const active = state.focus === 'rail';
+  let content;
   if (state.activeTab === 'reply') {
-    return Column(
-      customerCard({ ticket, theme, width, active: state.focus === 'rail' }),
+    content = Column(
+      customerCard({ ticket, theme, width, active }),
       accountCard({ ticket, theme, width }),
       summaryCard({ ticket, theme, width }),
       checklistCard({ ticket, theme, width }),
       macroCard({ theme, width }),
     );
-  }
-  if (state.activeTab === 'activity') {
-    return Column(
-      eventDetailsCard({ event: buildActivityEvents(state, ticket)[state.activitySelectedIndex] || buildActivityEvents(state, ticket)[0], ticket, theme, width }),
+  } else if (state.activeTab === 'activity') {
+    content = Column(
+      eventDetailsCard({ event: buildActivityEvents(state, ticket)[state.activitySelectedIndex] || buildActivityEvents(state, ticket)[0], ticket, theme, width, active }),
       liveMetricsCard({ state, theme, width }),
       busyAgentsCard({ theme, width }),
     );
+  } else {
+    content = Column(
+      propertiesCard({ ticket, theme, width, active }),
+      slaCard({ ticket, state, theme, width }),
+      customerCard({ ticket, theme, width }),
+      actionsCard({ theme, width }),
+    );
   }
-  return Column(
-    propertiesCard({ ticket, theme, width, active: state.focus === 'rail' }),
-    slaCard({ ticket, state, theme, width }),
-    customerCard({ ticket, theme, width }),
-    actionsCard({ theme, width }),
-  );
+  return scrollRenderedNode({ node: content, width, height, scroll: state.scroll?.rail || 0, theme, active, title: ' CONTEXT ' });
 }
 
 function propertiesCard({ ticket, theme, width, active = false }) {
@@ -414,11 +422,11 @@ function activeCommandArea({ state, theme, compact = false }) {
 }
 
 function slashSuggestionRows(state, theme, limit) {
-  const suggestions = state.registry.suggestions(state.input.value || '/').slice(0, Math.max(1, limit));
+  const suggestions = getSupportSlashSuggestions(state, state.input.value || '/').slice(0, Math.max(1, limit));
   if (!suggestions.length) return [color(theme, 'muted', 'No matching commands.')];
   return suggestions.map((item, index) => {
     const selected = index === state.commandSuggestionIndex;
-    const example = item.entry?.examples?.[0] || `/${item.entry?.name || item.label.replace(/^\//, '')}`;
+    const example = item.insert || item.entry?.examples?.[0] || `/${item.entry?.name || item.label.replace(/^\//, '')}`;
     const label = `${selected ? '›' : ' '} ${example}`;
     const detail = `${item.detail || item.entry?.category || ''} — ${item.description || ''}`;
     return `${selected ? color(theme, 'selected', label) : color(theme, 'accent', label)}  ${color(theme, 'muted', truncateVisible(detail, 90))}`;
@@ -564,6 +572,50 @@ function quickReplyStripLine({ state, theme, width }) {
 }
 
 
+function scrollingThreadRows({ ticket, theme, width, limit, scroll = 0 }) {
+  const events = collectThreadEvents(ticket);
+  const maxScroll = Math.max(0, events.length - limit);
+  const safeScroll = clamp(scroll, 0, maxScroll);
+  const start = Math.max(0, events.length - limit - safeScroll);
+  const visible = events.slice(start, start + limit);
+  const rows = visible.flatMap((item, index) => threadItemLines({ item, index, theme, width }));
+  const footer = color(theme, 'muted', `Thread ${start + 1}-${start + visible.length} of ${events.length} · scroll ${safeScroll}/${maxScroll}`);
+  return [...rows.slice(0, Math.max(1, limit * 4)), Text(footer, { wrap: false })];
+}
+
+function collectThreadEvents(ticket) {
+  return [
+    ...ticket.messages.map((message) => ({ kind: message.role, actor: message.author, body: message.body, time: message.time, channel: message.role === 'system' ? 'Auto' : 'via Web' })),
+    ...ticket.notes.map((note) => ({ kind: 'note', actor: `${note.author} (Internal)`, body: note.body, time: note.time, channel: 'Internal' })),
+  ].sort((a, b) => new Date(a.time) - new Date(b.time));
+}
+
+function renderEditorBlockLines({ text, cursor, width, height, active, theme }) {
+  const safeWidth = Math.max(12, width - 2);
+  const lines = renderTextEditorLinesCompat({ text, cursor, width: safeWidth, height, placeholder: 'Type your customer reply here…' });
+  return lines.map((line) => Text(active ? color(theme, 'text', line) : color(theme, 'muted', line), { wrap: false }));
+}
+
+function renderTextEditorLinesCompat({ text, cursor, width, height, placeholder }) {
+  return renderTextEditorLines({ value: text, cursor, width, height, placeholder, lineNumbers: true });
+}
+
+function previewLines(draft, width, height) {
+  const lines = wrapTextLines(draft || 'Nothing to preview yet.', width).filter((line) => line !== undefined);
+  const window = visibleWindowLines(lines, { height, scroll: 0 });
+  return window.lines;
+}
+
+function scrollRenderedNode({ node, width, height, scroll, theme, active, title }) {
+  const content = renderNode(node, width);
+  const window = visibleWindowLines(content, { height: Math.max(1, height), scroll });
+  const header = window.maxScroll > 0 ? `${title} ↑/↓ ${window.scroll}/${window.maxScroll} ` : title;
+  return pane({ title: active ? `▶${header}` : header, theme, active, padding: { left: 0, right: 0 } },
+    Lines(window.lines.slice(0, Math.max(1, height - 2))),
+  );
+}
+
+
 function inboxControlsLine(state, theme, width) {
   const control = state.inboxControl || 'tickets';
   const items = [
@@ -575,6 +627,21 @@ function inboxControlsLine(state, theme, width) {
   ];
   const rendered = items.map(([id, label]) => id === control ? color(theme, 'selected', ` ${label} `) : color(theme, 'muted', ` ${label} `));
   return truncateVisible(`Controls: ${rendered.join(' ')}  ${color(theme, 'muted', '←/→ choose · Enter cycle · ↑/↓ tickets')}`, width);
+}
+
+
+function controlOptionsLine(state, theme, width) {
+  const control = state.inboxControl || 'tickets';
+  const options = {
+    tickets: ['↑/↓ select', 'Enter open', 'PgUp/PgDn jump'],
+    queue: ['all', 'billing', 'product', 'auth', 'platform'],
+    priority: ['all', 'urgent', 'high', 'medium', 'low'],
+    status: ['all', 'open', 'pending', 'snoozed', 'solved', 'closed'],
+    sort: ['updated', 'sla', 'priority', 'status', 'queue'],
+  }[control] || [];
+  const current = control === 'sort' ? state.sort : state.filter[control];
+  const rendered = options.map((item) => String(item).toLowerCase() === String(current).toLowerCase() ? tag(item, theme, 'selected') : color(theme, 'muted', item));
+  return truncateVisible(`Options: ${rendered.join('  ')}`, width);
 }
 
 function filterLine(state, theme, width) {
@@ -630,7 +697,7 @@ function responseChecklist(ticket) {
 }
 
 function draftText(state, ticket) {
-  if (state.modes.current() === 'reply' && state.composer.value) return state.composer.value;
+  if (state.modes.current() === 'reply' || state.modes.current() === 'note') return state.composer.value;
   if (state.composer.value && state.activeTab === 'reply') return state.composer.value;
   const lower = ticket.tags.join(' ');
   if (lower.includes('billing')) return renderTemplate('refund', ticket);

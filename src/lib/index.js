@@ -32,6 +32,10 @@ export {
   FooterStatusBar,
   PropertyRows,
   ChipLine,
+  TextEditorView,
+  renderTextEditorLines,
+  visibleWindowLines,
+  ScrollPane,
   fitInline,
 } from './ui/components.js';
 export { ModeManager } from './modeManager.js';
