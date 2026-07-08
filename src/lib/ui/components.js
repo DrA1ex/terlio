@@ -1,4 +1,4 @@
-import { visibleLength, truncateVisible } from '../ansi.js';
+import { color, visibleLength, truncateVisible } from '../ansi.js';
 import { Box, Column, Panel, Row, Text } from './node.js';
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -143,28 +143,33 @@ export function Badge({ label = '', tone = '', width = 0 } = {}) {
   return Text(width ? fitInline(text, width) : text);
 }
 
-export function SectionTabs({ tabs = [], active = '', getLabel = (tab) => tab.label ?? tab.id ?? String(tab), gap = 2 } = {}) {
+export function SectionTabs({ tabs = [], active = '', getLabel = (tab) => tab.label ?? tab.id ?? String(tab), gap = 2, theme = null } = {}) {
   const parts = tabs.map((tab) => {
     const id = tab.id ?? tab.value ?? String(tab);
-    const label = tab.label ?? id;
+    const label = getLabel(tab);
     const icon = tab.icon ? `${tab.icon} ` : '';
-    return id === active ? `▣ ${icon}${label}` : `□ ${icon}${label}`;
+    const text = id === active ? `▣ ${icon}${label}` : `□ ${icon}${label}`;
+    if (!theme) return text;
+    return id === active ? color(theme, 'selected', text) : color(theme, 'muted', text);
   });
   return Text(parts.join(' '.repeat(gap)), { wrap: false });
 }
 
-export function CommandBar({ value = '', suggestions = [], mode = 'COMMAND', hint = 'TAB next', prompt = '/' } = {}) {
+export function CommandBar({ value = '', suggestions = [], mode = 'COMMAND', hint = 'TAB next', prompt = '/', theme = null } = {}) {
   const suggestionLine = suggestions.length ? suggestions.join('   ') : '';
-  return Box({ border: true, padding: { left: 1, right: 1 }, title: ` ${mode} ` },
-    Text(`${prompt} ${value ?? ''}`, { wrap: false }),
-    suggestionLine ? Text(`${suggestionLine}${hint ? `     ${hint}` : ''}`, { wrap: false }) : null,
+  const head = theme ? color(theme, 'accent', `${prompt} ${value ?? ''}`) : `${prompt} ${value ?? ''}`;
+  const details = `${suggestionLine}${hint ? `     ${hint}` : ''}`;
+  return Box({ border: true, borderColor: theme?.border, padding: { left: 1, right: 1 }, title: ` ${mode} ` },
+    Text(head, { wrap: false }),
+    suggestionLine ? Text(theme ? color(theme, 'muted', details) : details, { wrap: false }) : null,
   );
 }
 
-export function FooterStatusBar({ left = [], right = [] } = {}) {
+export function FooterStatusBar({ left = [], right = [], theme = null } = {}) {
   const lhs = left.filter(Boolean).join('  │  ');
   const rhs = right.filter(Boolean).join('  │  ');
-  return Text(`${lhs}${rhs ? `  │  ${rhs}` : ''}`, { wrap: false });
+  const line = `${lhs}${rhs ? `  │  ${rhs}` : ''}`;
+  return Text(theme ? color(theme, 'muted', line) : line, { wrap: false });
 }
 
 export function PropertyRows({ title = ' Properties ', rows = [] } = {}) {

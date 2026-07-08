@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import { ChatTranscript, InputEditor, KeyHintBar, Panel, ProgressBar, Row, Text, Toast, WorkspaceCommandBar, WorkspaceFooter, WorkspacePane, WorkspaceShell, appendMessageBlock, appendMessageChunk, completeMessage, createMessage, splitWorkspaceColumns, themes } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
+import { EXAMPLE_THEME, responsiveTabHint, responsiveTabs, workspaceMainHeight } from './_workspaceExampleUtils.js';
+
+const TABS = [{ id: 'prompt', label: 'Prompt' }, { id: 'stream', label: 'Stream' }, { id: 'actions', label: 'Actions' }];
 
 const STREAM_SCENARIOS = [
   {
@@ -45,12 +48,14 @@ export function createAgentStreamState() {
 
 export function createAgentStreamView({ state, width = 110, height = 32 } = {}) {
   const layout = splitWorkspaceColumns(width);
-  const mainHeight = Math.max(10, height - 12);
+  const mainHeight = workspaceMainHeight(height, { min: 6, activityRows: 2 });
+  const activeTab = state.streaming ? 'stream' : 'prompt';
+  const visibleTabs = responsiveTabs(TABS, activeTab, width, { pinned: ['stream'] });
   const transcriptPane = WorkspacePane({
     title: ' LIVE TRANSCRIPT ',
     active: true,
     height: mainHeight,
-    children: [ChatTranscript({ columns: Math.max(52, layout.mode === 'wide' ? layout.widths[1] : Math.floor(width * 0.62)), height: Math.max(8, mainHeight - 2), messages: state.messages, theme: themes.dark }).node],
+    children: [ChatTranscript({ columns: Math.max(52, layout.mode === 'wide' ? layout.widths[1] : Math.floor(width * 0.62)), height: Math.max(6, mainHeight - 2), messages: state.messages, theme: EXAMPLE_THEME }).node],
   });
   const promptPane = WorkspacePane({
     title: ' PROMPT ',
@@ -96,14 +101,15 @@ export function createAgentStreamView({ state, width = 110, height = 32 } = {}) 
     stats: [{ label: 'Streaming', value: state.streaming ? 'yes' : 'no' }, { label: 'Progress', value: `${state.streamDone}/${state.streamTotal}` }],
     right: [{ label: 'Scenario', value: state.scenarioIndex + 1 }],
     focus: state.streaming ? 'stream' : 'prompt',
-    tabs: [{ id: 'prompt', label: 'Prompt' }, { id: 'stream', label: 'Stream' }, { id: 'actions', label: 'Actions' }],
-    activeTab: state.streaming ? 'stream' : 'prompt',
-    tabHint: 'Enter stream · Esc cancel · R retry · G regenerate · S/L shorter/longer · E explain',
+    tabs: visibleTabs,
+    activeTab,
+    tabHint: responsiveTabHint('Enter stream · Esc cancel · R retry · G regenerate · S/L shorter/longer · E explain', TABS, visibleTabs),
     main,
-    command: WorkspaceCommandBar({ value: state.prompt.value, prompt: 'prompt', mode: state.streaming ? 'STREAMING' : 'READY', suggestions: ['Enter submit', 'Esc cancel', 'R retry', 'G regenerate', 'S/L rewrite', 'E explain'] }),
-    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['Enter', 'submit'], ['Esc', 'cancel'], ['↑/↓', 'sample prompt'], ['R', 'retry'], ['G', 'regenerate'], ['E', 'explain']] }),
-    footer: WorkspaceFooter({ left: [state.status], right: ['demo: agent-stream'] }),
+    command: WorkspaceCommandBar({ value: state.prompt.value, prompt: 'prompt', mode: state.streaming ? 'STREAMING' : 'READY', suggestions: ['Enter submit', 'Esc cancel', 'R retry', 'G regenerate', 'S/L rewrite', 'E explain'], theme: EXAMPLE_THEME }),
+    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['Enter', 'submit'], ['Esc', 'cancel'], ['↑/↓', 'sample prompt'], ['R', 'retry'], ['G', 'regenerate'], ['E', 'explain']], theme: EXAMPLE_THEME }),
+    footer: WorkspaceFooter({ left: [state.status], right: [`theme: ${EXAMPLE_THEME.name}`, 'demo: agent-stream'], theme: EXAMPLE_THEME }),
     height,
+    theme: EXAMPLE_THEME,
   });
 }
 

@@ -20,7 +20,7 @@ export class InteractiveRuntime {
     this.renderer = new TerminalRenderer({ output: this.output });
     this.running = false;
     this.boundOnData = this.handleData.bind(this);
-    this.boundOnResize = this.render.bind(this);
+    this.boundOnResize = this.handleResize.bind(this);
   }
 
   start() {
@@ -65,6 +65,13 @@ export class InteractiveRuntime {
     this.stop();
     process.exitCode = code;
     setImmediate(() => process.exit(code));
+  }
+
+  handleResize() {
+    if (!this.running) return;
+    this.renderer.reset();
+    this.output.write(ansi.clear + ansi.home);
+    this.render();
   }
 
   render() {

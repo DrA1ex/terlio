@@ -16,6 +16,7 @@ import {
   splitWorkspaceColumns,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
+import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, workspaceMainHeight } from './_workspaceExampleUtils.js';
 
 const INITIAL_SESSIONS = [
   { id: 'sess_renderer_refactor', title: 'Renderer refactor', messages: 18, updated: 'today', preview: 'Migrated app rendering to ChatScreen and virtual frame diff.' },
@@ -50,7 +51,8 @@ export function createSessionBrowserView({ state, width = 108, height = 32 } = {
   clampSelection(state, matches.length);
   const selected = matches[state.selectedIndex] ?? null;
   const layout = splitWorkspaceColumns(width);
-  const mainHeight = Math.max(10, height - 12);
+  const mainHeight = workspaceMainHeight(height, { min: 6, activityRows: 2 });
+  const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['browser'] });
   const overlay = state.modes.current() === 'confirm'
     ? ConfirmPrompt({ title: ' Delete session ', message: `Delete ${selected?.title ?? 'selected session'}?`, selected: state.confirmSelected })
     : null;
@@ -109,14 +111,15 @@ export function createSessionBrowserView({ state, width = 108, height = 32 } = {
     stats: [{ label: 'Sessions', value: state.sessions.length }, { label: 'Matches', value: matches.length }, { label: 'Selected', value: selected?.id ?? 'none' }],
     right: [{ label: 'Mode', value: layout.mode }],
     focus: state.activeTab,
-    tabs: TABS,
+    tabs: visibleTabs,
     activeTab: state.activeTab,
-    tabHint: '[/] switch tabs · Type filters · Enter open · D delete · N new · E export',
+    tabHint: responsiveTabHint('[/] switch tabs · Type filters · Enter open · D delete · N new · E export', TABS, visibleTabs),
     main,
-    command: WorkspaceCommandBar({ value: state.filter.value, prompt: 'filter', mode: 'SEARCH', suggestions: ['Type filter text', '↑/↓ select', 'Enter open', 'D delete', 'N new', 'E export'] }),
-    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['Type', 'filter sessions'], ['↑/↓', 'move selection'], ['PgUp/PgDn', 'page selection'], ['Enter', 'open'], ['D', 'delete'], ['Esc', 'clear']] }),
-    footer: WorkspaceFooter({ left: ['Ready', state.toast.message], right: ['demo: sessions'] }),
+    command: WorkspaceCommandBar({ value: state.filter.value, prompt: 'filter', mode: 'SEARCH', suggestions: ['Type filter text', '↑/↓ select', 'Enter open', 'D delete', 'N new', 'E export'], theme: EXAMPLE_THEME }),
+    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['Type', 'filter sessions'], ['↑/↓', 'move selection'], ['PgUp/PgDn', 'page selection'], ['Enter', 'open'], ['D', 'delete'], ['Esc', 'clear']], theme: EXAMPLE_THEME }),
+    footer: WorkspaceFooter({ left: ['Ready', state.toast.message], right: [`theme: ${EXAMPLE_THEME.name}`, 'demo: sessions'], theme: EXAMPLE_THEME }),
     height,
+    theme: EXAMPLE_THEME,
   });
 }
 
@@ -268,8 +271,7 @@ function clampSelection(state, size) {
 }
 
 function switchTab(state, delta) {
-  const index = TABS.findIndex((tab) => tab.id === state.activeTab);
-  state.activeTab = TABS[((index + delta) % TABS.length + TABS.length) % TABS.length].id;
+  cycleTab(state, TABS, delta, { statusPrefix: 'Opened' });
 }
 
 if (isDirectRun(import.meta.url)) {

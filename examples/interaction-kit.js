@@ -23,6 +23,13 @@ import {
   splitWorkspaceColumns,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
+import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, workspaceMainHeight } from './_workspaceExampleUtils.js';
+
+const TABS = [
+  { id: 'palette', label: 'Palette' },
+  { id: 'runtime', label: 'Runtime' },
+  { id: 'activity', label: 'Activity' },
+];
 
 const KIT_ACTIONS = [
   { id: 'toast.info', title: 'Info toast', description: 'Show a neutral toast notification', keywords: ['notification message'], group: 'Toast' },
@@ -52,7 +59,8 @@ export function createInteractionKitView({ state, width = 100, height = 30 } = {
   state.frame += 1;
   const currentMode = state.modes.current();
   const layout = splitWorkspaceColumns(width);
-  const mainHeight = Math.max(10, height - 12);
+  const mainHeight = workspaceMainHeight(height, { min: 6, activityRows: 2 });
+  const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['palette'] });
   const overlay = overlayNode(state, currentMode);
   const main = layout.mode === 'wide'
     ? Row({ gap: 2, widths: layout.widths },
@@ -63,7 +71,9 @@ export function createInteractionKitView({ state, width = 100, height = 30 } = {
     : layout.mode === 'medium'
       ? Row({ gap: 2, widths: layout.widths },
           palettePane(state, Math.max(30, layout.widths[0]), mainHeight),
-          runtimePane(state, Math.max(40, layout.widths[1]), mainHeight),
+          state.activeTab === 'activity'
+            ? activityPane(state, Math.max(40, layout.widths[1]), mainHeight)
+            : runtimePane(state, Math.max(40, layout.widths[1]), mainHeight),
         )
       : narrowPane(state, width, mainHeight);
 
@@ -79,13 +89,9 @@ export function createInteractionKitView({ state, width = 100, height = 30 } = {
       { label: 'Query', value: getPaletteQuery(state.palette) || '<empty>' },
     ],
     focus: state.activeTab,
-    tabs: [
-      { id: 'palette', label: 'Palette' },
-      { id: 'runtime', label: 'Runtime' },
-      { id: 'activity', label: 'Activity' },
-    ],
+    tabs: visibleTabs,
     activeTab: state.activeTab,
-    tabHint: 'Type action · Enter accept · Esc close overlay · ←/→ confirm choice · Tab focus',
+    tabHint: responsiveTabHint('Type action · Enter accept · Esc close overlay · ←/→ confirm choice · Tab focus', TABS, visibleTabs),
     main,
     command: WorkspaceCommandBar({
       mode: String(currentMode).toUpperCase(),
@@ -93,6 +99,7 @@ export function createInteractionKitView({ state, width = 100, height = 30 } = {
       value: getPaletteQuery(state.palette) || '<empty>',
       suggestions: ['toast', 'modal', 'confirm', 'progress', 'reset', 'exit'],
       hint: 'mode stack routes keys',
+      theme: EXAMPLE_THEME,
     }),
     activity: overlay ?? KeyHintBar({
       title: ' LOCAL HELP ',
@@ -104,12 +111,15 @@ export function createInteractionKitView({ state, width = 100, height = 30 } = {
         ['←/→', 'switch confirm'],
         ['Tab', 'switch pane'],
       ],
+      theme: EXAMPLE_THEME,
     }),
     footer: WorkspaceFooter({
       left: [currentMode, state.palette.status],
-      right: ['demo: kit'],
+      right: [`theme: ${EXAMPLE_THEME.name}`, 'demo: kit'],
+      theme: EXAMPLE_THEME,
     }),
     height,
+    theme: EXAMPLE_THEME,
   });
 }
 
@@ -150,9 +160,7 @@ export function handleInteractionKitKey({ key, state, runtime }) {
   }
 
   if (key.name === 'tab') {
-    const tabs = ['palette', 'runtime', 'activity'];
-    const index = tabs.indexOf(state.activeTab);
-    state.activeTab = tabs[((index + (key.shift ? -1 : 1)) % tabs.length + tabs.length) % tabs.length];
+    cycleTab(state, TABS, key.shift ? -1 : 1, { statusPrefix: 'Focus moved to' });
     return;
   }
 

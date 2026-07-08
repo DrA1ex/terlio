@@ -7,6 +7,7 @@ import {
   Text,
   TextEditorView,
   Toast,
+  color,
   WorkspaceCommandBar,
   WorkspaceFooter,
   WorkspacePane,
@@ -15,6 +16,13 @@ import {
   splitWorkspaceColumns,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
+import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, workspaceMainHeight } from './_workspaceExampleUtils.js';
+
+const TABS = [
+  { id: 'editor', label: 'Editor' },
+  { id: 'diagnostics', label: 'Diagnostics' },
+  { id: 'history', label: 'History' },
+];
 
 const SAMPLE_HISTORY = [
   'write a release note for terminal renderer',
@@ -30,13 +38,14 @@ export function createEditorLabState() {
     historyIndex: null,
     submitted: [],
     activeTab: 'editor',
-    status: 'Editor Lab: type, move cursor, edit words, paste text, submit lines.',
+    status: 'Editor Lab: type, edit, recall previous drafts with ↑/↓, then press Enter to submit.',
   };
 }
 
 export function createEditorLabView({ state, width = 92, height = 28 } = {}) {
   const layout = splitWorkspaceColumns(width);
-  const mainHeight = Math.max(10, height - 12);
+  const mainHeight = workspaceMainHeight(height, { min: 6, activityRows: 3 });
+  const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['editor'] });
   const editor = state.editor;
   const main = layout.mode === 'wide'
     ? Row({ gap: 2, widths: layout.widths },
@@ -46,8 +55,8 @@ export function createEditorLabView({ state, width = 92, height = 28 } = {}) {
       )
     : layout.mode === 'medium'
       ? Row({ gap: 2, widths: layout.widths },
-          editorPane(state, Math.max(32, layout.widths[1]), mainHeight),
-          historyPane(state, Math.max(28, layout.widths[0]), mainHeight),
+          editorPane(state, Math.max(32, layout.widths[0]), mainHeight),
+          auxPane(state, Math.max(28, layout.widths[1]), mainHeight),
         )
       : narrowPane(state, width, mainHeight);
 
@@ -63,20 +72,17 @@ export function createEditorLabView({ state, width = 92, height = 28 } = {}) {
       { label: 'History', value: state.history.length },
     ],
     focus: state.activeTab,
-    tabs: [
-      { id: 'editor', label: 'Editor' },
-      { id: 'diagnostics', label: 'Diagnostics' },
-      { id: 'history', label: 'History' },
-    ],
+    tabs: visibleTabs,
     activeTab: state.activeTab,
-    tabHint: 'Type text · Enter submit · ↑/↓ history · Tab focus · Ctrl+C exit',
+    tabHint: responsiveTabHint('Type text · Enter submit · ↑/↓ recall stack · Tab focus · Ctrl+C exit', TABS, visibleTabs),
     main,
     command: WorkspaceCommandBar({
       mode: 'EDITOR',
       prompt: 'draft',
       value: `${editor.value || '<empty>'}▌`,
       suggestions: ['Alt+←/→ word', 'Ctrl+K kill end', 'Ctrl+U kill start', 'Ctrl+W delete word'],
-      hint: 'raw InputEditor state',
+      hint: state.historyIndex === null ? 'editing the new draft slot' : `recalling history #${state.historyIndex + 1}`,
+      theme: EXAMPLE_THEME,
     }),
     activity: KeyHintBar({
       title: ' LOCAL HELP ',
@@ -86,14 +92,22 @@ export function createEditorLabView({ state, width = 92, height = 28 } = {}) {
         ['Ctrl+A/E', 'home/end'],
         ['Ctrl+K/U', 'kill line'],
         ['Ctrl+W', 'delete word'],
-        ['Enter', 'submit'],
+        ['Enter', 'submit draft'],
+        ['↑/↓', 'recall history'],
+        ['Tab', 'switch visible tab'],
+        ['History + new', 'clears to blank draft'],
+        ['Diagnostics', 'shows raw keys'],
+        ['Resize', 'layout recomputes'],
       ],
+      theme: EXAMPLE_THEME,
     }),
     footer: WorkspaceFooter({
       left: ['Ready', state.status],
-      right: ['demo: editor'],
+      right: [`theme: ${EXAMPLE_THEME.name}`, 'demo: editor'],
+      theme: EXAMPLE_THEME,
     }),
     height,
+    theme: EXAMPLE_THEME,
   });
 }
 
@@ -101,10 +115,7 @@ export function handleEditorLabKey({ key, state }) {
   const editor = state.editor;
 
   if (key.name === 'tab') {
-    const tabs = ['editor', 'diagnostics', 'history'];
-    const index = tabs.indexOf(state.activeTab);
-    state.activeTab = tabs[((index + (key.shift ? -1 : 1)) % tabs.length + tabs.length) % tabs.length];
-    state.status = `Focus moved to ${state.activeTab}.`;
+    cycleTab(state, TABS, key.shift ? -1 : 1, { statusPrefix: 'Focus moved to' });
     return;
   }
 
@@ -139,7 +150,8 @@ export function handleEditorLabKey({ key, state }) {
     if (state.historyIndex >= state.history.length - 1) {
       state.historyIndex = null;
       editor.clear();
-      state.status = 'History cleared back to draft input.';
+      state.activeTab = 'history';
+      state.status = 'History: selected + New draft, editor cleared for a fresh line.';
       return;
     }
     state.historyIndex += 1;
@@ -231,9 +243,10 @@ function editorPane(state, width, height) {
     height,
     children: [
       Panel(' State ',
-        Text(`value : ${state.editor.value || '<empty>'}`),
+        Text(color(EXAMPLE_THEME, 'accent', `value : ${state.editor.value || '<empty>'}`)),
         Text(`cursor: ${state.editor.cursor}/${Array.from(state.editor.value).length}`),
         Text(`words : ${wordCount(state.editor.value)}`),
+        Text(`recall: ${state.historyIndex === null ? '+ new draft' : `history #${state.historyIndex + 1}`}`),
       ),
       TextEditorView({
         title: ' Draft buffer ',
@@ -241,7 +254,7 @@ function editorPane(state, width, height) {
         cursor: state.editor.cursor,
         width: Math.max(24, width - 4),
         height: Math.max(3, Math.min(5, height - 9)),
-        placeholder: 'type a message...',
+        placeholder: 'type a message, or press ↑ to recall history...',
         lineNumbers: false,
       }),
     ],
@@ -277,15 +290,20 @@ function historyPane(state, width, height) {
     height,
     children: [
       Panel(' Recall stack ',
-        ...historyLines(state, Math.max(16, width - 8)).slice(-Math.max(5, height - 9)).map((line) => Text(line, { wrap: false })),
+        ...historyLines(state, Math.max(16, width - 8)).slice(-Math.max(4, height - 10)).map((line) => Text(line, { wrap: false })),
       ),
       Panel(' Behavior ',
-        Text('↑ loads older history'),
-        Text('↓ loads newer history'),
-        Text('Enter submits and appends'),
+        Text('↑ loads an older item into the live editor.'),
+        Text('↓ moves toward + New draft.'),
+        Text('The + New draft row clears the editor for a fresh line.'),
+        Text('Enter submits the current editor value and appends it here.'),
       ),
     ],
   });
+}
+
+function auxPane(state, width, height) {
+  return state.activeTab === 'history' ? historyPane(state, width, height) : diagnosticsPane(state, width, height);
 }
 
 function narrowPane(state, width, height) {
@@ -295,11 +313,14 @@ function narrowPane(state, width, height) {
 }
 
 function historyLines(state, width) {
-  return state.history.slice(-9).map((line, index, list) => {
+  const recent = state.history.slice(-9).map((line, index, list) => {
     const absoluteIndex = state.history.length - list.length + index;
     const marker = absoluteIndex === state.historyIndex ? '›' : ' ';
     return `${marker} ${fitInline(line, Math.max(8, width - 2))}`;
   });
+  const draftMarker = state.historyIndex === null ? '›' : ' ';
+  recent.push(`${draftMarker} ${fitInline('+ New draft — blank editor slot', Math.max(8, width - 2))}`);
+  return recent;
 }
 
 function wordCount(value) {

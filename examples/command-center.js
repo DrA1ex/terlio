@@ -22,6 +22,7 @@ import {
   themes,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
+import { responsiveTabHint, responsiveTabs, workspaceMainHeight } from './_workspaceExampleUtils.js';
 
 const CENTER_ACTIONS = [
   { id: 'theme.dark', title: 'Theme: dark', description: 'Switch dashboard preview to dark theme', keywords: ['appearance'] },
@@ -53,7 +54,11 @@ export function createCommandCenterView({ state, width = 112, height = 32 } = {}
   state.frame += 1;
   const mode = state.modes.current();
   const layout = splitWorkspaceColumns(width);
-  const mainHeight = Math.max(10, height - 12);
+  const mainHeight = workspaceMainHeight(height, { min: 6, activityRows: 2 });
+  const theme = themes[state.themeName] ?? themes.ocean;
+  const activeTab = mode === 'modal' ? 'runtime' : 'actions';
+  const tabs = [{ id: 'actions', label: 'Actions' }, { id: 'runtime', label: 'Runtime' }, { id: 'log', label: 'Log' }];
+  const visibleTabs = responsiveTabs(tabs, activeTab, width, { pinned: ['actions'] });
   const overlay = mode === 'modal'
     ? Modal({
         title: ` ${state.modes.currentEntry().data?.title ?? 'Modal'} `,
@@ -98,14 +103,15 @@ export function createCommandCenterView({ state, width = 112, height = 32 } = {}
     stats: [{ label: 'Mode', value: mode }, { label: 'Theme', value: state.themeName }, { label: 'Progress', value: `${state.progress}%` }],
     right: [{ label: 'Skills', value: state.skills.size }],
     focus: mode,
-    tabs: [{ id: 'actions', label: 'Actions' }, { id: 'runtime', label: 'Runtime' }, { id: 'log', label: 'Log' }],
-    activeTab: mode === 'modal' ? 'runtime' : 'actions',
-    tabHint: 'Type filters actions · ↑/↓ select · Enter run · Esc clear/close modal',
+    tabs: visibleTabs,
+    activeTab,
+    tabHint: responsiveTabHint('Type filters actions · ↑/↓ select · Enter run · Esc clear/close modal', tabs, visibleTabs),
     main: overlay ? Row({ gap: 2, widths: [Math.max(40, Math.floor(width * 0.62)), Math.max(30, Math.floor(width * 0.34))] }, main, overlay) : main,
-    command: WorkspaceCommandBar({ value: getPaletteQuery(state.palette), prompt: 'palette', mode: mode.toUpperCase(), suggestions: ['theme', 'skill', 'session', 'debug', 'toast', 'progress', 'exit'] }),
-    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['Type', 'filter actions'], ['↑/↓', 'select'], ['Enter', 'run'], ['Esc', 'clear/close'], ['Ctrl+D', 'exit']] }),
-    footer: WorkspaceFooter({ left: [state.toast.message], right: ['demo: command-center'] }),
+    command: WorkspaceCommandBar({ value: getPaletteQuery(state.palette), prompt: 'palette', mode: mode.toUpperCase(), suggestions: ['theme', 'skill', 'session', 'debug', 'toast', 'progress', 'exit'], theme }),
+    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['Type', 'filter actions'], ['↑/↓', 'select'], ['Enter', 'run'], ['Esc', 'clear/close'], ['Ctrl+D', 'exit']], theme }),
+    footer: WorkspaceFooter({ left: [state.toast.message], right: [`theme: ${theme.name}`, 'demo: command-center'], theme }),
     height,
+    theme,
   });
 }
 

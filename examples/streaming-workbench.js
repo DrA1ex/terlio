@@ -15,6 +15,13 @@ import {
   splitWorkspaceColumns,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
+import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, workspaceMainHeight } from './_workspaceExampleUtils.js';
+
+const TABS = [
+  { id: 'prompt', label: 'Prompt' },
+  { id: 'transcript', label: 'Transcript' },
+  { id: 'control', label: 'Control' },
+];
 
 const SAMPLE_REPLIES = [
   {
@@ -51,7 +58,8 @@ export function createStreamingWorkbenchState() {
 
 export function createStreamingWorkbenchView({ state, width = 100, height = 30 } = {}) {
   const layout = splitWorkspaceColumns(width);
-  const mainHeight = Math.max(10, height - 12);
+  const mainHeight = workspaceMainHeight(height, { min: 6, activityRows: 2 });
+  const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['transcript'] });
   const main = layout.mode === 'wide'
     ? Row({ gap: 2, widths: layout.widths },
         promptPane(state, Math.max(30, layout.widths[0]), mainHeight),
@@ -61,7 +69,7 @@ export function createStreamingWorkbenchView({ state, width = 100, height = 30 }
     : layout.mode === 'medium'
       ? Row({ gap: 2, widths: layout.widths },
           transcriptPane(state, Math.max(44, layout.widths[1]), mainHeight),
-          controlPane(state, Math.max(30, layout.widths[0]), mainHeight),
+          sidePane(state, Math.max(30, layout.widths[0]), mainHeight),
         )
       : narrowPane(state, width, mainHeight);
 
@@ -77,13 +85,9 @@ export function createStreamingWorkbenchView({ state, width = 100, height = 30 }
       { label: 'Messages', value: state.messages.length },
     ],
     focus: state.activeTab,
-    tabs: [
-      { id: 'prompt', label: 'Prompt' },
-      { id: 'transcript', label: 'Transcript' },
-      { id: 'control', label: 'Control' },
-    ],
+    tabs: visibleTabs,
     activeTab: state.activeTab,
-    tabHint: 'Enter stream · Esc cancel · ↑/↓ sample prompts · Tab focus',
+    tabHint: responsiveTabHint('Enter stream · Esc cancel · ↑/↓ sample prompts · Tab focus', TABS, visibleTabs),
     main,
     command: WorkspaceCommandBar({
       mode: state.streaming ? 'STREAMING' : 'PROMPT',
@@ -91,6 +95,7 @@ export function createStreamingWorkbenchView({ state, width = 100, height = 30 }
       value: `${state.prompt.value || '<empty>'}▌`,
       suggestions: ['Enter submit', 'Esc cancel', '↑/↓ sample', 'Alt+←/→ word'],
       hint: 'fake provider stream',
+      theme: EXAMPLE_THEME,
     }),
     activity: KeyHintBar({
       title: ' LOCAL HELP ',
@@ -102,12 +107,15 @@ export function createStreamingWorkbenchView({ state, width = 100, height = 30 }
         ['Alt+←/→', 'word move'],
         ['Tab', 'switch pane'],
       ],
+      theme: EXAMPLE_THEME,
     }),
     footer: WorkspaceFooter({
       left: [state.streaming ? 'Streaming' : 'Ready', state.status],
-      right: ['demo: stream'],
+      right: [`theme: ${EXAMPLE_THEME.name}`, 'demo: stream'],
+      theme: EXAMPLE_THEME,
     }),
     height,
+    theme: EXAMPLE_THEME,
   });
 }
 
@@ -115,10 +123,7 @@ export function handleStreamingWorkbenchKey({ key, state, runtime }) {
   const editor = state.prompt;
 
   if (key.name === 'tab') {
-    const tabs = ['prompt', 'transcript', 'control'];
-    const index = tabs.indexOf(state.activeTab);
-    state.activeTab = tabs[((index + (key.shift ? -1 : 1)) % tabs.length + tabs.length) % tabs.length];
-    state.status = `Focus moved to ${state.activeTab}.`;
+    cycleTab(state, TABS, key.shift ? -1 : 1, { statusPrefix: 'Focus moved to' });
     return;
   }
 
@@ -248,6 +253,10 @@ function controlPane(state, width, height) {
       ),
     ],
   });
+}
+
+function sidePane(state, width, height) {
+  return state.activeTab === 'prompt' ? promptPane(state, width, height) : controlPane(state, width, height);
 }
 
 function narrowPane(state, width, height) {

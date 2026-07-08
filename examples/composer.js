@@ -16,6 +16,7 @@ import {
   splitWorkspaceColumns,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
+import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, workspaceMainHeight } from './_workspaceExampleUtils.js';
 
 const FIELD_TEMPLATES = [
   {
@@ -67,7 +68,8 @@ export function createPromptComposerView({ state, width = 104, height = 32 } = {
   const plan = inferPromptPlan(prompt);
   const active = state.fields[state.activeIndex];
   const layout = splitWorkspaceColumns(width);
-  const mainHeight = Math.max(9, height - 12);
+  const mainHeight = workspaceMainHeight(height, { min: 6, activityRows: 2 });
+  const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['compose'] });
   const main = layout.mode === 'narrow'
     ? renderNarrowComposer(state, plan, prompt, mainHeight, width)
     : Row({ gap: 2, widths: layout.mode === 'wide' ? layout.widths : layout.widths },
@@ -86,14 +88,15 @@ export function createPromptComposerView({ state, width = 104, height = 32 } = {
     ],
     right: [{ label: 'Mode', value: layout.mode }],
     focus: state.activeTab,
-    tabs: TABS,
+    tabs: visibleTabs,
     activeTab: state.activeTab,
-    tabHint: 'Tab switches fields · [/] switches workspace tab · PgUp/PgDn template · Enter submit',
+    tabHint: responsiveTabHint('Tab switches fields · [/] switches workspace tab · PgUp/PgDn template · Enter submit', TABS, visibleTabs),
     main,
-    command: WorkspaceCommandBar({ value: '', prompt: '›', mode: 'COMPOSER', suggestions: ['Enter submit', 'Tab field', 'PgUp/PgDn template', 'Ctrl+J newline'] }),
-    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['↑/↓', 'move field'], ['Ctrl+A/E', 'line edges'], ['Ctrl+K/U/W', 'delete'], ['Alt+←/→', 'word move'], ['[/]', 'tabs'], ['Enter', 'submit']] }),
-    footer: WorkspaceFooter({ left: ['Connected', `chars ${prompt.length}`, state.status], right: ['demo: composer'] }),
+    command: WorkspaceCommandBar({ value: '', prompt: '›', mode: 'COMPOSER', suggestions: ['Enter submit', 'Tab field', 'PgUp/PgDn template', 'Ctrl+J newline'], theme: EXAMPLE_THEME }),
+    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['↑/↓', 'move field'], ['Ctrl+A/E', 'line edges'], ['Ctrl+K/U/W', 'delete'], ['Alt+←/→', 'word move'], ['[/]', 'tabs'], ['Enter', 'submit']], theme: EXAMPLE_THEME }),
+    footer: WorkspaceFooter({ left: ['Connected', `chars ${prompt.length}`, state.status], right: [`theme: ${EXAMPLE_THEME.name}`, 'demo: composer'], theme: EXAMPLE_THEME }),
     height,
+    theme: EXAMPLE_THEME,
   });
 }
 
@@ -274,9 +277,7 @@ function loadTemplate(state, delta) {
 }
 
 function switchTab(state, delta) {
-  const index = TABS.findIndex((tab) => tab.id === state.activeTab);
-  state.activeTab = TABS[mod(index + delta, TABS.length)].id;
-  state.status = `Opened ${state.activeTab} tab.`;
+  cycleTab(state, TABS, delta, { statusPrefix: 'Opened' });
 }
 
 function formatFieldLine(field, active, width) {

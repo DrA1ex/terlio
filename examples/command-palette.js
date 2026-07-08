@@ -17,6 +17,7 @@ import {
   splitWorkspaceColumns,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
+import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, workspaceMainHeight } from './_workspaceExampleUtils.js';
 
 const ACTIONS = [
   ['chat.new', 'Start a new chat transcript', 'Chat', '⌘N', 'Safe reset that preserves the current session in history.'],
@@ -67,7 +68,8 @@ export function createCommandPaletteView({ state, width = 96, height = 30 } = {}
   const selected = normalizeSelected(state, items.length);
   const selectedAction = items[selected];
   const layout = splitWorkspaceColumns(width);
-  const mainHeight = Math.max(10, height - 12);
+  const mainHeight = workspaceMainHeight(height, { min: 6, activityRows: 2 });
+  const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['palette'] });
   const main = layout.mode === 'wide'
     ? Row({ gap: 2, widths: layout.widths },
         palettePane(state, items, selected, Math.max(30, layout.widths[0]), mainHeight),
@@ -77,7 +79,9 @@ export function createCommandPaletteView({ state, width = 96, height = 30 } = {}
     : layout.mode === 'medium'
       ? Row({ gap: 2, widths: layout.widths },
           palettePane(state, items, selected, Math.max(30, layout.widths[0]), mainHeight),
-          detailsPane(selectedAction, Math.max(40, layout.widths[1]), mainHeight),
+          state.activeTab === 'accepted'
+            ? acceptedPane(state, Math.max(40, layout.widths[1]), mainHeight)
+            : detailsPane(selectedAction, Math.max(40, layout.widths[1]), mainHeight),
         )
       : narrowPane(state, items, selected, selectedAction, width, mainHeight);
 
@@ -93,9 +97,9 @@ export function createCommandPaletteView({ state, width = 96, height = 30 } = {}
       { label: 'Query', value: state.search.value || '<empty>' },
     ],
     focus: state.activeTab,
-    tabs: TABS,
+    tabs: visibleTabs,
     activeTab: state.activeTab,
-    tabHint: 'Type to filter · ↑/↓ select · Enter accept · Esc clear · Q exit',
+    tabHint: responsiveTabHint('Type to filter · ↑/↓ select · Enter accept · Esc clear · Q exit', TABS, visibleTabs),
     main,
     command: WorkspaceCommandBar({
       mode: 'PALETTE',
@@ -103,6 +107,7 @@ export function createCommandPaletteView({ state, width = 96, height = 30 } = {}
       value: `${state.search.value || '<empty>'}▌`,
       suggestions: groupCounts(items),
       hint: 'filters by id, title and group',
+      theme: EXAMPLE_THEME,
     }),
     activity: KeyHintBar({
       title: ' LOCAL HELP ',
@@ -114,12 +119,15 @@ export function createCommandPaletteView({ state, width = 96, height = 30 } = {}
         ['Esc', 'clear query'],
         ['Ctrl+U', 'clear prefix'],
       ],
+      theme: EXAMPLE_THEME,
     }),
     footer: WorkspaceFooter({
       left: ['Ready', state.status],
-      right: ['demo: command-palette'],
+      right: [`theme: ${EXAMPLE_THEME.name}`, 'demo: command-palette'],
+      theme: EXAMPLE_THEME,
     }),
     height,
+    theme: EXAMPLE_THEME,
   });
 }
 
@@ -140,10 +148,7 @@ export function handleCommandPaletteKey({ key, state, runtime }) {
   }
 
   if (key.name === 'tab') {
-    const current = TABS.findIndex((tab) => tab.id === state.activeTab);
-    const next = ((current + (key.shift ? -1 : 1)) % TABS.length + TABS.length) % TABS.length;
-    state.activeTab = TABS[next].id;
-    state.status = `Focus moved to ${state.activeTab}.`;
+    cycleTab(state, TABS, key.shift ? -1 : 1, { statusPrefix: 'Focus moved to' });
     return;
   }
 

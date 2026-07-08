@@ -21,6 +21,7 @@ import {
   themes,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
+import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, workspaceMainHeight } from './_workspaceExampleUtils.js';
 
 const REVIEW_PROMPTS = [
   'review src/lib/app.js for lifecycle bugs',
@@ -54,7 +55,8 @@ export function createCodeReviewView({ state, width = 110, height = 32 } = {}) {
   const blocks = assistant?.blocks ?? [];
   const selected = blocks[state.selectedBlockIndex] ?? null;
   const layout = splitWorkspaceColumns(width);
-  const mainHeight = Math.max(10, height - 12);
+  const mainHeight = workspaceMainHeight(height, { min: 6, activityRows: 2 });
+  const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['review'] });
   const overlay = state.modes.current() === 'confirm'
     ? ConfirmPrompt({
         title: ' Confirm block action ',
@@ -101,7 +103,7 @@ export function createCodeReviewView({ state, width = 110, height = 32 } = {}) {
   const main = layout.mode === 'wide'
     ? Row({ gap: 2, widths: layout.widths }, promptPane, transcriptPane, actionPane)
     : layout.mode === 'medium'
-      ? Row({ gap: 2, widths: layout.widths }, blocksPane, transcriptPane)
+      ? Row({ gap: 2, widths: layout.widths }, transcriptPane, state.activeTab === 'actions' ? actionPane : blocksPane)
       : (state.activeTab === 'actions' ? actionPane : state.activeTab === 'blocks' ? blocksPane : transcriptPane);
 
   return WorkspaceShell({
@@ -110,14 +112,15 @@ export function createCodeReviewView({ state, width = 110, height = 32 } = {}) {
     stats: [{ label: 'Blocks', value: blocks.length }, { label: 'Selected', value: selected?.type ?? 'none' }, { label: 'Mode', value: state.modes.current() }],
     right: [{ label: 'Prompt', value: state.input.value ? 'ready' : 'empty' }],
     focus: state.activeTab,
-    tabs: TABS,
+    tabs: visibleTabs,
     activeTab: state.activeTab,
-    tabHint: '[/] switch tabs · Tab selects blocks · Enter submit/action · A/R/C block actions',
+    tabHint: responsiveTabHint('[/] switch tabs · Tab selects blocks · Enter submit/action · A/R/C block actions', TABS, visibleTabs),
     main: overlay ? Column({ grow: true, height: 'fill' }, main, overlay) : main,
-    command: WorkspaceCommandBar({ value: state.input.value, prompt: 'review', mode: 'PROMPT', suggestions: ['Enter submit', '↑/↓ samples', 'Tab block', 'A apply', 'R run', 'C copy'] }),
-    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['Enter', 'submit or primary action'], ['Tab', 'select block'], ['A', 'apply diff'], ['R', 'run command'], ['C', 'copy block'], ['Esc', 'cancel modal']] }),
-    footer: WorkspaceFooter({ left: ['Ready', state.modes.current() === 'confirm' ? 'Confirm block action' : state.status], right: ['demo: code-review'] }),
+    command: WorkspaceCommandBar({ value: state.input.value, prompt: 'review', mode: 'PROMPT', suggestions: ['Enter submit', '↑/↓ samples', 'Tab block', 'A apply', 'R run', 'C copy'], theme: EXAMPLE_THEME }),
+    activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['Enter', 'submit or primary action'], ['Tab', 'select block'], ['A', 'apply diff'], ['R', 'run command'], ['C', 'copy block'], ['Esc', 'cancel modal']], theme: EXAMPLE_THEME }),
+    footer: WorkspaceFooter({ left: ['Ready', state.modes.current() === 'confirm' ? 'Confirm block action' : state.status], right: [`theme: ${EXAMPLE_THEME.name}`, 'demo: code-review'], theme: EXAMPLE_THEME }),
     height,
+    theme: EXAMPLE_THEME,
   });
 }
 
@@ -298,9 +301,7 @@ function editInput(editor, key, state) {
 }
 
 function switchTab(state, delta) {
-  const index = TABS.findIndex((tab) => tab.id === state.activeTab);
-  state.activeTab = TABS[mod(index + delta, TABS.length)].id;
-  state.status = `Opened ${state.activeTab} tab.`;
+  cycleTab(state, TABS, delta, { statusPrefix: 'Opened' });
 }
 
 function mod(value, size) {
