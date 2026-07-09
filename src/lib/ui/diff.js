@@ -1,4 +1,4 @@
-import { ansi } from '../ansi.js';
+import { ansi } from '../ansi/codes.js';
 import { createFrame } from './screen.js';
 
 export function diffFrames(previous, next) {

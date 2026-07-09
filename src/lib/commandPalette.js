@@ -1,6 +1,6 @@
 import { InputEditor } from './inputEditor.js';
 import { Box, Column, Row, Text } from './ui/node.js';
-import { SelectList, HelpOverlay } from './ui/components.js';
+import { SelectList, HelpOverlay } from './ui/components/index.js';
 
 export function createCommandPaletteState({ items = [], query = '', selectedIndex = 0, windowSize = 9 } = {}) {
   return {

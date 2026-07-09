@@ -1,5 +1,5 @@
 import { patchFrames } from './diff.js';
-import { layout } from './layout.js';
+import { layout } from './layout/index.js';
 
 export function renderToFrame(node, options = {}) {
   return layout(node, options);

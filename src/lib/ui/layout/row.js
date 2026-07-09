@@ -1,4 +1,4 @@
-import { visibleLength } from '../../ansi.js';
+import { visibleLength } from '../../ansi/text.js';
 import { applyFixedHeight, fit, withHeight } from './utils.js';
 
 export function renderRow(node, width, renderNode) {

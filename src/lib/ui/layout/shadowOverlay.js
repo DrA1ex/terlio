@@ -1,4 +1,5 @@
-import { ansi, stripAnsi, takeVisibleAnsi, visibleLength } from '../../ansi.js';
+import { ansi } from '../../ansi/codes.js';
+import { stripAnsi, takeVisibleAnsi, visibleLength } from '../../ansi/text.js';
 import { fit } from './utils.js';
 
 export function renderShadowOverlay(node, width, renderNode) {

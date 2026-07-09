@@ -1,4 +1,4 @@
-import { visibleLength } from '../../ansi.js';
+import { visibleLength } from '../../ansi/text.js';
 import { distribute, fit, normalizeSpacing } from './utils.js';
 
 export function renderGrid(node, width) {

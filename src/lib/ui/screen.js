@@ -1,4 +1,4 @@
-import { stripAnsi, visibleLength } from '../ansi.js';
+import { stripAnsi, visibleLength } from '../ansi/text.js';
 
 export class Frame {
   constructor(lines, { width, height }) {

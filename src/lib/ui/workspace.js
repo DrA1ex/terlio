@@ -1,7 +1,7 @@
-import { color } from '../ansi.js';
+import { color } from '../ansi/text.js';
 import { Box, Column, Row, Text } from './node.js';
-import { CommandBar, FooterStatusBar, Grid, SectionTabs, fitInline } from './components.js';
-import { measureNodeHeight } from './layout.js';
+import { CommandBar, FooterStatusBar, Grid, SectionTabs, fitInline } from './components/index.js';
+import { measureNodeHeight } from './layout/index.js';
 
 export function WorkspaceHeader({
   title = 'Workspace',

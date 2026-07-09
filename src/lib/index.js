@@ -1,5 +1,7 @@
 export { RichTerminalApp, createAppPaletteItems } from './app.js';
-export { ansi, themes, color, stripAnsi, visibleLength, padEndVisible, truncateVisible } from './ansi.js';
+export { ansi } from './ansi/codes.js';
+export { themes } from './ansi/themes.js';
+export { color, stripAnsi, visibleLength, padEndVisible, truncateVisible } from './ansi/text.js';
 export { commands, findCommand, getSuggestions, helpText, parseCommand } from './commands.js';
 export { FocusManager } from './focusManager.js';
 export { InputEditor } from './inputEditor.js';
@@ -13,7 +15,7 @@ export { BLOCK_TYPES, appendBlockContent, blockToText, blocksToText, createBlock
 export { wrapText } from './wrap.js';
 
 export { Box, Column, Panel, Row, Text, createNode, normalizeChildren } from './ui/node.js';
-export { layout, renderNode, measureNodeHeight } from './ui/layout.js';
+export { layout, renderNode, measureNodeHeight } from './ui/layout/index.js';
 export { Frame, createFrame, normalizeLines, padEndVisible as padFrameLine, truncateVisibleText } from './ui/screen.js';
 export { diffFrames, patchFrames } from './ui/diff.js';
 export { TerminalRenderer, renderToFrame, renderToString } from './ui/renderer.js';
@@ -38,7 +40,7 @@ export {
   visibleWindowLines,
   ScrollPane,
   fitInline,
-} from './ui/components.js';
+} from './ui/components/index.js';
 export { ModeManager } from './modeManager.js';
 export {
   createCommandPaletteState,

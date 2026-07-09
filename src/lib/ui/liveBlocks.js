@@ -1,5 +1,5 @@
 import { Box, Column, Row, Text } from './node.js';
-import { ProgressBar, Spinner } from './components.js';
+import { ProgressBar, Spinner } from './components/index.js';
 
 export function MetricBlock({ title = ' Metric ', value = '', detail = '', status = '', pulse = false } = {}) {
   const prefix = pulse ? '● ' : '';

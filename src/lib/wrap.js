@@ -1,4 +1,4 @@
-import { stripAnsi, visibleLength } from './ansi.js';
+import { stripAnsi, visibleLength } from './ansi/text.js';
 
 export function wrapText(text, width, indent = '') {
   const safeWidth = Math.max(8, width);

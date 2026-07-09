@@ -1,4 +1,4 @@
-import { color, visibleLength, truncateVisible } from '../../ansi.js';
+import { color, visibleLength, truncateVisible } from '../../ansi/text.js';
 import { Box, Text, createNode } from '../node.js';
 
 export function fitInline(value, width) {

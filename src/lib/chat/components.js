@@ -1,9 +1,11 @@
-import { ansi, color, themes, truncateVisible, visibleLength } from '../ansi.js';
+import { ansi } from '../ansi/codes.js';
+import { themes } from '../ansi/themes.js';
+import { color, truncateVisible, visibleLength } from '../ansi/text.js';
 import { enabledSkillNames } from '../skills.js';
 import { wrapText } from '../wrap.js';
 import { renderCommandPalette } from '../commandPalette.js';
 import { Column, Text } from '../ui/node.js';
-import { renderNode } from '../ui/layout.js';
+import { renderNode } from '../ui/layout/index.js';
 import { normalizeBlocks } from '../blocks.js';
 
 export const DEFAULT_SUGGESTION_WINDOW_SIZE = 7;

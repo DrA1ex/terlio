@@ -6,6 +6,7 @@ This inventory was generated before and after the refactor to make sure function
 - Post-refactor function/class/arrow count: **249**
 - Missing function names after refactor: **none**
 - Added function names after refactor: **none**
+- Removed legacy entry files: `src/lib/ansi.js`, `src/lib/ui/components.js`, `src/lib/ui/layout.js`. Internal imports now target the split modules directly.
 
 ## Moved functions
 - `Badge`: `src/lib/ui/components.js` → `src/lib/ui/components/display.js`

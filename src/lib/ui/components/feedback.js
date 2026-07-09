@@ -1,4 +1,4 @@
-import { visibleLength, truncateVisible } from '../../ansi.js';
+import { visibleLength, truncateVisible } from '../../ansi/text.js';
 import { Box, Column, Panel, Row, Text, createNode } from '../node.js';
 import { clamp, mod } from './utils.js';
 

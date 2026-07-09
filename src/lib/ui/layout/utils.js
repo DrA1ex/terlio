@@ -1,4 +1,4 @@
-import { takeVisibleAnsi, visibleLength } from '../../ansi.js';
+import { takeVisibleAnsi, visibleLength } from '../../ansi/text.js';
 
 export function applyFixedHeight(lines, width, height) {
   if (height === null) return lines;

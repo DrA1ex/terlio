@@ -1,4 +1,5 @@
-import { ansi, themes } from './ansi.js';
+import { ansi } from './ansi/codes.js';
+import { themes } from './ansi/themes.js';
 import { commands as commandList, findCommand, getSuggestions, parseCommand } from './commands.js';
 import { InputEditor } from './inputEditor.js';
 import { parseKey } from './keyParser.js';

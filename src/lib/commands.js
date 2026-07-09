@@ -1,4 +1,4 @@
-import { themes } from './ansi.js';
+import { themes } from './ansi/themes.js';
 import { buildMockBlocks, replyRules } from './mockModel.js';
 import { listProviders } from './providers.js';
 import { enabledSkillNames, formatSkillList, getSkill, skills } from './skills.js';
