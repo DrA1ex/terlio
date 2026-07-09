@@ -144,9 +144,9 @@ function renderCodeBlock(block, width, theme) {
   const title = block.title || `code${block.language ? ` · ${block.language}` : ''}`;
   const body = String(block.content || '').split('\n');
   return [
-    color(theme, 'border', truncateVisible(`┌─ ${title} ${'─'.repeat(width)}`, width)),
-    ...body.map((line) => color(theme, 'muted', truncateVisible(`│ ${line}`, width))),
-    color(theme, 'border', truncateVisible(`└${'─'.repeat(Math.max(0, width - 1))}`, width)),
+    color(theme, 'border', blockTop(title, width)),
+    ...body.map((line) => color(theme, 'muted', blockBodyLine(line, width))),
+    color(theme, 'border', blockBottom(width)),
   ];
 }
 
@@ -154,9 +154,9 @@ function renderDiffBlock(block, width, theme) {
   const title = block.title || 'diff';
   const body = String(block.content || '').split('\n');
   return [
-    color(theme, 'border', truncateVisible(`┌─ ${title} ${'─'.repeat(width)}`, width)),
-    ...body.map((line) => color(theme, diffLineToken(line), truncateVisible(`│ ${line}`, width))),
-    color(theme, 'border', truncateVisible(`└${'─'.repeat(Math.max(0, width - 1))}`, width)),
+    color(theme, 'border', blockTop(title, width)),
+    ...body.map((line) => color(theme, diffLineToken(line), blockBodyLine(line, width))),
+    color(theme, 'border', blockBottom(width)),
   ];
 }
 
@@ -186,9 +186,37 @@ function renderToolResultBlock(block, width, theme) {
   const header = [block.name || 'tool', block.status].filter(Boolean).join(' · ');
   const body = String(block.content || '').split('\n');
   return [
-    color(theme, 'accent', truncateVisible(`tool: ${header}`, width)),
-    ...body.map((line) => color(theme, 'muted', truncateVisible(`  ${line}`, width))),
+    color(theme, 'accent', fitBlockLine(`tool: ${truncateVisible(header, Math.max(1, width - 6))}`, width)),
+    ...body.map((line) => color(theme, 'muted', fitBlockLine(`  ${truncateVisible(line, Math.max(1, width - 2))}`, width))),
   ];
+}
+
+function blockTop(title, width) {
+  const safeWidth = Math.max(4, Number(width) || 4);
+  const labelWidth = Math.max(0, safeWidth - 6);
+  const label = truncateVisible(String(title ?? ''), labelWidth, '…');
+  const prefix = `┌─ ${label} `;
+  const dashes = '─'.repeat(Math.max(0, safeWidth - visibleLength(prefix) - 1));
+  return fitBlockLine(`${prefix}${dashes}┐`, safeWidth);
+}
+
+function blockBottom(width) {
+  const safeWidth = Math.max(4, Number(width) || 4);
+  return `└${'─'.repeat(Math.max(0, safeWidth - 2))}┘`;
+}
+
+function blockBodyLine(line, width) {
+  const safeWidth = Math.max(4, Number(width) || 4);
+  const contentWidth = Math.max(0, safeWidth - 4);
+  const content = truncateVisible(String(line ?? ''), contentWidth, '…');
+  return fitBlockLine(`│ ${fitBlockLine(content, contentWidth)} │`, safeWidth);
+}
+
+function fitBlockLine(value, width) {
+  const safeWidth = Math.max(0, Number(width) || 0);
+  const text = String(value ?? '');
+  if (visibleLength(text) >= safeWidth) return truncateVisible(text, safeWidth, '');
+  return text + ' '.repeat(safeWidth - visibleLength(text));
 }
 
 export function SuggestionsPanel({ columns = 80, theme = themes.dark, inputValue = '', suggestions = [], suggestionIndex = 0, busy = false, windowSize = DEFAULT_SUGGESTION_WINDOW_SIZE, suggestionWindowSize = null } = {}) {

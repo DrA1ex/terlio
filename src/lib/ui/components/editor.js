@@ -1,7 +1,7 @@
 import { Box, Text } from '../node.js';
 import { isScrollAtBottom, resolveAutoScrollOffset } from '../../scrollState.js';
 import { clamp } from './utils.js';
-import { fitInline } from './display.js';
+import { fit } from '../layout/utils.js';
 
 export function renderTextEditorLines({
   value = '',
@@ -97,7 +97,7 @@ export function ScrollPane({
 } = {}) {
   const innerHeight = Math.max(1, Number(height) || 1) - (border ? 3 : 1);
   const window = visibleWindowLines(lines, { height: Math.max(1, innerHeight), scroll, autoscroll, previousTotalRows, sticky });
-  const rows = window.lines.map((line) => Text(fitInline(line, Math.max(1, width - (border ? 4 : 0))), { wrap: false }));
+  const rows = window.lines.map((line) => Text(fit(line, Math.max(1, width - (border ? 4 : 0))), { wrap: false }));
   if (footer) rows.push(Text(`↑↓ scroll ${window.scroll}/${window.maxScroll}`, { wrap: false }));
   return Box({ border, padding: border ? { left: 1, right: 1 } : 0, title, height }, ...rows);
 }

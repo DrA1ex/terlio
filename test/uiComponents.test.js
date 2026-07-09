@@ -12,6 +12,7 @@ import {
   renderTextEditorLines,
   visibleWindowLines,
   visibleLength,
+  wcwidth,
   themes,
   InputEditor,
   parseKey,
@@ -40,9 +41,40 @@ test('SelectList renders a scrollable selected window', () => {
 
   assert.match(output, /Pick 9\/12/);
   assert.match(output, /item-9/);
-  assert.match(output, /↑ 6 more/);
-  assert.match(output, /↓ 1 more/);
+  assert.match(output, /↑6/);
+  assert.match(output, /↓1/);
+  assert.doesNotMatch(output, /more/);
+  assert.match(output, /item-7/);
+  assert.match(output, /item-11/);
   assert.doesNotMatch(output, /item-1 —/);
+});
+
+
+
+test('SelectList can wrap long item labels into reserved item rows', () => {
+  const output = stripAnsi(renderToString(SelectList({
+    title: 'Entries',
+    items: [{ title: 'Structured Assistant Blocks', category: 'AI blocks' }, { title: 'Runtime, Frames, and Diff Rendering', category: 'Runtime' }],
+    getLabel: (item) => item.title,
+    getDescription: (item) => item.category,
+    selectedIndex: 0,
+    windowSize: 2,
+    wrapItems: true,
+    rowLines: 2,
+    reserveItemLines: true,
+  }), { width: 32, height: 8 }));
+
+  assert.match(output, /Structured Assistant/);
+  assert.match(output, /Blocks/);
+  assert.match(output, /Runtime, Frames/);
+});
+
+test('single-cell symbols used by toast icons do not collapse borders', () => {
+  assert.equal(wcwidth('✓'), 1);
+  const output = stripAnsi(renderToString(Toast({ level: 'success', message: 'Saved', theme: themes.ocean, width: 40 }), { width: 40, height: 4 }));
+  const body = output.split('\n').find((line) => line.includes('Saved')) ?? '';
+  assert.match(body, /✓/);
+  assert.match(body, /│┐\s*$/);
 });
 
 test('ConfirmPrompt renders two choices with selected marker', () => {
@@ -62,11 +94,11 @@ test('status components render modal, toast, progress and spinner', () => {
 
   assert.match(modal, /Details/);
   assert.match(toast, /Careful/);
-  assert.match(stripAnsi(renderToString(Toast({ level: 'warning', message: 'Careful' }), { width: 30, height: 4 })), /┌│/);
+  assert.match(stripAnsi(renderToString(Toast({ level: 'warning', message: 'Careful' }), { width: 30, height: 4 })), /│┐/);
   assert.match(toast, /\x1b\[38;5;214m/);
 
   const accentToast = renderToString(Toast({ level: 'info', message: 'Visible shadow', detail: 'theme aware', theme: themes.ocean, width: 60 }), { width: 60, height: 5 });
-  const shadowLine = accentToast.split('\n').find((line) => stripAnsi(line).trimStart().startsWith('┌│')) ?? '';
+  const shadowLine = accentToast.split('\n').find((line) => stripAnsi(line).includes('│┐')) ?? '';
   assert.match(accentToast, /\x1b\[38;2;/);
   assert.match(accentToast, /theme aware/);
   assert.ok(visibleLength(shadowLine) >= 54);

@@ -156,3 +156,19 @@ export const themes = {
   },
 };
 
+
+for (const theme of Object.values(themes)) {
+  theme.surface ??= '';
+  theme.surfaceActive ??= theme.selected ?? theme.accent ?? '';
+  theme.borderMuted ??= theme.border ?? theme.muted ?? '';
+  theme.borderActive ??= theme.accent ?? theme.title ?? theme.border ?? '';
+  theme.borderDanger ??= theme.error ?? theme.border ?? '';
+  theme.text ??= theme.text ?? '';
+  theme.textMuted ??= theme.muted ?? theme.subtle ?? '';
+  theme.textAccent ??= theme.accent ?? theme.title ?? '';
+  theme.success ??= theme.ok ?? theme.accent ?? '';
+  theme.warning ??= theme.system ?? theme.accent ?? '';
+  theme.danger ??= theme.error ?? '';
+  theme.info ??= theme.accent ?? theme.title ?? '';
+  theme.mutedBg ??= theme.selected ?? '';
+}

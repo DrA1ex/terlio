@@ -11,7 +11,7 @@ const groups = [
     ['npm run example:stream', 'Streaming Workbench: prompt editor, transcript autoscroll/scrollback and reusable template flow.'],
   ]],
   ['UI mechanics examples', [
-    ['npm run example:kit', 'Interaction Kit: focused playground for toasts, modal stack, confirmations, filterable lists, progress and scoped routing.'],
+    ['npm run example:kit', 'Interaction Kit: interactive component catalog for nodes, workspace pieces, feedback overlays, editors, scrolling, palette, timeline and theme tokens.'],
     ['npm run example:agent-stream', 'Stream Mechanics: low-level structured stream queue, chunk/block events, cancellation, retry and progress.'],
     ['npm run example:keys', 'Key Inspector: raw escape sequences, normalized keys and editor action diagnostics.'],
     ['npm run example:themes', 'Theme Gallery: compare panels, blocks, diffs, status colors and toast shadows across themes.'],

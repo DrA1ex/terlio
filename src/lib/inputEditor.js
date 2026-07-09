@@ -190,3 +190,57 @@ function charLength(value) {
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
+
+export function handleInputEditorKey(editor, key, { multiline = false } = {}) {
+  if (!editor || !key) return { handled: false, changed: false };
+  const before = editor.value;
+  const beforeCursor = editor.cursor;
+  let handled = true;
+  switch (key.name) {
+    case 'left':
+      key.meta || key.word ? editor.moveWord(-1) : editor.move(-1);
+      break;
+    case 'right':
+      key.meta || key.word ? editor.moveWord(1) : editor.move(1);
+      break;
+    case 'up':
+      editor.moveVertical(-1);
+      break;
+    case 'down':
+      editor.moveVertical(1);
+      break;
+    case 'home':
+      key.ctrl ? editor.home() : editor.lineStart();
+      break;
+    case 'end':
+      key.ctrl ? editor.end() : editor.lineEnd();
+      break;
+    case 'backspace':
+      editor.backspace();
+      break;
+    case 'delete':
+      editor.deleteForward();
+      break;
+    case 'kill-start':
+      editor.killToStart();
+      break;
+    case 'kill-end':
+      editor.killToEnd();
+      break;
+    case 'delete-word-left':
+      editor.deleteWordBack();
+      break;
+    case 'paste':
+      editor.insert(key.text ?? '');
+      break;
+    case 'enter':
+      if (multiline || key.ctrl) editor.insertLineBreak();
+      else handled = false;
+      break;
+    default:
+      if (key.printable) editor.insert(key.text ?? '');
+      else handled = false;
+      break;
+  }
+  return { handled, changed: before !== editor.value || beforeCursor !== editor.cursor, value: editor.value, cursor: editor.cursor };
+}

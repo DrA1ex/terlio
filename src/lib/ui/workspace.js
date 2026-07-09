@@ -1,7 +1,8 @@
 import { color } from '../ansi/text.js';
-import { Box, Column, Row, Text } from './node.js';
+import { Box, Column, Row, Text, createNode } from './node.js';
 import { CommandBar, FooterStatusBar, Grid, SectionTabs, fitInline } from './components/index.js';
 import { measureNodeHeight } from './layout/index.js';
+import { Docked } from './layout/docked.js';
 
 export function WorkspaceHeader({
   title = 'Workspace',
@@ -34,30 +35,73 @@ export function WorkspacePane({
   height = undefined,
   children = [],
   footer = '',
+  footerNode = null,
+  footerGap = 0,
+  footerMinHeight = undefined,
+  footerMaxHeight = Infinity,
   borderColor = '',
   theme = null,
 } = {}) {
   const nodes = normalizeChildren(children);
-  if (footer) nodes.push(Text(theme ? color(theme, 'muted', footer) : footer, { wrap: false }));
   const inactiveBorder = borderColor || theme?.border || '';
   const activeBorder = borderColor || theme?.accent || '\x1b[36m';
+  const renderedFooter = footerNode ?? (footer ? Text(theme ? color(theme, 'muted', footer) : footer, { wrap: false }) : null);
+  let bodyNodes = nodes;
+
+  if (renderedFooter) {
+    if (height !== undefined) {
+      const innerHeight = Math.max(0, Number(height) - 2);
+      const contentNode = nodes.length === 1 ? nodes[0] : Column({}, ...nodes);
+      const defaultFooterMinHeight = footerNode?.type === 'keyHintBar' ? 3 : 1;
+      bodyNodes = [Docked({
+        height: innerHeight,
+        content: contentNode,
+        footer: renderedFooter,
+        gap: footerGap,
+        footerMinHeight: footerMinHeight ?? defaultFooterMinHeight,
+        footerMaxHeight,
+      })];
+    } else {
+      bodyNodes = [...nodes, renderedFooter];
+    }
+  }
+
   return Box({
     border: true,
     borderColor: active ? activeBorder : inactiveBorder,
     padding: { left: 1, right: 1 },
     title,
     ...(height !== undefined ? { height } : {}),
-  }, ...nodes);
+  }, ...bodyNodes);
 }
 
-export function KeyHintBar({ title = ' Keys ', hints = [], columns = 3, theme = null, gridBorder = false } = {}) {
+export function KeyHintBar({
+  title = ' Keys ',
+  hints = [],
+  columns = 3,
+  minColumnWidth = 22,
+  maxColumns = 3,
+  gap = 2,
+  theme = null,
+  borderColor = '',
+  height = undefined,
+  gridBorder = false,
+  adaptive = false,
+} = {}) {
   const items = Array.from(hints ?? []);
-  return Box({ border: true, borderColor: theme?.border, padding: { left: 1, right: 1 }, title },
+  if (!adaptive) {
+    return Box({
+      border: true,
+      borderColor: borderColor || theme?.border,
+      padding: { left: 1, right: 1 },
+      title,
+      ...(height !== undefined ? { height } : {}),
+    },
     items.length
       ? Grid({
           items,
           columns,
-          gap: 2,
+          gap,
           border: gridBorder,
           borderColor: theme?.border,
           renderItem: ([key, label]) => {
@@ -66,8 +110,19 @@ export function KeyHintBar({ title = ' Keys ', hints = [], columns = 3, theme = 
             return `${keyText} ${labelText}`;
           },
         })
-      : Text(theme ? color(theme, 'muted', 'No shortcuts registered.') : 'No shortcuts registered.', { wrap: false }),
-  );
+      : Text(theme ? color(theme, 'muted', 'No shortcuts registered.') : 'No shortcuts registered.', { wrap: false }));
+  }
+  return createNode('keyHintBar', {
+    title,
+    hints: items,
+    columns,
+    minColumnWidth,
+    maxColumns,
+    gap,
+    theme,
+    borderColor,
+    height,
+  }, []);
 }
 
 export function WorkspaceCommandBar({ value = '', suggestions = [], mode = 'COMMAND', hint = 'TAB next', prompt = '›', theme = null } = {}) {

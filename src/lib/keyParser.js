@@ -17,6 +17,7 @@ const NAMED = new Map([
   ['\n', { name: 'enter', ctrl: true }],
   ['\t', { name: 'tab' }],
   ['\x1b[Z', { name: 'tab', shift: true }],
+  ['\x1b\t', { name: 'tab', meta: true }],
   ['\x7f', { name: 'backspace' }],
   ['\b', { name: 'backspace' }],
   ['\x1b[3~', { name: 'delete' }],
@@ -27,7 +28,13 @@ const NAMED = new Map([
   ['\x17', { name: 'delete-word-left', ctrl: true }],
   ['\x0c', { name: 'redraw', ctrl: true }],
   ['\x1bb', { name: 'left', meta: true, word: true }],
+  ['\x1bB', { name: 'left', meta: true, word: true }],
   ['\x1bf', { name: 'right', meta: true, word: true }],
+  ['\x1bF', { name: 'right', meta: true, word: true }],
+  ['\x1b[1;3D', { name: 'left', meta: true, word: true }],
+  ['\x1b[1;3C', { name: 'right', meta: true, word: true }],
+  ['\x1b[1;9D', { name: 'left', cmd: true }],
+  ['\x1b[1;9C', { name: 'right', cmd: true }],
   ['\x1b[A', { name: 'up' }],
   ['\x1b[B', { name: 'down' }],
   ['\x1b[C', { name: 'right' }],
@@ -62,7 +69,7 @@ export function parseKey(data) {
   const csi = /^\x1b\[1;(\d+)([A-DHF])$/.exec(sequence);
   if (csi) {
     const modifier = Number(csi[1]);
-    return key({ sequence, name: ARROW_BY_FINAL[csi[2]], ...modifierFlags(modifier), word: modifier === 3 });
+    return key({ sequence, name: ARROW_BY_FINAL[csi[2]], ...modifierFlags(modifier), word: modifier === 3 || modifier === 7 });
   }
 
 

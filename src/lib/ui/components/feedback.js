@@ -79,7 +79,7 @@ export function Toast({
     width: requestedWidth,
     childWidth: toastWidth,
     inset: leftInset,
-    offsetX: -1,
+    offsetX: 1,
     offsetY: 1,
     shadowColor: style.shadow,
   }, [body]);
@@ -115,8 +115,13 @@ function toastStyle(level, theme, active) {
     error: { border: '\x1b[38;5;203m', headline: '\x1b[38;5;210m', detail: '\x1b[38;5;224m', shadow: '\x1b[38;5;52m' },
   };
   const fallback = palette[level] ?? palette.info;
-  const accent = theme?.accent || theme?.title || fallback.border;
-  const subdued = theme?.border || fallback.shadow;
+  const semantic = {
+    info: theme?.info,
+    success: theme?.success ?? theme?.ok,
+    warning: theme?.warning,
+    error: theme?.danger ?? theme?.error,
+  }[level] || fallback.border;
+  const subdued = theme?.borderMuted || theme?.border || fallback.shadow;
   if (!active) {
     return {
       ...fallback,
@@ -129,11 +134,11 @@ function toastStyle(level, theme, active) {
     };
   }
   return {
-    border: accent || fallback.border,
-    icon: accent || fallback.border,
-    headline: accent || fallback.headline,
+    border: semantic,
+    icon: semantic,
+    headline: semantic || fallback.headline,
     detail: theme?.text || fallback.detail,
-    shadow: darkerAnsiColor(accent || fallback.border, fallback.shadow),
+    shadow: darkerAnsiColor(semantic, fallback.shadow),
     reset,
   };
 }

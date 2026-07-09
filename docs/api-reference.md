@@ -187,10 +187,23 @@ These helpers handle ANSI escape sequences when computing visible terminal width
 ### SelectList
 
 ```js
-SelectList({ title, items, selectedIndex, windowSize, emptyText, getLabel, getDescription, getDisabled })
+SelectList({
+  title,
+  items,
+  selectedIndex,
+  windowSize,
+  emptyText,
+  getLabel,
+  getDescription,
+  getDisabled,
+  wrapItems = false,
+  rowLines = 1,
+  reserveItemLines = false,
+  theme,
+})
 ```
 
-Renders a scroll-windowed selectable list.
+Renders a scroll-windowed selectable list. Set `wrapItems: true` to wrap long row labels by words. `rowLines` reserves a stable number of terminal rows for each item; `reserveItemLines: true` keeps that allocation stable when an item only needs one line. The above/below counters are rendered in the list title and never consume item rows.
 
 ### ConfirmPrompt
 
@@ -240,9 +253,9 @@ HelpOverlay({ title, shortcuts })
 
 Renders shortcut rows.
 
-### Badge, SectionTabs, CommandBar, FooterStatusBar, Grid, PropertyRows, ChipLine
+### Badge, Chip, SectionTabs, CommandBar, FooterStatusBar, Grid, PropertyRows, ChipLine
 
-Small components for status labels, tab rows, command input display, footer status, aligned grids, key/value details, and chip controls.
+Small components for semantic status labels, individual chips, tab rows, command input display, footer status, aligned grids, key/value details, and chip controls. `Badge` and `Chip` support semantic tones such as `info`, `success`, `warning`, `danger`, and `muted`.
 
 ```js
 Grid({ items, columns = 3, gap = 2, renderItem, emptyText, border = false, borderColor, padding })
@@ -302,18 +315,55 @@ Renders a tab/navigation bar.
 ### WorkspacePane
 
 ```js
-WorkspacePane({ title, active, height, children, footer, borderColor })
+WorkspacePane({
+  title,
+  active,
+  height,
+  children,
+  footer,
+  footerNode,
+  footerGap = 0,
+  footerMinHeight,
+  footerMaxHeight = Infinity,
+  borderColor,
+  theme,
+})
 ```
 
-Renders a bordered application pane. Active panes get a highlighted border by default.
+Renders a bordered application pane. Active panes get a highlighted border by default. When a fixed `height` and `footerNode` are provided, the pane uses the shared `Docked` layout: it measures and reserves the footer first, then constrains the main content to the remaining rows. Growing content is clipped or re-laid out before the footer can leave the panel.
 
 ### KeyHintBar
 
 ```js
-KeyHintBar({ title, hints, columns = 3, gridBorder = false })
+KeyHintBar({
+  title,
+  hints,
+  columns = 3,
+  adaptive = false,
+  minColumnWidth = 22,
+  maxColumns = 3,
+  gap = 2,
+  gridBorder = false,
+  theme,
+})
 ```
 
-Renders grouped key hints using the shared `Grid` component, so wrapped rows stay aligned across columns. `gridBorder: true` enables the bordered-grid mode for shortcut-heavy examples.
+Renders grouped key hints. The default mode uses the shared `Grid` component. With `adaptive: true` and `columns: 'auto'`, the bar chooses a column count from the available terminal width, wraps individual hints by words, and reports its natural height to `Docked`. This makes it suitable for a bottom-pinned local-controls panel at changing viewport sizes.
+
+### Docked layout
+
+```js
+Docked({
+  content,
+  footer,
+  height,
+  gap = 0,
+  footerMinHeight = 0,
+  footerMaxHeight = Infinity,
+})
+```
+
+A fixed-height layout that measures the footer first and assigns all remaining rows to the main content. Use it for local-control panels, inspectors, or status surfaces that must stay visible while the content area shrinks. `WorkspacePane` applies this automatically for a fixed-height pane with `footerNode`.
 
 ### WorkspaceCommandBar
 

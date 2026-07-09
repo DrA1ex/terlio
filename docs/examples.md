@@ -89,7 +89,7 @@ These examples are intentionally narrower than product demos. Each one focuses o
 npm run example:kit
 ```
 
-A focused playground for feedback and mode mechanics: theme-aware toasts, modal overlays, confirmation prompts, progress, mode-stack routing, tab-scoped keyboard handling, filterable sample lists, scrollable runtime/activity panes, and action history in one cohesive flow.
+An interactive component catalog for the library. It provides a searchable catalog, live preview pane, inspector pane, local help, and samples for core render nodes, workspace shell pieces, selection lists, display helpers, feedback overlays, progress blocks, editors, scroll panes, command palette, timeline blocks, responsive columns, and theme tokens.
 
 ### Stream Mechanics
 

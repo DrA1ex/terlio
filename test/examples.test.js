@@ -254,36 +254,125 @@ test('components showcase can render without a TTY and exposes frame diff operat
 });
 
 
-test('interaction kit renders reusable widgets and mode overlays', () => {
+test('interaction kit launches the product-grade showcase shell and overlays', () => {
   const state = createInteractionKitState();
-  const output = renderToString(createInteractionKitView({ state, width: 132 }), { width: 132, height: 30 });
-  assert.match(output, /Interaction Kit/);
-  assert.match(output, /renderer alive/);
-  assert.match(output, /Actions/);
+  const output = renderToString(createInteractionKitView({ state, width: 132, height: 35 }), { width: 132, height: 35 });
+  assert.match(output, /Mock AI Terminal Kit/);
+  assert.match(output, /Interactive component and capability showcase/);
+  assert.match(output, /SHOWCASES/);
+  assert.match(output, /PREVIEW · Welcome \/ Tour Map/);
+  assert.match(output, /LOCAL CONTROLS/);
+  assert.match(output, /ActionRegistry/);
 
-  for (const char of 'confirm') {
-    handleInteractionKitKey({ key: { name: char, printable: true, text: char }, state, runtime: { exit() {} } });
-  }
   handleInteractionKitKey({ key: { name: 'enter' }, state, runtime: { exit() {} } });
-  assert.equal(state.modes.current(), 'confirm');
+  assert.equal(state.focus.current(), 'preview');
+  handleInteractionKitKey({ key: { name: 'escape' }, state, runtime: { exit() {} } });
+  assert.equal(state.focus.current(), 'nav');
 
-  const confirmView = renderToString(createInteractionKitView({ state, width: 100 }), { width: 100, height: 28 });
-  assert.match(confirmView, /Confirm action/);
+  handleInteractionKitKey({ key: { name: '?', printable: true, text: '?' }, state, runtime: { exit() {} } });
+  assert.equal(state.overlays.hasBlocking(), true);
+  const helpOutput = renderToString(createInteractionKitView({ state, width: 120, height: 32 }), { width: 120, height: 32 });
+  assert.match(helpOutput, /Global controls/);
 });
 
-test('interaction kit keeps palette editing scoped to the palette tab', () => {
+test('interaction kit uses action registry, palette, theme switching and local previews', () => {
   const state = createInteractionKitState();
-  state.activeTab = 'runtime';
+  const initialTheme = state.themeName;
   handleInteractionKitKey({ key: { name: 't', printable: true, text: 't' }, state, runtime: { exit() {} } });
-  assert.equal(state.palette.editor.value, '');
-  handleInteractionKitKey({ key: { name: 'enter' }, state, runtime: { exit() {} } });
-  assert.equal(state.progress, 30);
+  assert.notEqual(state.themeName, initialTheme);
 
-  state.activeTab = 'palette';
-  for (const char of 'toast') {
+  handleInteractionKitKey({ key: { name: '/', printable: true, text: '/' }, state, runtime: { exit() {} } });
+  assert.equal(state.overlays.hasBlocking(), true);
+  for (const char of 'editor') {
     handleInteractionKitKey({ key: { name: char, printable: true, text: char }, state, runtime: { exit() {} } });
   }
   handleInteractionKitKey({ key: { name: 'enter' }, state, runtime: { exit() {} } });
-  assert.equal(state.activeTab, 'runtime');
-  assert.ok(state.accepted.includes('toast.info'));
+  assert.equal(state.overlays.hasBlocking(), false);
+  assert.equal(state.focus.current(), 'preview');
+
+  state.selectedShowcaseIndex = 9;
+  state.list.selectedIndex = 9;
+  state.focus.focus('preview');
+  const job = state.showcaseState['progress-live-jobs'];
+  handleInteractionKitKey({ key: { name: 'space', printable: true, text: ' ' }, state, runtime: { exit() {} } });
+  assert.equal(job.running, true);
+  handleInteractionKitKey({ key: { name: 'f', printable: true, text: 'f' }, state, runtime: { exit() {} } });
+  assert.equal(job.progress, 100);
+  state.overlays.toasts = [];
+
+  const output = renderToString(createInteractionKitView({ state, width: 128, height: 35 }), { width: 128, height: 35 });
+  assert.match(output, /Progress and Live Jobs/);
+  assert.match(output, /LOCAL CONTROLS/);
 });
+test('interaction kit polish fixes local ownership for workspace, feedback and structured screens', () => {
+  const state = createInteractionKitState();
+
+  state.selectedShowcaseIndex = 3;
+  state.list.selectedIndex = 3;
+  state.focus.focus('preview');
+  const workspace = state.showcaseState['workspace-shell-anatomy'];
+  workspace.command.set('');
+  handleInteractionKitKey({ key: { name: 'tab' }, state, runtime: { exit() {} } });
+  handleInteractionKitKey({ key: { name: 'tab' }, state, runtime: { exit() {} } });
+  assert.equal(workspace.focusIndex, 2);
+  for (const char of 'build') {
+    handleInteractionKitKey({ key: { name: char, printable: true, text: char }, state, runtime: { exit() {} } });
+  }
+  assert.equal(workspace.command.value, 'build');
+  handleInteractionKitKey({ key: { name: 'enter' }, state, runtime: { exit() {} } });
+  assert.equal(workspace.command.value, '');
+  assert.match(workspace.activity.at(-1), /ran: build/);
+
+  state.selectedShowcaseIndex = 8;
+  state.list.selectedIndex = 8;
+  const feedback = state.showcaseState['feedback-overlays'];
+  feedback.list.selectedIndex = 4;
+  state.overlays.toasts = [{ id: 'old', type: 'toast', message: 'old', ttl: 4 }];
+  handleInteractionKitKey({ key: { name: 'enter' }, state, runtime: { exit() {} } });
+  assert.equal(state.overlays.top().type, 'modal');
+  assert.equal(state.overlays.toasts.length, 0);
+  handleInteractionKitKey({ key: { name: 'escape' }, state, runtime: { exit() {} } });
+  assert.equal(state.overlays.hasBlocking(), false);
+
+  state.selectedShowcaseIndex = 11;
+  state.list.selectedIndex = 11;
+  const structured = state.showcaseState['structured-assistant-blocks'];
+  const before = structured.scroll.scroll;
+  handleInteractionKitKey({ key: { name: 'page-down' }, state, runtime: { exit() {} } });
+  assert.ok(structured.scroll.scroll >= before);
+  handleInteractionKitKey({ key: { name: 'c', printable: true, text: 'c' }, state, runtime: { exit() {} } });
+  assert.match(state.overlays.toasts.at(-1).message, /Copied/);
+});
+
+test('interaction kit polish fixes progress, focus debugger and runtime diff interactions', () => {
+  const state = createInteractionKitState();
+  state.focus.focus('preview');
+
+  state.selectedShowcaseIndex = 9;
+  state.list.selectedIndex = 9;
+  const job = state.showcaseState['progress-live-jobs'];
+  handleInteractionKitKey({ key: { name: 'f', printable: true, text: 'f' }, state, runtime: { exit() {} } });
+  assert.equal(job.running, false);
+  assert.equal(job.status, 'completed');
+  const progressOutput = renderToString(createInteractionKitView({ state, width: 128, height: 35 }), { width: 128, height: 35 });
+  assert.match(progressOutput, /✓ completed/);
+
+  state.selectedShowcaseIndex = 13;
+  state.list.selectedIndex = 13;
+  const focusDemo = state.showcaseState['focus-and-modes'];
+  const originalFocus = focusDemo.focus.current();
+  handleInteractionKitKey({ key: { name: 'tab' }, state, runtime: { exit() {} } });
+  assert.notEqual(focusDemo.focus.current(), originalFocus);
+  assert.equal(state.focus.current(), 'preview');
+  handleInteractionKitKey({ key: { name: 'down' }, state, runtime: { exit() {} } });
+  assert.equal(focusDemo.list.selectedIndex, 1);
+  handleInteractionKitKey({ key: { name: 'd', printable: true, text: 'd' }, state, runtime: { exit() {} } });
+  assert.equal(focusDemo.focus.isEnabled('preview'), false);
+
+  state.selectedShowcaseIndex = 14;
+  state.list.selectedIndex = 14;
+  const runtimeDemo = state.showcaseState['runtime-frames-diff'];
+  handleInteractionKitKey({ key: { name: 'd', printable: true, text: 'd' }, state, runtime: { exit() {} } });
+  assert.equal(runtimeDemo.patchMode, 'full repaint');
+});
+

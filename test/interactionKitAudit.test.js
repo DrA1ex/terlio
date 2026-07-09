@@ -1,0 +1,199 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  KeyHintBar,
+  Text,
+  WorkspacePane,
+  createOverlayManager,
+  renderNode,
+  renderToString,
+  stripAnsi,
+  themes,
+  visibleLength,
+} from '../src/lib/index.js';
+import {
+  createInteractionKitState,
+  createInteractionKitView,
+  handleInteractionKitKey,
+  tickInteractionKit,
+} from '../examples/interaction-kit.js';
+
+const runtime = { exit() {}, invalidate() {} };
+
+function select(state, index) {
+  state.selectedShowcaseIndex = index;
+  state.list.selectedIndex = index;
+  state.focus.focus('preview');
+}
+
+function render(state, width = 136, height = 39) {
+  return stripAnsi(renderToString(createInteractionKitView({ state, width, height }), { width, height }));
+}
+
+test('WorkspacePane reserves an adaptive footer panel and clips content before it', () => {
+  const pane = WorkspacePane({
+    title: ' Demo ',
+    height: 12,
+    children: Array.from({ length: 20 }, (_, index) => Text(`content ${index + 1}`)),
+    footerNode: KeyHintBar({
+      title: ' LOCAL CONTROLS ',
+      adaptive: true,
+      columns: 'auto',
+      hints: [['Enter', 'accept current item'], ['Esc', 'return to navigation'], ['PgUp/PgDn', 'scroll content']],
+      theme: themes.ocean,
+    }),
+  });
+  const output = stripAnsi(renderToString(pane, { width: 64, height: 12 }));
+  const lines = output.split('\n');
+  assert.equal(lines.length, 12);
+  assert.match(output, /┌  LOCAL CONTROLS/);
+  assert.match(output, /Enter accept current item/);
+  assert.equal(lines.at(-1).startsWith('└'), true);
+  assert.doesNotMatch(output, /content 20/);
+});
+
+test('all example:kit screens keep the local controls panel visible at 136x39', () => {
+  const state = createInteractionKitState();
+  for (let index = 0; index < 15; index += 1) {
+    select(state, index);
+    const output = render(state, 136, 39);
+    const lines = output.split('\n');
+    assert.match(output, /┌  LOCAL CONTROLS/, `screen ${index + 1}`);
+    assert.ok(lines.every((line) => visibleLength(line) <= 136), `screen ${index + 1} overflowed`);
+    const controlsRow = lines.findIndex((line) => line.includes('LOCAL CONTROLS'));
+    const statusRow = lines.findLastIndex((line) => line.includes(' STATUS '));
+    assert.ok(controlsRow > 0 && controlsRow < statusRow, `screen ${index + 1} footer placement`);
+  }
+});
+
+test('showcase navigation wraps long entries into reserved second rows', () => {
+  const state = createInteractionKitState();
+  select(state, 11);
+  state.focus.focus('nav');
+  const output = render(state, 136, 39);
+  assert.match(output, /Structured Assistant\s+│/);
+  assert.match(output, /Blocks — AI blocks/);
+  assert.match(output, /Runtime, Frames, and Diff/);
+  assert.match(output, /Rendering — Runtime/);
+});
+
+test('the last toast expires and invalidates the rendered frame', () => {
+  const state = createInteractionKitState();
+  state.overlays.toast('One final toast', 'success', 3);
+  assert.match(render(state), /One final toast/);
+  let changedOnRemoval = false;
+  for (let index = 0; index < 12; index += 1) changedOnRemoval = tickInteractionKit({ state }) || changedOnRemoval;
+  assert.equal(state.overlays.toasts.length, 0);
+  assert.equal(changedOnRemoval, true);
+  assert.doesNotMatch(render(state), /One final toast/);
+});
+
+test('feedback levels and blocking overlays use distinct presentation paths', () => {
+  const manager = createOverlayManager();
+  manager.toast('warning', 'warning');
+  manager.toast('error', 'error');
+  assert.notEqual(manager.toasts[0].level, manager.toasts[1].level);
+
+  const state = createInteractionKitState();
+  select(state, 8);
+  const feedback = state.showcaseState['feedback-overlays'];
+  feedback.list.selectedIndex = 4;
+  handleInteractionKitKey({ key: { name: 'enter' }, state, runtime });
+  const modalOutput = render(state);
+  assert.match(modalOutput, /Background input is trapped/);
+  assert.match(modalOutput, /└/);
+  handleInteractionKitKey({ key: { name: 'escape' }, state, runtime });
+  feedback.list.selectedIndex = 5;
+  handleInteractionKitKey({ key: { name: 'enter' }, state, runtime });
+  assert.match(render(state), /Apply the simulated destructive action/);
+});
+
+test('workspace local focus, scrolling and command autocomplete remain reachable', () => {
+  const state = createInteractionKitState();
+  select(state, 3);
+  const workspace = state.showcaseState['workspace-shell-anatomy'];
+  assert.equal(workspace.focusIndex, 0);
+  handleInteractionKitKey({ key: { name: 'page-down' }, state, runtime });
+  assert.ok(workspace.mainScroll.scroll > 0);
+  handleInteractionKitKey({ key: { name: 'tab' }, state, runtime });
+  assert.equal(workspace.focusIndex, 1);
+  handleInteractionKitKey({ key: { name: 'page-down' }, state, runtime });
+  handleInteractionKitKey({ key: { name: 'tab' }, state, runtime });
+  assert.equal(workspace.focusIndex, 2);
+  workspace.command.set('de');
+  handleInteractionKitKey({ key: { name: 'tab' }, state, runtime });
+  assert.match(workspace.command.value, /^deploy/);
+});
+
+test('selection window stays fixed and uses freed indicator rows for items', () => {
+  const state = createInteractionKitState();
+  select(state, 4);
+  const list = state.showcaseState['selection-lists-windowing'].list;
+  list.selectedIndex = 0;
+  const first = render(state);
+  list.selectedIndex = list.items.length - 1;
+  const last = render(state);
+  assert.equal(first.split('\n').length, last.split('\n').length);
+  assert.match(first, /↓14/);
+  assert.match(last, /↑14/);
+  assert.match(first, /TKT-010/);
+  assert.match(last, /TKT-024/);
+});
+
+test('embedded palette logs commands without applying navigation or theme side effects', () => {
+  const state = createInteractionKitState();
+  select(state, 5);
+  const originalTheme = state.themeName;
+  const originalScreen = state.selectedShowcaseIndex;
+  const palette = state.showcaseState['command-palette-demo'];
+  palette.palette.editor.set('theme');
+  handleInteractionKitKey({ key: { name: 'enter' }, state, runtime });
+  assert.equal(state.themeName, originalTheme);
+  assert.equal(state.selectedShowcaseIndex, originalScreen);
+  assert.equal(palette.accepted.length, 1);
+});
+
+test('previously reported screen-specific behaviors remain functional', () => {
+  const state = createInteractionKitState();
+  state.focus.focus('preview');
+
+  select(state, 9);
+  handleInteractionKitKey({ key: { name: 'f', printable: true, text: 'f' }, state, runtime });
+  const progress = state.showcaseState['progress-live-jobs'];
+  assert.equal(progress.running, false);
+  assert.match(render(state), /✓ completed/);
+
+  select(state, 10);
+  const timeline = state.showcaseState['timeline-activity-feeds'];
+  for (let index = 0; index < 20; index += 1) {
+    handleInteractionKitKey({ key: { name: 'a', printable: true, text: 'a' }, state, runtime });
+  }
+  handleInteractionKitKey({ key: { name: 'page-down' }, state, runtime });
+  assert.ok(timeline.selected >= 8);
+
+  select(state, 11);
+  assert.doesNotMatch(render(state), /regenerate/i);
+  assert.doesNotMatch(render(state), /─…|…─/);
+
+  select(state, 12);
+  const responsiveOutput = render(state);
+  assert.match(responsiveOutput, /terminal width\s+136/);
+  assert.doesNotMatch(responsiveOutput, /terminal width\s+0/);
+
+  select(state, 13);
+  const focus = state.showcaseState['focus-and-modes'];
+  assert.deepEqual(focus.modes.stack.map((entry) => entry.name), ['root']);
+  handleInteractionKitKey({ key: { name: 'm', printable: true, text: 'm' }, state, runtime });
+  handleInteractionKitKey({ key: { name: 'p', printable: true, text: 'p' }, state, runtime });
+  assert.equal(focus.modes.current(), 'root');
+  assert.equal(focus.focus.current(), 'nav');
+
+  select(state, 14);
+  const frames = state.showcaseState['runtime-frames-diff'];
+  const previous = frames.previous;
+  handleInteractionKitKey({ key: { name: 'w', printable: true, text: 'w' }, state, runtime });
+  assert.equal(frames.previous, previous);
+  assert.equal(frames.nextLong, true);
+  handleInteractionKitKey({ key: { name: 'n', printable: true, text: 'n' }, state, runtime });
+  assert.equal(frames.previousLong, true);
+});

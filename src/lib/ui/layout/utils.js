@@ -1,4 +1,4 @@
-import { takeVisibleAnsi, visibleLength } from '../../ansi/text.js';
+import { stripAnsi, takeVisibleAnsi, visibleLength } from '../../ansi/text.js';
 
 export function applyFixedHeight(lines, width, height) {
   if (height === null) return lines;
@@ -48,23 +48,75 @@ export function withHeight(node, height) {
 }
 
 export function wrapPlain(value, width) {
+  const safeWidth = Math.max(1, Number(width) || 1);
+  const text = stripAnsi(String(value ?? ''));
   const lines = [];
-  for (const raw of String(value ?? '').split('\n')) {
+  for (const raw of text.split('\n')) {
     if (raw === '') {
       lines.push('');
       continue;
     }
-    const chars = Array.from(raw);
     let line = '';
-    for (const char of chars) {
-      if (visibleLength(line + char) > width) {
-        lines.push(line);
-        line = char;
+    const tokens = raw.match(/\S+\s*/g) ?? [''];
+    for (const token of tokens) {
+      const cleanToken = token.replace(/\s+$/g, '');
+      const space = token.endsWith(' ') ? ' ' : '';
+      const candidate = line + cleanToken + space;
+      if (line && visibleLength(candidate) > safeWidth) {
+        lines.push(line.trimEnd());
+        line = '';
+      }
+      if (visibleLength(cleanToken) > safeWidth) {
+        if (line) {
+          lines.push(line.trimEnd());
+          line = '';
+        }
+        let rest = cleanToken;
+        while (visibleLength(rest) > safeWidth) {
+          const chunk = takeVisibleAnsi(rest, safeWidth);
+          if (!chunk || visibleLength(chunk) === 0) {
+            const chars = Array.from(stripAnsi(rest));
+            if (!chars.length) {
+              rest = '';
+              break;
+            }
+            const fallback = chars.shift();
+            lines.push(fallback);
+            rest = chars.join('');
+            continue;
+          }
+          lines.push(chunk);
+          rest = dropVisiblePrefixAnsi(rest, visibleLength(chunk));
+        }
+        line = rest + space;
       } else {
-        line += char;
+        line += cleanToken + space;
       }
     }
-    lines.push(line);
+    if (line || !lines.length) lines.push(line.trimEnd());
   }
   return lines;
+}
+
+function dropVisiblePrefixAnsi(value, cells) {
+  const text = String(value ?? '');
+  const target = Math.max(0, Number(cells) || 0);
+  if (target <= 0) return text;
+  let visible = 0;
+  let index = 0;
+  while (index < text.length && visible < target) {
+    if (text[index] === '\x1b') {
+      const match = /^\x1b\[[0-?]*[ -/]*[@-~]/.exec(text.slice(index));
+      if (match) {
+        index += match[0].length;
+        continue;
+      }
+    }
+    const codePoint = text.codePointAt(index);
+    if (codePoint === undefined) break;
+    const char = String.fromCodePoint(codePoint);
+    visible += visibleLength(char);
+    index += char.length;
+  }
+  return text.slice(index).replace(/^(?:\x1b\[[0-?]*[ -/]*[@-~])+/, '');
 }
