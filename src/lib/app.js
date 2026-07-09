@@ -128,7 +128,7 @@ export class RichTerminalApp {
     this.input.on('data', this.boundOnData);
     this.output.on('resize', this.boundOnResize);
 
-    this.addSystemMessage('Mock AI Terminal запущен. Введите сообщение или начните с / для команд. Подсказки можно листать ↑/↓ и применять через Enter. Сессии доступны через /session. палитра команд: Ctrl+P.');
+    this.addSystemMessage('Mock AI Terminal started. Type a message or start with / for commands. Suggestions can be navigated with ↑/↓ and applied with Enter. Sessions are available through /session. Command palette: Ctrl+P.');
     this.render();
   }
 
@@ -221,14 +221,14 @@ export class RichTerminalApp {
     const { name, args } = parseCommand(line);
     const command = findCommand(name);
     if (!command) {
-      this.addSystemMessage(`Неизвестная команда: ${name}. Введите /help.`);
+      this.addSystemMessage(`Unknown command: ${name}. Type /help.`);
       return;
     }
 
     try {
       await command.run(this, args);
     } catch (error) {
-      this.addSystemMessage(`Команда завершилась ошибкой: ${error.message}`);
+      this.addSystemMessage(`Command failed: ${error.message}`);
     }
     this.render();
   }
@@ -276,7 +276,7 @@ export class RichTerminalApp {
     if (this.busy) return;
     const lastUser = lastUserMessage(this.messages);
     if (!lastUser) {
-      this.addSystemMessage('Нет пользовательского сообщения для повтора.');
+      this.addSystemMessage('No user message to retry.');
       return;
     }
     await this.respond(lastUser.content);
@@ -286,7 +286,7 @@ export class RichTerminalApp {
     if (this.busy) return;
     const lastAssistant = lastAssistantMessage(this.messages);
     if (!lastAssistant || !lastAssistant.content.trim()) {
-      this.addSystemMessage('Нет последнего ответа ассистента для действия.');
+      this.addSystemMessage('No last assistant response for this action.');
       return;
     }
 
@@ -330,7 +330,7 @@ export class RichTerminalApp {
     this.historyIndex = null;
     this.editor.clear();
     this.scrollOffset = 0;
-    this.addSystemMessage(`Новая сессия создана: ${this.sessionId}`);
+    this.addSystemMessage(`New session created: ${this.sessionId}`);
   }
 
   saveSession() {
@@ -355,7 +355,7 @@ export class RichTerminalApp {
     applySerializedSkillState(this.skillState, snapshot.skillState);
     this.editor.clear();
     this.scrollOffset = 0;
-    this.addSystemMessage(`Сессия загружена: ${snapshot.title} (${snapshot.id})`);
+    this.addSystemMessage(`Session loaded: ${snapshot.title} (${snapshot.id})`);
   }
 
   snapshot() {
@@ -703,16 +703,16 @@ function commandInsert(command) {
 function buildActionText(action, source) {
   const cleaned = source.replace(/\n\s*\[matched:[\s\S]*?\]$/m, '').trim();
   if (action === 'shorter') {
-    return `Сокращённая версия:\n\n${firstSentence(cleaned)}\n\nСуть: ${summarize(cleaned, 220)}`;
+    return `Shortened version:\n\n${firstSentence(cleaned)}\n\nSummary: ${summarize(cleaned, 220)}`;
   }
   if (action === 'longer') {
-    return `Расширенная версия:\n\n${cleaned}\n\nДополнение: я бы отдельно проверил состояние ввода, поток ответа, список команд и сохранение сессии. Эти четыре слоя чаще всего конфликтуют в rich-terminal приложениях.`;
+    return `Expanded version:\n\n${cleaned}\n\nAdditional note: I would separately verify input state, response streaming, command list behavior, and session persistence. These four layers are the most common conflict points in rich terminal applications.`;
   }
   if (action === 'explain') {
-    return `Объяснение последнего ответа:\n\n1. Основная мысль: ${summarize(cleaned, 180)}\n\n2. Почему это важно: терминальный UX быстро ломается, если состояние ввода, рендеринг и модель смешаны.\n\n3. Что проверить дальше: команды, стрелки, streaming, отмену через Esc и сохранение сессии.`;
+    return `Explanation of the last response:\n\n1. Main idea: ${summarize(cleaned, 180)}\n\n2. Why it matters: terminal UX breaks quickly when input state, rendering, and model logic are mixed.\n\n3. What to check next: commands, arrow keys, streaming, cancellation with Esc, and session saving.`;
   }
   if (action === 'apply') {
-    return 'Автоматическое применение артефактов пока не подключено. В этом прототипе `/apply` только фиксирует UX-путь: когда появится реальный provider/tools layer, команда сможет искать последний применимый artifact и выполнять его через отдельный безопасный адаптер.';
+    return 'Automatic artifact application is not connected yet. In this prototype, `/apply` only records the UX path: once a real provider/tools layer exists, the command can find the last applicable artifact and execute it through a separate safe adapter.';
   }
   return cleaned;
 }

@@ -8,7 +8,7 @@ export const commands = [
   {
     name: '/help',
     usage: '/help',
-    description: 'Показать доступные команды и горячие клавиши.',
+    description: 'Show available commands and keyboard shortcuts.',
     run(app) {
       app.addSystemMessage(helpText());
     },
@@ -16,96 +16,96 @@ export const commands = [
   {
     name: '/skills',
     usage: '/skills',
-    description: 'Показать список скилов и их состояние.',
+    description: 'Show the skill list and current state.',
     run(app) {
-      app.addSystemMessage(`Скилы:\n${formatSkillList(app.skillState)}`);
+      app.addSystemMessage(`Skills:\n${formatSkillList(app.skillState)}`);
     },
   },
   {
     name: '/skill',
     usage: '/skill <on|off|info> <name>',
-    description: 'Включить, выключить или описать скил.',
+    description: 'Enable, disable, or describe a skill.',
     run(app, args) {
       const [action, name] = args;
       if (!action || !['on', 'off', 'info'].includes(action)) {
-        app.addSystemMessage('Использование: /skill <on|off|info> <name>');
+        app.addSystemMessage('Usage: /skill <on|off|info> <name>');
         return;
       }
 
       if (!name) {
-        app.addSystemMessage(`Укажите скил. Доступно: ${skills.map((skill) => skill.name).join(', ')}`);
+        app.addSystemMessage(`Specify a skill. Available: ${skills.map((skill) => skill.name).join(', ')}`);
         return;
       }
 
       const skill = getSkill(name);
       if (!skill) {
-        app.addSystemMessage(`Неизвестный скил: ${name}. Доступно: ${skills.map((item) => item.name).join(', ')}`);
+        app.addSystemMessage(`Unknown skill: ${name}. Available: ${skills.map((item) => item.name).join(', ')}`);
         return;
       }
 
       if (action === 'info') {
-        app.addSystemMessage(`${skill.title}\nname: ${skill.name}\nstate: ${app.skillState.get(skill.name) ? 'on' : 'off'}\n\n${skill.description}\n\nПодсказки: ${skill.hints.join(', ')}`);
+        app.addSystemMessage(`${skill.title}\nname: ${skill.name}\nstate: ${app.skillState.get(skill.name) ? 'on' : 'off'}\n\n${skill.description}\n\nHints: ${skill.hints.join(', ')}`);
         return;
       }
 
       app.skillState.set(skill.name, action === 'on');
-      app.addSystemMessage(`Скил ${skill.name} ${action === 'on' ? 'включён' : 'выключен'}. Активны: ${enabledSkillNames(app.skillState).join(', ') || 'none'}.`);
+      app.addSystemMessage(`Skill ${skill.name} ${action === 'on' ? 'enabled' : 'disabled'}. Active: ${enabledSkillNames(app.skillState).join(', ') || 'none'}.`);
     },
   },
   {
     name: '/theme',
     usage: `/theme <${Object.keys(themes).join('|')}>`,
-    description: 'Сменить цветовую тему.',
+    description: 'Switch the color theme.',
     run(app, args) {
       const [themeName] = args;
       if (!themeName || !themes[themeName]) {
-        app.addSystemMessage(`Использование: /theme <${Object.keys(themes).join('|')}>`);
+        app.addSystemMessage(`Usage: /theme <${Object.keys(themes).join('|')}>`);
         return;
       }
       app.setTheme(themeName);
-      app.addSystemMessage(`Тема изменена: ${themeName}.`);
+      app.addSystemMessage(`Theme changed: ${themeName}.`);
     },
   },
   {
     name: '/themes',
     usage: '/themes',
-    description: 'Показать все доступные темы оформления.',
+    description: 'Show all available visual themes.',
     run(app) {
       const rows = Object.keys(themes).map((name) => `${name === app.themeName ? 'on ' : '   '} ${name}`);
-      app.addSystemMessage(`Темы оформления:\n${rows.join('\n')}\n\nСменить тему: /theme <name>`);
+      app.addSystemMessage(`Visual themes:\n${rows.join('\n')}\n\nSwitch theme: /theme <name>`);
     },
   },
   {
     name: '/provider',
     usage: '/provider [mock|replay]',
-    description: 'Показать или сменить provider модели.',
+    description: 'Show or switch the model provider.',
     run(app, args) {
       const [providerName] = args;
       const providers = listProviders();
 
       if (!providerName) {
         const rows = providers.map((provider) => `${provider.name === app.providerName ? 'on ' : '   '} ${provider.name.padEnd(8)} ${provider.title} — ${provider.description}`);
-        app.addSystemMessage(`Провайдеры:\n${rows.join('\n')}\n\nСменить: /provider <name>`);
+        app.addSystemMessage(`Providers:\n${rows.join('\n')}\n\nSwitch: /provider <name>`);
         return;
       }
 
       if (!providers.some((provider) => provider.name === providerName)) {
-        app.addSystemMessage(`Неизвестный provider: ${providerName}. Доступно: ${providers.map((provider) => provider.name).join(', ')}`);
+        app.addSystemMessage(`Unknown provider: ${providerName}. Available: ${providers.map((provider) => provider.name).join(', ')}`);
         return;
       }
 
       app.setProvider(providerName);
-      app.addSystemMessage(`Provider изменён: ${app.provider.title}.`);
+      app.addSystemMessage(`Provider changed: ${app.provider.title}.`);
     },
   },
   {
     name: '/session',
     usage: '/session <new|save|list|open|delete> [id]',
-    description: 'Создать, сохранить, открыть или удалить локальную сессию.',
+    description: 'Create, save, open, or delete a local session.',
     run(app, args) {
       const [action, id] = args;
       if (!action) {
-        app.addSystemMessage('Использование: /session <new|save|list|open|delete> [id]');
+        app.addSystemMessage('Usage: /session <new|save|list|open|delete> [id]');
         return;
       }
 
@@ -116,24 +116,24 @@ export const commands = [
 
       if (action === 'save') {
         const saved = app.saveSession();
-        app.addSystemMessage(`Сессия сохранена: ${saved.title}\nid: ${saved.id}\npath: ${app.sessionStore.pathFor(saved.id)}`);
+        app.addSystemMessage(`Session saved: ${saved.title}\nid: ${saved.id}\npath: ${app.sessionStore.pathFor(saved.id)}`);
         return;
       }
 
       if (action === 'list') {
         const sessions = app.sessionStore.list();
         if (!sessions.length) {
-          app.addSystemMessage('Сохранённых сессий пока нет. Используйте /session save.');
+          app.addSystemMessage('No saved sessions yet. Use /session save.');
           return;
         }
         const rows = sessions.slice(0, 20).map((session, index) => `${String(index + 1).padStart(2, '0')}. ${session.id.padEnd(28)} ${String(session.messages).padStart(3)} msg  ${session.updatedAt}  ${session.title}`);
-        app.addSystemMessage(`Сессии:\n${rows.join('\n')}\n\nОткрыть: /session open <id>`);
+        app.addSystemMessage(`Sessions:\n${rows.join('\n')}\n\nOpen: /session open <id>`);
         return;
       }
 
       if (action === 'open') {
         if (!id) {
-          app.addSystemMessage('Укажите id: /session open <id>');
+          app.addSystemMessage('Specify an id: /session open <id>');
           return;
         }
         app.loadSession(id);
@@ -142,21 +142,21 @@ export const commands = [
 
       if (action === 'delete') {
         if (!id) {
-          app.addSystemMessage('Укажите id: /session delete <id>');
+          app.addSystemMessage('Specify an id: /session delete <id>');
           return;
         }
         app.sessionStore.remove(id);
-        app.addSystemMessage(`Сессия удалена, если существовала: ${id}`);
+        app.addSystemMessage(`Session removed if it existed: ${id}`);
         return;
       }
 
-      app.addSystemMessage('Использование: /session <new|save|list|open|delete> [id]');
+      app.addSystemMessage('Usage: /session <new|save|list|open|delete> [id]');
     },
   },
   {
     name: '/retry',
     usage: '/retry',
-    description: 'Повторить последний пользовательский запрос.',
+    description: 'Retry the last user prompt.',
     run(app) {
       app.retryLastUserPrompt();
     },
@@ -164,7 +164,7 @@ export const commands = [
   {
     name: '/regenerate',
     usage: '/regenerate',
-    description: 'Сгенерировать ещё один ответ на последний пользовательский запрос.',
+    description: 'Generate another response to the last user prompt.',
     run(app) {
       app.retryLastUserPrompt();
     },
@@ -172,7 +172,7 @@ export const commands = [
   {
     name: '/shorter',
     usage: '/shorter',
-    description: 'Сократить последний ответ ассистента.',
+    description: 'Shorten the last assistant response.',
     run(app) {
       app.runAssistantAction('shorter');
     },
@@ -180,7 +180,7 @@ export const commands = [
   {
     name: '/longer',
     usage: '/longer',
-    description: 'Расширить последний ответ ассистента.',
+    description: 'Expand the last assistant response.',
     run(app) {
       app.runAssistantAction('longer');
     },
@@ -188,7 +188,7 @@ export const commands = [
   {
     name: '/explain',
     usage: '/explain',
-    description: 'Объяснить логику последнего ответа.',
+    description: 'Explain the reasoning behind the last response.',
     run(app) {
       app.runAssistantAction('explain');
     },
@@ -196,7 +196,7 @@ export const commands = [
   {
     name: '/apply',
     usage: '/apply',
-    description: 'Показать mock-путь применения последнего артефакта.',
+    description: 'Show the mock path for applying the last artifact.',
     run(app) {
       app.runAssistantAction('apply');
     },
@@ -204,22 +204,22 @@ export const commands = [
   {
     name: '/copy-last',
     usage: '/copy-last',
-    description: 'Показать последний ответ отдельным блоком для копирования.',
+    description: 'Show the last response in a separate copyable block.',
     run(app) {
       const message = lastAssistantMessage(app.messages);
       if (!message) {
-        app.addSystemMessage('Нет последнего ответа ассистента.');
+        app.addSystemMessage('No last assistant response.');
         return;
       }
-      app.addSystemMessage(`Последний ответ для копирования:\n\n${message.content.trim()}`);
+      app.addSystemMessage(`Last response for copying:\n\n${message.content.trim()}`);
     },
   },
   {
     name: '/blocks',
     usage: '/blocks [prompt]',
-    description: 'Добавить демонстрационный structured assistant response.',
+    description: 'Add a demo structured assistant response.',
     run(app, args) {
-      const prompt = args.join(' ') || 'реализуй код и покажи тесты';
+      const prompt = args.join(' ') || 'implement code and show tests';
       const blocks = buildMockBlocks(prompt, enabledSkillNames(app.skillState));
       app.addAssistantMessage('', false, { blocks });
       app.status = 'Structured block demo added.';
@@ -228,45 +228,45 @@ export const commands = [
   {
     name: '/intents',
     usage: '/intents',
-    description: 'Показать regex-интенты мок-модели.',
+    description: 'Show mock model regex intents.',
     run(app) {
       const rows = replyRules.map((rule, index) => `${String(index + 1).padStart(2, '0')}. ${rule.id.padEnd(14)} ${rule.title}`);
-      app.addSystemMessage(`Regex-интенты мок-модели:\n${rows.join('\n')}\n\nМодель выбирает правило с наибольшим весом совпавших регулярных выражений.`);
+      app.addSystemMessage(`Mock model regex intents:\n${rows.join('\n')}\n\nThe model selects the rule with the highest total weight from matched regular expressions.`);
     },
   },
   {
     name: '/debug',
     usage: '/debug <on|off|show>',
-    description: 'Включить debug overlay или показать последние события.',
+    description: 'Enable the debug overlay or show recent events.',
     run(app, args) {
       const [action = 'show'] = args;
       if (action === 'on') {
         app.toggleDebug(true);
-        app.addSystemMessage('Debug overlay включён.');
+        app.addSystemMessage('Debug overlay enabled.');
         return;
       }
       if (action === 'off') {
         app.toggleDebug(false);
-        app.addSystemMessage('Debug overlay выключен.');
+        app.addSystemMessage('Debug overlay disabled.');
         return;
       }
       if (action === 'show') {
         const rows = app.debug.events.slice(-20).map((event) => `${event.at} ${event.type.padEnd(8)} ${event.detail}`);
-        app.addSystemMessage(rows.length ? `Debug events:\n${rows.join('\n')}` : 'Debug events пока пустые.');
+        app.addSystemMessage(rows.length ? `Debug events:\n${rows.join('\n')}` : 'Debug events are empty.');
         return;
       }
-      app.addSystemMessage('Использование: /debug <on|off|show>');
+      app.addSystemMessage('Usage: /debug <on|off|show>');
     },
   },
   {
     name: '/status',
     usage: '/status',
-    description: 'Показать состояние приложения, тему, provider, сессию и размер терминала.',
+    description: 'Show app state, theme, provider, session, and terminal size.',
     run(app) {
       const columns = app.output.columns || 80;
       const rows = app.output.rows || 24;
       app.addSystemMessage([
-        'Состояние приложения:',
+        'Application state:',
         `busy: ${app.busy ? 'yes' : 'no'}`,
         `provider: ${app.providerName}`,
         `theme: ${app.themeName}`,
@@ -282,29 +282,29 @@ export const commands = [
   {
     name: '/history',
     usage: '/history [count]',
-    description: 'Показать последние сообщения в виде системной сводки.',
+    description: 'Show recent messages as a system summary.',
     run(app, args) {
       const count = Math.min(50, Math.max(1, Number.parseInt(args[0] || '10', 10) || 10));
       const rows = app.messages.slice(-count).map((message, index) => {
         const text = message.content.replace(/\s+/g, ' ').trim();
         return `${String(index + 1).padStart(2, '0')}. ${message.role}/${message.status}: ${text.slice(0, 140)}${text.length > 140 ? '…' : ''}`;
       });
-      app.addSystemMessage(rows.length ? `Последние сообщения:\n${rows.join('\n')}` : 'История пока пустая.');
+      app.addSystemMessage(rows.length ? `Recent messages:\n${rows.join('\n')}` : 'History is empty.');
     },
   },
   {
     name: '/clear',
     usage: '/clear',
-    description: 'Очистить историю на экране.',
+    description: 'Clear the on-screen history.',
     run(app) {
       app.clearMessages();
-      app.addSystemMessage('Экранная история очищена.');
+      app.addSystemMessage('Screen history cleared.');
     },
   },
   {
     name: '/reset',
     usage: '/reset',
-    description: 'Сбросить экран, историю ввода, тему, provider и скилы к значениям по умолчанию.',
+    description: 'Reset the screen, input history, theme, provider, and skills to defaults.',
     run(app) {
       app.clearMessages();
       app.history = [];
@@ -312,21 +312,21 @@ export const commands = [
       app.setTheme('dark');
       app.setProvider('mock');
       app.skillState = app.createDefaultSkillState();
-      app.addSystemMessage('Состояние сброшено: тема dark, provider mock, история очищена, скилы возвращены к значениям по умолчанию.');
+      app.addSystemMessage('State reset: theme dark, provider mock, history cleared, skills restored to defaults.');
     },
   },
   {
     name: '/about',
     usage: '/about',
-    description: 'Кратко описать назначение прототипа.',
+    description: 'Briefly describe the purpose of the prototype.',
     run(app) {
-      app.addSystemMessage('Mock AI Terminal — dependency-free прототип rich-terminal оболочки для AI-чата. Теперь есть message log, input editor, session store, provider interface, actions над последним ответом, debug overlay, скилы, темы, regex-интенты и streaming-контракт.');
+      app.addSystemMessage('Mock AI Terminal is a dependency-free prototype of a rich terminal shell for AI chat. It includes a message log, input editor, session store, provider interface, actions for the last response, debug overlay, skills, themes, regex intents, and a streaming contract.');
     },
   },
   {
     name: '/exit',
     usage: '/exit',
-    description: 'Завершить приложение.',
+    description: 'Exit the application.',
     run(app) {
       app.requestExit(0);
     },
@@ -372,7 +372,7 @@ export function getSuggestions(input, app = null) {
           insert: `/skill ${action} `,
           label: action,
           detail: `/skill ${action} <name>`,
-          description: action === 'on' ? 'Включить скил.' : action === 'off' ? 'Выключить скил.' : 'Показать описание скила.',
+          description: action === 'on' ? 'Enable the skill.' : action === 'off' ? 'Disable the skill.' : 'Show the skill description.',
         }));
     }
 
@@ -395,7 +395,7 @@ export function getSuggestions(input, app = null) {
         insert: `/theme ${theme}`,
         label: theme,
         detail: `theme ${theme}`,
-        description: 'Переключить визуальную тему терминала.',
+        description: 'Switch the terminal visual theme.',
       }));
   }
 
@@ -446,7 +446,7 @@ export function getSuggestions(input, app = null) {
         insert: `/debug ${action}`,
         label: action,
         detail: `/debug ${action}`,
-        description: action === 'on' ? 'Включить overlay.' : action === 'off' ? 'Выключить overlay.' : 'Показать события.',
+        description: action === 'on' ? 'Enable the overlay.' : action === 'off' ? 'Disable the overlay.' : 'Show events.',
       }));
   }
 
@@ -458,7 +458,7 @@ export function getSuggestions(input, app = null) {
         insert: `/history ${count}`,
         label: count,
         detail: `/history ${count}`,
-        description: `Показать последние ${count} сообщений.`,
+        description: `Show the last ${count} messages.`,
       }));
   }
 
@@ -468,29 +468,29 @@ export function getSuggestions(input, app = null) {
 export function helpText() {
   const commandRows = commands.map((command) => `${command.usage.padEnd(52)} ${command.description}`).join('\n');
   return [
-    'Команды:',
+    'Commands:',
     commandRows,
     '',
-    'Клавиши:',
-    'Tab / Shift+Tab                                      перейти по подсказкам; если подсказка одна — применить её',
-    '↑ / ↓                                                выбрать подсказку, если открыт список команд; иначе история ввода',
-    'Enter                                                применить выбранную подсказку или выполнить введённую команду',
-    '← / →, Home / End, Ctrl+A / Ctrl+E                    перемещение по строке',
-    'Alt+← / Alt+→                                        перемещение по словам',
-    'Cmd+← / Cmd+→                                        начало / конец строки в терминалах, которые отдают CSI 1;9D/C',
-    'Ctrl+K / Ctrl+U / Ctrl+W                              удалить до конца, до начала или слово слева',
-    'PageUp / PageDown                                    прокрутка transcript',
-    'Ctrl+L                                               перерисовать экран и вернуться к низу transcript',
-    'Esc                                                  отменить текущий потоковый ответ',
-    'Ctrl+C / Ctrl+D                                      выход',
+    'Keys:',
+    'Tab / Shift+Tab                                      cycle suggestions; if only one suggestion exists, apply it',
+    '↑ / ↓                                                select a suggestion when the command list is open; otherwise input history',
+    'Enter                                                apply the selected suggestion or run the typed command',
+    '← / →, Home / End, Ctrl+A / Ctrl+E                    move within the line',
+    'Alt+← / Alt+→                                        move by words',
+    'Cmd+← / Cmd+→                                        line start / end in terminals that emit CSI 1;9D/C',
+    'Ctrl+K / Ctrl+U / Ctrl+W                              delete to end, to start, or the word to the left',
+    'PageUp / PageDown                                    scroll transcript',
+    'Ctrl+L                                               redraw the screen and return to transcript bottom',
+    'Esc                                                  cancel the current streaming response',
+    'Ctrl+C / Ctrl+D                                      exit',
   ].join('\n');
 }
 
 function sessionActionDescription(action) {
-  if (action === 'new') return 'Начать новую сессию.';
-  if (action === 'save') return 'Сохранить текущую сессию в ~/.mock-ai-terminal/sessions.';
-  if (action === 'list') return 'Показать сохранённые сессии.';
-  if (action === 'open') return 'Открыть сохранённую сессию.';
-  if (action === 'delete') return 'Удалить сохранённую сессию.';
+  if (action === 'new') return 'Start a new session.';
+  if (action === 'save') return 'Save the current session in ~/.mock-ai-terminal/sessions.';
+  if (action === 'list') return 'Show saved sessions.';
+  if (action === 'open') return 'Open a saved session.';
+  if (action === 'delete') return 'Delete a saved session.';
   return '';
 }

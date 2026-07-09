@@ -80,7 +80,7 @@ test('transcript renderer renders code, diff, command, warning and tool result b
 });
 
 test('mock provider can build and stream structured blocks', async () => {
-  const blocks = buildMockBlocks('реализуй код для терминала', ['code']);
+  const blocks = buildMockBlocks('implement terminal code', ['code']);
   assert.ok(blocks.some((block) => block.type === 'code'));
   assert.ok(blocks.some((block) => block.type === 'command'));
   assert.match(blocksToText(blocks), /npm test/);
@@ -88,13 +88,13 @@ test('mock provider can build and stream structured blocks', async () => {
   let text = '';
   const streamed = [];
   await streamMockBlocks({
-    prompt: 'реализуй код для терминала',
+    prompt: 'implement terminal code',
     enabledSkills: ['code'],
     onChunk: (chunk) => { text += chunk; },
     onBlock: (block) => { streamed.push(block); },
     delayScale: 0,
   });
 
-  assert.match(text, /терминал|терминальный|слоя/i);
+  assert.match(text, /terminal|layer|code/i);
   assert.ok(streamed.some((block) => block.type === 'code'));
 });

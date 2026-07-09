@@ -11,5 +11,5 @@ test('app command palette exposes slash commands as insertable actions', () => {
   assert.equal(help.value.insert, '/help');
   assert.ok(theme);
   assert.equal(theme.value.insert, '/theme ');
-  assert.match(theme.description, /Оформление|тему|theme/i);
+  assert.match(theme.description, /visual|theme/i);
 });
