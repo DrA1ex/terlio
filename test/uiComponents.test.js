@@ -11,6 +11,8 @@ import {
   renderToString,
   renderTextEditorLines,
   visibleWindowLines,
+  visibleLength,
+  themes,
   InputEditor,
   parseKey,
   Grid,
@@ -60,6 +62,13 @@ test('status components render modal, toast, progress and spinner', () => {
 
   assert.match(modal, /Details/);
   assert.match(toast, /warning/);
+  assert.match(renderToString(Toast({ level: 'warning', message: 'Careful' }), { width: 30, height: 4 }), /▀+╲/);
+  assert.match(toast, /\x1b\[38;5;214m/);
+
+  const accentToast = renderToString(Toast({ level: 'info', message: 'Visible shadow', theme: themes.ocean, width: 60 }), { width: 60, height: 4 });
+  const shadowLine = accentToast.split('\n').find((line) => line.includes('▀') && line.includes('╲')) ?? '';
+  assert.match(accentToast, /\x1b\[38;5;23m/);
+  assert.ok(visibleLength(shadowLine) >= 52);
   assert.match(progress, /Loading \[###/);
   assert.match(progress, /25%/);
   assert.match(spinner, /Thinking/);

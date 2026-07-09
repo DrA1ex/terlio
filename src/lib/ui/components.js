@@ -59,10 +59,23 @@ export function Modal({ title = ' Modal ', children = [], footer = '' } = {}) {
   return Box({ border: true, padding: 1, title }, ...nodes);
 }
 
-export function Toast({ level = 'info', message = '' } = {}) {
+export function Toast({ level = 'info', message = '', theme = null, shadow = true, active = true, width = 0 } = {}) {
   const safeLevel = ['info', 'success', 'warning', 'error'].includes(level) ? level : 'info';
+  const style = toastStyle(safeLevel, theme, active);
   const icon = { info: 'i', success: '✓', warning: '!', error: '×' }[safeLevel];
-  return Box({ border: true, padding: { left: 1, right: 1 }, title: ` ${safeLevel} ` }, Text(`${icon} ${message}`));
+  const title = safeLevel;
+  const body = `${style.body}${icon} ${message}${style.reset}`;
+  const box = Box(
+    { border: true, borderColor: style.border, padding: { left: 1, right: 1 }, title },
+    Text(body, { wrap: false }),
+  );
+
+  if (!shadow) return box;
+
+  return Column(
+    box,
+    ...toastShadowLines({ message, width, style }),
+  );
 }
 
 export function ProgressBar({ value = 0, total = 100, width = 24, label = '' } = {}) {
@@ -85,6 +98,83 @@ export function HelpOverlay({ title = ' Help ', shortcuts = [] } = {}) {
   const rows = shortcuts.map(([key, description]) => Text(`${String(key).padEnd(14)} ${description}`));
   return Panel(title, ...(rows.length ? rows : [Text('No shortcuts registered.')]));
 }
+
+function toastStyle(level, theme, active) {
+  const reset = '\x1b[0m';
+  const palette = {
+    info: { border: '\x1b[38;5;45m', body: '\x1b[38;5;195m', shadow: '\x1b[38;5;24m' },
+    success: { border: '\x1b[38;5;114m', body: '\x1b[38;5;194m', shadow: '\x1b[38;5;22m' },
+    warning: { border: '\x1b[38;5;214m', body: '\x1b[38;5;230m', shadow: '\x1b[38;5;94m' },
+    error: { border: '\x1b[38;5;203m', body: '\x1b[38;5;224m', shadow: '\x1b[38;5;52m' },
+  };
+  const fallback = palette[level] ?? palette.info;
+  const accent = theme?.accent || theme?.title || fallback.border;
+  const subdued = theme?.border || fallback.shadow;
+  if (!active) return { ...fallback, border: subdued, reset };
+  return {
+    border: accent || fallback.border,
+    body: theme?.text || fallback.body,
+    shadow: darkerAnsiColor(accent, fallback.shadow),
+    reset,
+  };
+}
+
+function toastShadowLines({ message, width, style }) {
+  const messageWidth = visibleLength(String(message ?? ''));
+  const requestedWidth = Math.max(0, Number(width) || 0);
+  const boxWidth = requestedWidth > 0 ? requestedWidth : messageWidth + 12;
+  const shadowWidth = Math.max(10, Math.min(boxWidth - 2, Math.max(messageWidth + 8, Math.floor(boxWidth * 0.92))));
+  const fill = '▀'.repeat(Math.max(1, shadowWidth - 1));
+
+  return [
+    Text(`${style.shadow}${fill}╲${style.reset}`, { wrap: false }),
+  ];
+}
+
+function darkerAnsiColor(value, fallback) {
+  const match = String(value ?? '').match(/\x1b\[38;5;(\d+)m/);
+  if (!match) return fallback;
+  const index = Number(match[1]);
+  if (!Number.isInteger(index) || index < 0 || index > 255) return fallback;
+  const [r, g, b] = ansi256ToRgb(index);
+  const darker = [r, g, b].map((component) => Math.max(0, Math.round(component * 0.45)));
+  return `\x1b[38;5;${nearestAnsi256(darker)}m`;
+}
+
+function ansi256ToRgb(index) {
+  if (index < 16) return BASIC_ANSI_RGB[index] ?? [0, 0, 0];
+  if (index >= 232) {
+    const value = 8 + (index - 232) * 10;
+    return [value, value, value];
+  }
+  const offset = index - 16;
+  const r = Math.floor(offset / 36);
+  const g = Math.floor((offset % 36) / 6);
+  const b = offset % 6;
+  return [ANSI_CUBE_VALUES[r], ANSI_CUBE_VALUES[g], ANSI_CUBE_VALUES[b]];
+}
+
+function nearestAnsi256([r, g, b]) {
+  let best = 16;
+  let bestDistance = Infinity;
+  for (let index = 16; index <= 255; index += 1) {
+    const [cr, cg, cb] = ansi256ToRgb(index);
+    const distance = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2;
+    if (distance < bestDistance) {
+      best = index;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+const ANSI_CUBE_VALUES = [0, 95, 135, 175, 215, 255];
+const BASIC_ANSI_RGB = [
+  [0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0],
+  [0, 0, 128], [128, 0, 128], [0, 128, 128], [192, 192, 192],
+  [128, 128, 128], [255, 0, 0], [0, 255, 0], [255, 255, 0],
+  [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 255],
+];
 
 function normalizeRenderableChildren(children) {
   const list = Array.isArray(children) ? children : [children];

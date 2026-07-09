@@ -153,12 +153,17 @@ function renderDiffBlock(block, width, theme) {
   const body = String(block.content || '').split('\n');
   return [
     color(theme, 'border', truncateVisible(`┌─ ${title} ${'─'.repeat(width)}`, width)),
-    ...body.map((line) => {
-      const token = line.startsWith('+') ? 'ok' : line.startsWith('-') ? 'error' : 'muted';
-      return color(theme, token, truncateVisible(`│ ${line}`, width));
-    }),
+    ...body.map((line) => color(theme, diffLineToken(line), truncateVisible(`│ ${line}`, width))),
     color(theme, 'border', truncateVisible(`└${'─'.repeat(Math.max(0, width - 1))}`, width)),
   ];
+}
+
+function diffLineToken(line) {
+  const value = String(line ?? '');
+  if (value.startsWith('+') && !value.startsWith('+++')) return 'ok';
+  if (value.startsWith('-') && !value.startsWith('---')) return 'error';
+  if (value.startsWith('@@')) return 'accent';
+  return 'muted';
 }
 
 function renderCommandBlock(block, width, theme) {

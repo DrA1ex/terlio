@@ -5,6 +5,7 @@ import {
   createChatScreen,
   createCommandPaletteState,
   createMessage,
+  renderBlockLines,
   renderToString,
   stripAnsi,
   themes,
@@ -94,6 +95,24 @@ test('ChatScreen can render command palette as an overlay section', () => {
   assert.match(output, /Command Palette/);
   assert.match(output, /Query: theme/);
   assert.match(output, /\/theme/);
+});
+
+
+test('diff blocks highlight patch changes without coloring file headers as additions', () => {
+  const lines = renderBlockLines({
+    block: {
+      type: 'diff',
+      title: 'example.patch',
+      content: '--- a/file.js\n+++ b/file.js\n@@\n- old line\n+ new line',
+    },
+    width: 80,
+    theme: themes.dark,
+  });
+  assert.ok(lines.find((line) => line.includes('+++ b/file.js'))?.startsWith(themes.dark.muted));
+  assert.ok(lines.find((line) => line.includes('--- a/file.js'))?.startsWith(themes.dark.muted));
+  assert.ok(lines.find((line) => line.includes('- old line'))?.startsWith(themes.dark.error));
+  assert.ok(lines.find((line) => line.includes('+ new line'))?.startsWith(themes.dark.ok));
+  assert.ok(lines.find((line) => line.includes('@@'))?.startsWith(themes.dark.accent));
 });
 
 test('ChatScreen renders debug overlay through DebugPanel', () => {

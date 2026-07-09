@@ -79,36 +79,37 @@ List all available examples:
 npm run examples
 ```
 
-Business demos:
+Demos:
 
 ```bash
 npm run demo:chat
 npm run demo:support-desk
+npm run example:code-review
 ```
 
-Product-grade examples:
+Product-style examples:
 
 ```bash
-npm run example:chat
 npm run example:editor
 npm run example:palette
 npm run example:stream
+```
+
+Other examples:
+
+```bash
 npm run example:kit
+npm run example:chat
 npm run example:composer
-npm run example:code-review
 npm run example:command-center
 npm run example:sessions
 npm run example:agent-stream
-```
-
-Diagnostics and galleries:
-
-```bash
 npm run example:keys
 npm run example:themes
 npm run example:blocks
 npm run example:components
 ```
+
 Interactive examples require a real terminal. `example:components` renders to normal stdout and is useful as a quick smoke test.
 
 ## Library usage

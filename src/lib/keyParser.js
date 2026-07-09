@@ -10,6 +10,7 @@ const BASE_KEY = Object.freeze({
 const NAMED = new Map([
   ['\x03', { name: 'ctrl-c', ctrl: true }],
   ['\x04', { name: 'ctrl-d', ctrl: true }],
+  ['\x0f', { name: 'o', ctrl: true }],
   ['\x10', { name: 'command-palette', ctrl: true }],
   ['\x1b', { name: 'escape' }],
   ['\r', { name: 'enter' }],
@@ -70,6 +71,8 @@ export function parseKey(data) {
     const code = Number(csiU[1]);
     const modifier = Number(csiU[2]);
     if (code === 13 || code === 10) return key({ sequence, name: 'enter', ...modifierFlags(modifier) });
+    const normalized = keyFromCsiU({ code, modifier, sequence });
+    if (normalized) return key(normalized);
   }
 
   const modifiedEnter = /^\x1b\[27;(\d+);13~$/.exec(sequence);
@@ -90,6 +93,23 @@ export function isPrintable(value) {
     if (code === undefined || code < 32 || code === 127) return false;
   }
   return true;
+}
+
+
+function keyFromCsiU({ code, modifier, sequence }) {
+  if (!Number.isFinite(code)) return null;
+  const flags = modifierFlags(modifier);
+  const text = String.fromCodePoint(code);
+  const lower = text.toLowerCase();
+  if (flags.ctrl && lower === 'p') return { sequence, name: 'command-palette', ...flags };
+  if (/^[a-z]$/i.test(text)) {
+    const printable = !flags.ctrl && !flags.meta && !flags.cmd;
+    return { sequence, name: lower, text: printable ? text : '', printable, ...flags };
+  }
+  if (isPrintable(text) && !flags.ctrl && !flags.meta && !flags.cmd) {
+    return { sequence, name: text, text, printable: true, ...flags };
+  }
+  return null;
 }
 
 function key(overrides) {

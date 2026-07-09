@@ -5,7 +5,7 @@ import { parseKey, renderToString, stripAnsi } from '../src/lib/index.js';
 import { createKeyInspectorState, createKeyInspectorView, handleKeyInspectorKey } from '../examples/keys.js';
 import { buildComposedPrompt, createPromptComposerState, createPromptComposerView, handlePromptComposerKey, inferPromptPlan } from '../examples/composer.js';
 import { createBlocksGalleryState, createBlocksGalleryView, handleBlocksGalleryKey, primaryBlockAction } from '../examples/blocks.js';
-import { buildReviewBlocks, createCodeReviewState, createCodeReviewView, handleCodeReviewKey, submitReview } from '../examples/code-review.js';
+import { addIncomingReviewComment, buildReviewBlocks, createCodeReviewState, createCodeReviewView, handleCodeReviewKey, jumpToToastComment, submitReview, tickCodeReview } from '../examples/code-review.js';
 import { createCommandCenterState, createCommandCenterView, handleCommandCenterKey } from '../examples/command-center.js';
 import { createSessionBrowserState, createSessionBrowserView, getSessionMatches, handleSessionBrowserKey } from '../examples/sessions.js';
 import { cancelAgentStream, createAgentStreamState, createAgentStreamView, handleAgentStreamKey, submitAgentPrompt } from '../examples/agent-stream.js';
@@ -55,20 +55,117 @@ test('blocks gallery renders all structured block types and records block action
   assert.match(output, /code/);
 });
 
-test('code review demo generates structured review blocks and enters confirm mode for diff apply', () => {
+test('code review demo opens PR picker and can switch pull requests with Ctrl+O', () => {
   const state = createCodeReviewState();
-  submitReview(state);
-  assert.ok(buildReviewBlocks('review lifecycle').some((block) => block.type === 'warning'));
-  assert.ok(state.messages.at(-1).blocks.some((block) => block.type === 'diff'));
+  assert.equal(state.modes.current(), 'pr-picker');
 
-  while (state.messages.at(-1).blocks[state.selectedBlockIndex].type !== 'diff') {
-    handleCodeReviewKey({ key: { name: 'tab', shift: false }, state });
+  handleCodeReviewKey({ key: { name: 'down' }, state });
+  handleCodeReviewKey({ key: { name: 'enter' }, state });
+  assert.equal(state.modes.current(), 'review');
+  assert.equal(state.pr.number, 207);
+  assert.match(state.descriptionEditor.value, /Accepted tab/);
+
+  handleCodeReviewKey({ key: { name: 'o', ctrl: true }, state });
+  assert.equal(state.modes.current(), 'pr-picker');
+  const output = stripAnsi(renderToString(createCodeReviewView({ state, width: 116, height: 34 }), { width: 116, height: 34 }));
+  assert.match(output, /Open Pull Request/);
+  assert.match(output, /Pull Requests/);
+  assert.match(output, /Ctrl\+O opens this picker again/);
+});
+
+test('code review workspace uses read-only PR details, opens diffs and posts comments', () => {
+  const state = createCodeReviewState();
+  handleCodeReviewKey({ key: { name: 'enter' }, state });
+  assert.equal(state.activeTab, 'general');
+
+  const description = state.pr.description;
+  handleCodeReviewKey({ key: { name: 'x', printable: true, text: 'x' }, state });
+  handleCodeReviewKey({ key: { name: 'enter' }, state });
+  assert.equal(state.pr.description, description);
+  assert.match(state.status, /read-only/);
+
+  handleCodeReviewKey({ key: { name: 'tab', shift: false }, state });
+  assert.equal(state.activeTab, 'commits');
+  handleCodeReviewKey({ key: { name: 'down' }, state });
+  assert.equal(state.selectedCommitIndex, 1);
+  handleCodeReviewKey({ key: { name: 'enter' }, state });
+  assert.equal(state.activeTab, 'diff');
+
+  const diffOutput = renderToString(createCodeReviewView({ state, width: 128, height: 34 }), { width: 128, height: 34 });
+  assert.match(diffOutput, /\x1b\[[0-?]*[ -/]*[@-~].*export function resolveAutoScrollOffset/s);
+
+  state.activeTab = 'comments';
+  createCodeReviewView({ state, width: 128, height: 18 });
+  handleCodeReviewKey({ key: { name: 'down' }, state });
+  assert.equal(state.selectedCommentIndex, 1);
+  handleCodeReviewKey({ key: { name: 'enter' }, state });
+  assert.equal(state.modes.current(), 'comment-detail');
+  let commentOutput = stripAnsi(renderToString(createCodeReviewView({ state, width: 128, height: 36 }), { width: 128, height: 36 }));
+  assert.match(commentOutput, /Read Comment/);
+  assert.match(commentOutput, /review-bot|mira|alex/);
+  handleCodeReviewKey({ key: { name: 'escape' }, state });
+  assert.equal(state.modes.current(), 'review');
+
+  createCodeReviewView({ state, width: 128, height: 18 });
+  handleCodeReviewKey({ key: { name: 'page-up' }, state });
+  assert.equal(state.commentsSticky, false);
+  for (let i = 0; i < 80 && !state.commentsSticky; i += 1) {
+    handleCodeReviewKey({ key: { name: 'page-down' }, state });
   }
-  handleCodeReviewKey({ key: { name: 'a' }, state });
+  assert.equal(state.commentsSticky, true);
+
+  handleCodeReviewKey({ key: { name: 'n' }, state });
+  for (const ch of 'Looks good after test coverage.') {
+    handleCodeReviewKey({ key: { name: ch, printable: true, text: ch }, state });
+  }
+  handleCodeReviewKey({ key: { name: 'enter' }, state });
   assert.equal(state.modes.current(), 'confirm');
-  const output = stripAnsi(renderToString(createCodeReviewView({ state, width: 112, height: 34 }), { width: 112, height: 34 }));
-  assert.match(output, /AI Code Review Terminal/);
-  assert.match(output, /Confirm block action/);
+  handleCodeReviewKey({ key: { name: 'enter' }, state });
+  assert.equal(state.pr.comments.at(-1).author, 'you');
+  assert.equal(state.selectedCommentIndex, state.pr.comments.length - 1);
+  assert.equal(state.commentsSticky, true);
+
+  assert.ok(buildReviewBlocks('review lifecycle').some((block) => block.type === 'warning'));
+  assert.ok(submitReview(state).some((block) => block.type === 'diff'));
+
+  const output = stripAnsi(renderToString(createCodeReviewView({ state, width: 128, height: 36 }), { width: 128, height: 36 }));
+  assert.match(output, /pull request review workspace/);
+  assert.match(output, /COMMENTS/);
+  assert.match(output, /Looks good after test coverage/);
+  assert.match(output, /LOCAL HELP/);
+});
+
+
+
+test('code review live comments show a toast and can jump to the target thread block', () => {
+  const state = createCodeReviewState();
+  handleCodeReviewKey({ key: { name: 'enter' }, state });
+  const before = state.pr.comments.length;
+  state.activeTab = 'comments';
+  createCodeReviewView({ state, width: 128, height: 20 });
+
+  const comment = addIncomingReviewComment(state);
+  assert.equal(state.pr.comments.length, before + 1);
+  assert.equal(state.toastTarget.commentIndex, before);
+  assert.match(state.toasts.current().message, /New review comment/);
+  assert.equal(comment.live, true);
+
+  const output = stripAnsi(renderToString(createCodeReviewView({ state, width: 128, height: 34 }), { width: 128, height: 34 }));
+  assert.match(output, /New review comment/);
+  assert.match(output, /J jump to comment/);
+  assert.match(output, /LOCAL HELP/);
+
+  handleCodeReviewKey({ key: { name: 'J' }, state });
+  assert.equal(state.activeTab, 'comments');
+  assert.equal(state.selectedCommentIndex, before);
+  assert.equal(state.toastTarget, null);
+  assert.match(state.status, /Jumped to comment/);
+
+  state.liveCommentCountdown = 1;
+  const ticked = tickCodeReview({ state });
+  assert.ok(ticked);
+  assert.equal(state.pr.comments.length, before + 2);
+  assert.ok(state.liveCommentCountdown >= 18);
 });
 
 test('command center runs palette actions through mode stack and dashboard widgets', () => {

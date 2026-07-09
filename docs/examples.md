@@ -8,7 +8,11 @@ List all examples:
 npm run examples
 ```
 
-## Business demos
+`npm run examples` prints the examples in grouped blocks so demos, product-style examples, and reference material are easier to scan.
+
+## Start here — polished workspaces
+
+These examples share the current UI/UX standard: a stable workspace shell, header stats, navigation tabs, responsive main panes, contextual local help, visible mode state, explicit keyboard routing, scroll helpers, and testable pure render functions.
 
 ### AI chat workspace
 
@@ -34,23 +38,12 @@ examples/support-desk/
   app.js
   commands.js
   data.js
+  index.js
   reducers.js
   templates.js
   themes.js
   views.js
 ```
-
-## Product-grade examples
-
-The product-grade examples use the same overall UI/UX standard as the demos: a stable workspace shell, header stats, navigation tabs, a responsive main area, contextual local help, visible mode state, explicit keyboard routing, and testable pure render functions.
-
-### Chat
-
-```bash
-npm run example:chat
-```
-
-The full mock AI terminal app.
 
 ### Editor Lab
 
@@ -84,6 +77,24 @@ npm run example:kit
 
 A palette-driven interaction workspace showing toasts, modal overlays, confirmation prompts, progress, mode-stack routing, tab-scoped keyboard handling, scrollable runtime/activity panes, and action history in one cohesive flow.
 
+### AI Code Review Terminal
+
+```bash
+npm run example:code-review
+```
+
+A standard pull-request review workspace. It opens with a PR picker modal, can reopen it with Ctrl+O, shows General PR details as read-only, and uses one central tabbed pane for commits, highlighted diffs, scrollable comment threads and confirmed new comments.
+
+## More product-grade examples
+
+### Chat
+
+```bash
+npm run example:chat
+```
+
+The full mock AI terminal app.
+
 ### Prompt Composer
 
 ```bash
@@ -91,14 +102,6 @@ npm run example:composer
 ```
 
 A multi-section prompt workspace with compose, preview, history tabs, templates, live plan, and full-height shell.
-
-### AI Code Review Terminal
-
-```bash
-npm run example:code-review
-```
-
-Structured code review flow with prompt brief, transcript, block index, action rail, mock copy/apply/run actions, and confirmation flow.
 
 ### Command Center
 
@@ -123,6 +126,7 @@ npm run example:agent-stream
 ```
 
 Structured streaming playground with cancel, retry, regenerate, shorter/longer/explain actions, progress, and pinned command/footer layout.
+
 
 ## Diagnostics and galleries
 

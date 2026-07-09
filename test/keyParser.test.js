@@ -18,7 +18,12 @@ test('parseKey normalizes printable text', () => {
 test('parseKey normalizes control keys', () => {
   assert.equal(parseKey('\x03').name, 'ctrl-c');
   assert.equal(parseKey('\x04').name, 'ctrl-d');
+  assert.deepEqual(pick(parseKey('\x0f')), { name: 'o', meta: false, cmd: false, shift: false });
+  assert.equal(parseKey('\x0f').ctrl, true);
+  assert.deepEqual(pick(parseKey('\x1b[111;5u')), { name: 'o', meta: false, cmd: false, shift: false });
+  assert.equal(parseKey('\x1b[111;5u').ctrl, true);
   assert.equal(parseKey('\x10').name, 'command-palette');
+  assert.equal(parseKey('\x1b[112;5u').name, 'command-palette');
   assert.equal(parseKey('\x7f').name, 'backspace');
   assert.equal(parseKey('\x1b[3~').name, 'delete');
 });
