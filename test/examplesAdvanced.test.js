@@ -150,11 +150,22 @@ test('code review live comments show a toast and can jump to the target thread b
   assert.match(state.toasts.current().message, /New review comment/);
   assert.equal(comment.live, true);
 
-  const output = stripAnsi(renderToString(createCodeReviewView({ state, width: 128, height: 34 }), { width: 128, height: 34 }));
+  const coloredOutput = renderToString(createCodeReviewView({ state, width: 128, height: 34 }), { width: 128, height: 34 });
+  const output = stripAnsi(coloredOutput);
   assert.match(output, /New review comment/);
-  assert.match(output, /J jump to comment/);
+  assert.match(output, /Press J to jump/);
   assert.match(output, /LOCAL HELP/);
+  assert.match(coloredOutput, /\x1b\[38;2;/);
 
+  state.toasts.clear();
+  state.toastTarget = null;
+  const clearedOutput = stripAnsi(renderToString(createCodeReviewView({ state, width: 128, height: 34 }), { width: 128, height: 34 }));
+  assert.doesNotMatch(clearedOutput, /Press J to jump/);
+  assert.doesNotMatch(clearedOutput, /New comment on/);
+  assert.match(clearedOutput, /LOCAL HELP/);
+
+  state.toastTarget = { prId: state.pr.id, commentIndex: before };
+  state.toasts.show('New review comment restored for jump test.', 'info', 8);
   handleCodeReviewKey({ key: { name: 'J' }, state });
   assert.equal(state.activeTab, 'comments');
   assert.equal(state.selectedCommentIndex, before);

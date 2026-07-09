@@ -774,8 +774,20 @@ function mainPaneBody(state, width, height) {
 function reviewToast(state, width) {
   const current = state.toasts?.toast ? state.toasts.current() : null;
   if (!current) return null;
-  const jump = state.toastTarget ? ' · J jump to comment' : '';
-  const message = fitInline(`${current.message}${jump}`, Math.max(20, width - 8)).trimEnd();
+
+  const target = state.toastTarget?.prId === state.pr.id
+    ? state.pr.comments[state.toastTarget.commentIndex] ?? null
+    : null;
+
+  if (target) {
+    const location = String(target.location ?? 'general');
+    const file = location.includes(':') ? location.split(':')[0] : location;
+    const message = fitInline(`New comment on ${file} — Press J to jump`, Math.max(24, width - 16)).trimEnd();
+    const detail = fitInline(`${target.author} added a comment • just now`, Math.max(24, width - 18)).trimEnd();
+    return Toast({ level: current.level, message, detail, icon: '🔔', theme: EXAMPLE_THEME, width });
+  }
+
+  const message = fitInline(current.message, Math.max(20, width - 10)).trimEnd();
   return Toast({ level: current.level, message, theme: EXAMPLE_THEME, width });
 }
 

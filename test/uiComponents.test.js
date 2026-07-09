@@ -61,14 +61,15 @@ test('status components render modal, toast, progress and spinner', () => {
   const help = renderToString(HelpOverlay({ shortcuts: [['Esc', 'close'], ['Enter', 'accept']] }), { width: 34, height: 8 });
 
   assert.match(modal, /Details/);
-  assert.match(toast, /warning/);
-  assert.match(renderToString(Toast({ level: 'warning', message: 'Careful' }), { width: 30, height: 4 }), /▀+╲/);
+  assert.match(toast, /Careful/);
+  assert.match(stripAnsi(renderToString(Toast({ level: 'warning', message: 'Careful' }), { width: 30, height: 4 })), /┌│/);
   assert.match(toast, /\x1b\[38;5;214m/);
 
-  const accentToast = renderToString(Toast({ level: 'info', message: 'Visible shadow', theme: themes.ocean, width: 60 }), { width: 60, height: 4 });
-  const shadowLine = accentToast.split('\n').find((line) => line.includes('▀') && line.includes('╲')) ?? '';
-  assert.match(accentToast, /\x1b\[38;5;23m/);
-  assert.ok(visibleLength(shadowLine) >= 52);
+  const accentToast = renderToString(Toast({ level: 'info', message: 'Visible shadow', detail: 'theme aware', theme: themes.ocean, width: 60 }), { width: 60, height: 5 });
+  const shadowLine = accentToast.split('\n').find((line) => stripAnsi(line).trimStart().startsWith('┌│')) ?? '';
+  assert.match(accentToast, /\x1b\[38;2;/);
+  assert.match(accentToast, /theme aware/);
+  assert.ok(visibleLength(shadowLine) >= 54);
   assert.match(progress, /Loading \[###/);
   assert.match(progress, /25%/);
   assert.match(spinner, /Thinking/);
