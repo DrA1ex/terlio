@@ -8,9 +8,9 @@ List all examples:
 npm run examples
 ```
 
-`npm run examples` prints the examples in grouped blocks so demos, product-style examples, and reference material are easier to scan.
+`npm run examples` prints the examples in grouped blocks so demos, product-style examples, and focused UI mechanics references are easier to scan.
 
-## Start here — polished workspaces
+## Demos
 
 These examples share the current UI/UX standard: a stable workspace shell, header stats, navigation tabs, responsive main panes, contextual local help, visible mode state, explicit keyboard routing, scroll helpers, and testable pure render functions.
 
@@ -20,7 +20,7 @@ These examples share the current UI/UX standard: a stable workspace shell, heade
 npm run demo:chat
 ```
 
-Alias for the main mock AI terminal. Demonstrates commands, themes, providers, skills, sessions, command palette, suggestions, structured assistant blocks, and streaming.
+The main mock AI terminal. Demonstrates commands, themes, providers, skills, sessions, command palette, suggestions, structured assistant blocks, and streaming.
 
 ### Support Triage Desk
 
@@ -44,6 +44,16 @@ examples/support-desk/
   themes.js
   views.js
 ```
+
+### AI Code Review Terminal
+
+```bash
+npm run example:code-review
+```
+
+A standard pull-request review workspace. It opens with a PR picker modal, can reopen it with Ctrl+O, shows General PR details as read-only, and uses one central tabbed pane for commits, highlighted diffs, scrollable comment threads and confirmed new comments.
+
+## Product-style examples
 
 ### Editor Lab
 
@@ -69,66 +79,25 @@ npm run example:stream
 
 A streaming workspace with an explicit prompt editor, Ctrl+J newline support, transcript autoscroll, read-only transcript line scrolling with ↑/↓, page scrolling with PgUp/PgDn, runtime control rail, chunk progress, cancellation path, clear `[ and ]` template switching, and a `+ Add new one` flow for saving the current prompt plus a scenario response as a reusable template.
 
+## UI mechanics examples
+
+These examples are intentionally narrower than product demos. Each one focuses on a specific library mechanism or visual regression surface.
+
 ### Interaction Kit
 
 ```bash
 npm run example:kit
 ```
 
-A palette-driven interaction workspace showing toasts, modal overlays, confirmation prompts, progress, mode-stack routing, tab-scoped keyboard handling, scrollable runtime/activity panes, and action history in one cohesive flow.
+A focused playground for feedback and mode mechanics: theme-aware toasts, modal overlays, confirmation prompts, progress, mode-stack routing, tab-scoped keyboard handling, filterable sample lists, scrollable runtime/activity panes, and action history in one cohesive flow.
 
-### AI Code Review Terminal
-
-```bash
-npm run example:code-review
-```
-
-A standard pull-request review workspace. It opens with a PR picker modal, can reopen it with Ctrl+O, shows General PR details as read-only, and uses one central tabbed pane for commits, highlighted diffs, scrollable comment threads and confirmed new comments.
-
-## More product-grade examples
-
-### Chat
-
-```bash
-npm run example:chat
-```
-
-The full mock AI terminal app.
-
-### Prompt Composer
-
-```bash
-npm run example:composer
-```
-
-A multi-section prompt workspace with compose, preview, history tabs, templates, live plan, and full-height shell.
-
-### Command Center
-
-```bash
-npm run example:command-center
-```
-
-Operations dashboard with command palette, mode stack, modal overlay, toast, progress, active skills, and action log.
-
-### Sessions
-
-```bash
-npm run example:sessions
-```
-
-Session browser with filtering, preview, create/export/delete actions, and confirmation prompts.
-
-### Agent Stream
+### Stream Mechanics
 
 ```bash
 npm run example:agent-stream
 ```
 
-Structured streaming playground with cancel, retry, regenerate, shorter/longer/explain actions, progress, and pinned command/footer layout.
-
-
-## Diagnostics and galleries
+A low-level structured streaming reference. It shows queueing chunk and block events, cancellation, retry/regenerate actions, progress, pending timers, and transcript updates without adding a larger product shell.
 
 ### Key Inspector
 
@@ -144,7 +113,7 @@ Shows raw escape sequences, normalized key objects, and editor actions. Use this
 npm run example:themes
 ```
 
-Renders the same structured scene across built-in themes.
+Renders the same structured scene across built-in themes, including panels, blocks, diffs, status colors and toast shadows.
 
 ### Blocks Gallery
 
@@ -152,7 +121,7 @@ Renders the same structured scene across built-in themes.
 npm run example:blocks
 ```
 
-Shows `text`, `code`, `diff`, `command`, `warning`, and `tool_result` blocks with selection and mock actions.
+Shows `text`, `code`, `diff`, `command`, `warning`, and `tool_result` blocks with selection state and mock block actions.
 
 ### Components Showcase
 
@@ -162,13 +131,17 @@ npm run example:components
 
 Non-interactive UI runtime showcase. It can run in regular stdout, so it is useful for quick smoke checks and CI-style output inspection.
 
+## Removed duplicate examples
+
+The previous `example:chat`, `example:composer`, `example:command-center`, and `example:sessions` scripts were removed from the examples list. Their useful mechanics are covered by `demo:chat`, `example:editor`, `example:palette`, and `example:kit`.
+
 ## Running examples directly
 
 Most examples are executable Node.js scripts:
 
 ```bash
 node examples/components-showcase.js
-node examples/command-center.js
+node examples/interaction-kit.js
 node examples/support-desk.js
 ```
 

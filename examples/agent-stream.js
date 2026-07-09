@@ -41,7 +41,7 @@ export function createAgentStreamState() {
     streamTotal: 0,
     streamDone: 0,
     lastPrompt: '',
-    toast: { level: 'info', message: 'Enter starts structured streaming. Esc cancels.' },
+    toast: { level: 'info', message: 'Enter starts the event queue. Esc cancels and clears pending timers.' },
     status: 'Ready.',
   };
 }
@@ -66,7 +66,7 @@ export function createAgentStreamView({ state, width = 110, height = 32 } = {}) 
       Text('Sample prompts'),
       ...STREAM_SCENARIOS.map((scenario, index) => Text(`${index === state.scenarioIndex ? '›' : ' '} ${scenario.prompt}`, { wrap: false })),
       Text(''),
-      Text('Enter starts a structured stream. Esc cancels the active stream.'),
+      Text('Enter starts a chunk/block event queue. Esc cancels the active timer.'),
     ],
   });
   const controlPane = WorkspacePane({
@@ -96,8 +96,8 @@ export function createAgentStreamView({ state, width = 110, height = 32 } = {}) 
       : transcriptPane;
 
   return WorkspaceShell({
-    title: 'Agent Stream Playground',
-    subtitle: 'structured streaming playground',
+    title: 'Stream Mechanics',
+    subtitle: 'low-level stream queue mechanics',
     stats: [{ label: 'Streaming', value: state.streaming ? 'yes' : 'no' }, { label: 'Progress', value: `${state.streamDone}/${state.streamTotal}` }],
     right: [{ label: 'Scenario', value: state.scenarioIndex + 1 }],
     focus: state.streaming ? 'stream' : 'prompt',
@@ -107,7 +107,7 @@ export function createAgentStreamView({ state, width = 110, height = 32 } = {}) 
     main,
     command: WorkspaceCommandBar({ value: state.prompt.value, prompt: 'prompt', mode: state.streaming ? 'STREAMING' : 'READY', suggestions: ['Enter submit', 'Esc cancel', 'R retry', 'G regenerate', 'S/L rewrite', 'E explain'], theme: EXAMPLE_THEME }),
     activity: KeyHintBar({ title: ' LOCAL HELP ', hints: [['Enter', 'submit'], ['Esc', 'cancel'], ['↑/↓', 'sample prompt'], ['R', 'retry'], ['G', 'regenerate'], ['E', 'explain']], theme: EXAMPLE_THEME }),
-    footer: WorkspaceFooter({ left: [state.status], right: [`theme: ${EXAMPLE_THEME.name}`, 'demo: agent-stream'], theme: EXAMPLE_THEME }),
+    footer: WorkspaceFooter({ left: [state.status], right: [`theme: ${EXAMPLE_THEME.name}`, 'mechanics: stream'], theme: EXAMPLE_THEME }),
     height,
     theme: EXAMPLE_THEME,
   });
@@ -231,7 +231,7 @@ function mod(value, size) {
 
 if (isDirectRun(import.meta.url)) {
   runInteractiveDemo({
-    title: 'Agent Stream Playground',
+    title: 'Stream Mechanics',
     state: createAgentStreamState(),
     render: createAgentStreamView,
     onKey: handleAgentStreamKey,

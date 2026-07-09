@@ -146,7 +146,7 @@ output.on('resize', render);
 render();
 ```
 
-For a larger application shell, inspect `examples/support-desk/` and `examples/command-center.js`.
+For a larger application shell, inspect `examples/support-desk/` and `examples/interaction-kit.js`.
 
 ## Choosing the right layer
 

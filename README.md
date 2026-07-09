@@ -95,14 +95,10 @@ npm run example:palette
 npm run example:stream
 ```
 
-Other examples:
+UI mechanics examples:
 
 ```bash
 npm run example:kit
-npm run example:chat
-npm run example:composer
-npm run example:command-center
-npm run example:sessions
 npm run example:agent-stream
 npm run example:keys
 npm run example:themes
@@ -192,7 +188,7 @@ src/
     ui/                 declarative UI runtime and components
     chat/               chat screen and transcript components
     commands/           slash command parser and registry
-    *.js                input, keys, modes, focus, sessions, providers, state
+    *.js                input, keys, modes, focus, providers, state
 examples/               runnable demos and product examples
 test/                   node:test test suite
 docs/                   documentation
