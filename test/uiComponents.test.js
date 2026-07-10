@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   SelectList,
+  ScrollPane,
   ConfirmPrompt,
   Modal,
   Toast,
@@ -159,6 +160,18 @@ test('InputEditor supports explicit line breaks and key parser recognizes Ctrl+J
   const key = parseKey('\n');
   assert.equal(key.name, 'enter');
   assert.equal(key.ctrl, true);
+});
+
+test('ScrollPane uses every assigned row when border and footer are disabled', () => {
+  const output = stripAnsi(renderToString(ScrollPane({
+    lines: ['one', 'two', 'three'],
+    width: 20,
+    height: 3,
+    border: false,
+    footer: false,
+  }), { width: 20, height: 3 }));
+
+  assert.deepEqual(output.split('\n').map((line) => line.trim()), ['one', 'two', 'three']);
 });
 
 test('visibleWindowLines returns a clamped scrollable window', () => {

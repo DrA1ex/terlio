@@ -51,7 +51,7 @@ examples/support-desk/
 npm run example:code-review
 ```
 
-A standard pull-request review workspace. It opens with a PR picker modal, can reopen it with Ctrl+O, shows General PR details as read-only, and uses one central tabbed pane for commits, highlighted diffs, scrollable comment threads and confirmed new comments.
+A responsive pull-request review workspace. It opens with a keyboard-driven PR picker, keeps General details read-only, pages through commits and diffs, and presents full-width review-thread cards with a sticky latest-comment position. Use `N` for a new comment, `R` to reply to the selected author, `Ctrl+J` for a newline, and `J` to jump to a live-comment toast. Confirmation is focus-trapped, transient feedback is rendered as an overlay, and all panes preserve their scroll position through terminal resizes.
 
 ## Product-style examples
 

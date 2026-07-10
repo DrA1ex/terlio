@@ -95,7 +95,8 @@ export function ScrollPane({
   previousTotalRows = undefined,
   sticky = undefined,
 } = {}) {
-  const innerHeight = Math.max(1, Number(height) || 1) - (border ? 3 : 1);
+  const chromeRows = (border ? 2 : 0) + (footer ? 1 : 0);
+  const innerHeight = Math.max(1, (Number(height) || 1) - chromeRows);
   const window = visibleWindowLines(lines, { height: Math.max(1, innerHeight), scroll, autoscroll, previousTotalRows, sticky });
   const rows = window.lines.map((line) => Text(fit(line, Math.max(1, width - (border ? 4 : 0))), { wrap: false }));
   if (footer) rows.push(Text(`↑↓ scroll ${window.scroll}/${window.maxScroll}`, { wrap: false }));

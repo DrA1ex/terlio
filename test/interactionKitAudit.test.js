@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   KeyHintBar,
+  OverlayHost,
   Text,
   WorkspacePane,
   createOverlayManager,
@@ -50,6 +51,22 @@ test('WorkspacePane reserves an adaptive footer panel and clips content before i
   assert.match(output, /Enter accept current item/);
   assert.equal(lines.at(-1).startsWith('└'), true);
   assert.doesNotMatch(output, /content 20/);
+});
+
+test('OverlayHost dims background content behind blocking overlays', () => {
+  const manager = createOverlayManager();
+  manager.modal({ title: ' Blocking modal ', children: ['Modal body'] });
+  const output = renderToString(OverlayHost({
+    content: WorkspacePane({ title: ' Background ', children: [Text('background content')] }),
+    manager,
+    theme: themes.ocean,
+    width: 64,
+    height: 14,
+  }), { width: 64, height: 14 });
+
+  assert.match(output, /Modal body/);
+  assert.match(output, /background content/);
+  assert.ok(output.includes(themes.ocean.textMuted));
 });
 
 test('all example:kit screens keep the local controls panel visible at 136x39', () => {

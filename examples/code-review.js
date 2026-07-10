@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 import {
-  Column,
-  ConfirmPrompt,
   InputEditor,
   KeyHintBar,
   Modal,
   ModeManager,
+  OverlayHost,
   ScrollPane,
   SelectList,
   Text,
-  Toast,
   WorkspacePane,
   WorkspaceShell,
   appendMessageBlock,
@@ -17,12 +15,14 @@ import {
   createMessage,
   createToastManager,
   fitInline,
+  measureNodeHeight,
   renderTextEditorLines,
   resolveAutoScrollOffset,
   resolveScrollKeyOffset,
   resolveWorkspaceShellLayout,
   scrollMax,
-  themes,
+  truncateVisible,
+  visibleLength,
   wrapText,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
@@ -538,6 +538,8 @@ const TABS = [
   { id: 'comments', label: 'Comments' },
 ];
 
+const TOAST_TTL = 3;
+
 export function createCodeReviewState() {
   const pr = clonePullRequest(PULL_REQUESTS[0]);
   const modes = new ModeManager('review');
@@ -551,8 +553,9 @@ export function createCodeReviewState() {
     commentMode: 'list',
     activeTab: 'general',
     selectedCommitIndex: 0,
-    selectedCommentIndex: 0,
+    selectedCommentIndex: Math.max(0, pr.comments.length - 1),
     commentLineAnchors: [],
+    commitLineAnchors: [],
     commentDetailScroll: 0,
     commentDetailMetrics: { totalRows: 0, visibleRows: 1 },
     modes,
@@ -567,31 +570,49 @@ export function createCodeReviewState() {
       comments: { totalRows: 0, visibleRows: 1 },
     },
     commentsSticky: true,
-    toasts: createToastManager({ level: 'info', message: 'Choose a pull request. Live review comments will appear while you work.', ttl: 6 }),
+    toasts: createToastManager(),
     toastTarget: null,
     liveCommentCursor: 0,
     liveCommentCountdown: createInitialLiveDelay(),
+    viewport: { width: 110, height: 32 },
     status: 'Choose a pull request. Ctrl+O opens this picker again.',
   };
 }
 
 export function createCodeReviewView({ state, width = 110, height = 32 } = {}) {
   ensurePullRequest(state);
+  state.viewport = { width, height };
   const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['general'] });
-  const help = KeyHintBar({ title: ' LOCAL HELP ', hints: contextHelpHints(state), theme: EXAMPLE_THEME, gridBorder: true });
-  const toast = reviewToast(state, width);
-  const activity = toast ? Column(toast, help) : help;
+  const help = KeyHintBar({
+    title: ' LOCAL HELP ',
+    hints: contextHelpHints(state),
+    theme: EXAMPLE_THEME,
+    adaptive: true,
+    columns: 'auto',
+    maxColumns: width >= 118 ? 3 : 2,
+    minColumnWidth: width >= 118 ? 22 : 18,
+    gap: width >= 100 ? 2 : 1,
+  });
+  const statusFooter = Text(color(EXAMPLE_THEME, 'textMuted', fitInline(`Status: ${state.status}`, Math.max(1, width))), { wrap: false });
+  const focus = state.modes.current() === 'review' ? state.activeTab : state.modes.current();
+  const narrow = width < 118;
   const stats = [
     { label: 'PR', value: `#${state.pr.number}` },
     { label: 'Checks', value: state.pr.checks },
     { label: 'Comments', value: state.pr.comments.length },
-    { label: 'Mode', value: state.modes.current() },
+    ...(!narrow ? [{ label: 'Mode', value: state.modes.current() }] : []),
   ];
   const right = [
     { label: 'Risk', value: state.pr.risk },
-    { label: 'Status', value: fitInline(state.status, 52).trimEnd() },
+    ...(!narrow ? [{ label: 'Review', value: state.pr.status }] : []),
   ];
-  const tabHint = responsiveTabHint('Tab focus · Ctrl+O open PR picker · Enter primary action · J jump live comment · ↑/↓ scoped navigation · PgUp/PgDn scroll', TABS, visibleTabs);
+  const tabHint = responsiveTabHint(
+    width < 118
+      ? 'Tab panes · Ctrl+O PRs · Enter action · J live · PgUp/PgDn page'
+      : 'Tab panes · Ctrl+O pull requests · Enter primary action · J jump to live comment · PgUp/PgDn page',
+    TABS,
+    visibleTabs,
+  );
   const { mainHeight } = resolveWorkspaceShellLayout({
     width,
     height,
@@ -599,30 +620,42 @@ export function createCodeReviewView({ state, width = 110, height = 32 } = {}) {
     subtitle: 'pull request review workspace',
     stats,
     right,
-    focus: state.activeTab,
+    focus: narrow ? '' : focus,
     tabs: visibleTabs,
     activeTab: state.activeTab,
     tabHint,
-    activity,
+    activity: help,
+    footer: statusFooter,
     theme: EXAMPLE_THEME,
-    minMainHeight: 8,
+    minMainHeight: 6,
   });
 
   const main = mainPaneBody(state, width, mainHeight);
-
-  return WorkspaceShell({
+  const shell = WorkspaceShell({
     title: 'AI Code Review Terminal',
     subtitle: 'pull request review workspace',
     stats,
     right,
-    focus: state.activeTab,
+    focus: narrow ? '' : focus,
     tabs: visibleTabs,
     activeTab: state.activeTab,
     tabHint,
     main,
-    activity,
+    activity: help,
+    footer: statusFooter,
     height,
     theme: EXAMPLE_THEME,
+  });
+
+  return OverlayHost({
+    content: shell,
+    manager: reviewOverlayManager(state),
+    theme: EXAMPLE_THEME,
+    width,
+    height,
+    // Keep transient overlays inside the main content area. The extra rows
+    // protect the pane footer and closing border from being overwritten.
+    toastBottomMargin: measureNodeHeight(help, width) + measureNodeHeight(statusFooter, width) + 2,
   });
 }
 
@@ -634,19 +667,29 @@ export function handleCodeReviewKey({ key, state, runtime = { exit() {} } }) {
     return;
   }
 
+  const mode = state.modes.current();
+  // Blocking review modes own every key except the emergency quit shortcut.
+  // This prevents global actions from opening a second surface behind a modal.
+  if (mode === 'confirm') return handleConfirmKey(key, state);
+  if (mode === 'comment-detail') return handleCommentDetailKey(key, state);
+
   if ((key.name === 'o' && key.ctrl) || key.name === 'ctrl-o' || key.name === 'open') {
     openPullRequestPicker(state);
     return;
   }
 
-  if (state.modes.current() === 'pr-picker') return handlePullRequestPickerKey(key, state);
-  if (state.modes.current() === 'confirm') return handleConfirmKey(key, state);
-  if (state.modes.current() === 'comment-detail') return handleCommentDetailKey(key, state);
+  if (mode === 'pr-picker') return handlePullRequestPickerKey(key, state);
 
   const keyName = String(key.name ?? '').toLowerCase();
   if (state.commentMode !== 'editor' && state.toastTarget && (keyName === 'j' || keyName === 'g')) {
     jumpToToastComment(state);
     return;
+  }
+
+  // The comment composer owns editing keys, including Tab. Global pane
+  // navigation must not steal focus while the user is writing a review note.
+  if (state.activeTab === 'comments' && state.commentMode === 'editor') {
+    return handleCommentsKey({ key, state });
   }
 
   if (key.name === 'tab') {
@@ -672,13 +715,16 @@ export function submitReview(state) {
 
 export function tickCodeReview({ state }) {
   ensurePullRequest(state);
+  const hadToast = Boolean(state.toasts?.toast);
+  const previousTtl = Number(state.toasts?.toast?.ttl ?? 0);
   state.toasts?.tick(1);
-  if (state.modes.current() === 'pr-picker') return null;
+  const toastChanged = hadToast && (!state.toasts?.toast || Number(state.toasts.toast.ttl) !== previousTtl);
+  if (state.modes.current() !== 'review' || state.commentMode === 'editor') return toastChanged;
   state.liveCommentCountdown = Math.max(0, Number(state.liveCommentCountdown ?? createInitialLiveDelay()) - 1);
-  if (state.liveCommentCountdown > 0) return null;
+  if (state.liveCommentCountdown > 0) return toastChanged;
   const comment = addIncomingReviewComment(state);
   state.liveCommentCountdown = createNextLiveDelay(state);
-  return comment;
+  return comment ?? toastChanged;
 }
 
 export function addIncomingReviewComment(state) {
@@ -702,8 +748,8 @@ export function addIncomingReviewComment(state) {
     state.commentsSticky = true;
   }
   syncCurrentPullRequest(state);
-  state.toasts?.show(`New review comment from ${comment.author} at ${comment.location}.`, 'info', 8);
-  state.status = `New review comment added at ${comment.location}. Press J to jump.`;
+  state.toasts?.show(`New review comment from ${comment.author} at ${comment.location}.`, 'info', TOAST_TTL);
+  state.status = `New review comment added at ${comment.location}.`;
   return comment;
 }
 
@@ -763,7 +809,7 @@ export function buildReviewBlocks(prompt) {
 function mainPaneBody(state, width, height) {
   const mode = state.modes.current();
   if (mode === 'pr-picker') return pullRequestPicker(state, width, height);
-  if (mode === 'confirm') return confirmCommentModal(state, height);
+  if (mode === 'confirm') return commentsPane(state, width, height, { showEditor: false });
   if (mode === 'comment-detail') return commentDetailModal(state, width, height);
   if (state.activeTab === 'commits') return commitsPane(state, width, height);
   if (state.activeTab === 'diff') return diffPane(state, width, height);
@@ -771,60 +817,80 @@ function mainPaneBody(state, width, height) {
   return generalPane(state, width, height);
 }
 
-function reviewToast(state, width) {
-  const current = state.toasts?.toast ? state.toasts.current() : null;
-  if (!current) return null;
+function reviewOverlayManager(state) {
+  const mode = state.modes.current();
+  if (mode === 'confirm') {
+    const preview = truncateVisible(state.commentEditor.value.trim().replace(/\s+/g, ' '), 88, '…');
+    return {
+      top: () => ({
+        type: 'confirm',
+        title: ' Post comment ',
+        message: preview ? `Post this review comment? “${preview}”` : 'Post this review comment?',
+        confirmLabel: 'Post',
+        cancelLabel: 'Cancel',
+        selected: state.confirmSelected,
+      }),
+      toasts: [],
+    };
+  }
+
+  const current = state.toasts?.toast ?? null;
+  const blocking = mode === 'comment-detail';
+  if (!current || blocking) return { top: () => null, toasts: [] };
 
   const target = state.toastTarget?.prId === state.pr.id
     ? state.pr.comments[state.toastTarget.commentIndex] ?? null
     : null;
-
-  if (target) {
-    const location = String(target.location ?? 'general');
-    const file = location.includes(':') ? location.split(':')[0] : location;
-    const message = fitInline(`New comment on ${file} — Press J to jump`, Math.max(24, width - 16)).trimEnd();
-    const detail = fitInline(`${target.author} added a comment • just now`, Math.max(24, width - 18)).trimEnd();
-    return Toast({ level: current.level, message, detail, icon: '🔔', theme: EXAMPLE_THEME, width });
+  if (!target) {
+    return {
+      top: () => null,
+      toasts: [{ id: 'code-review.toast', ...current }],
+    };
   }
 
-  const message = fitInline(current.message, Math.max(20, width - 10)).trimEnd();
-  return Toast({ level: current.level, message, theme: EXAMPLE_THEME, width });
+  const location = String(target.location ?? 'general');
+  const file = location.includes(':') ? location.split(':')[0] : location;
+  return {
+    top: () => null,
+    toasts: [{
+      id: 'code-review.live-comment',
+      ...current,
+      message: 'New review comment — Press J to jump',
+      detail: `${target.author} commented on ${file} at ${target.location}`,
+    }],
+  };
 }
 
 function pullRequestPicker(state, width, height = undefined) {
   const selected = state.pullRequests[state.selectedPrIndex] ?? state.pullRequests[0];
-  const children = [
-    Text('Select a pull request to review. Ctrl+O opens this picker again from any pane.', { wrap: false }),
-    SelectList({
-      title: 'Pull Requests',
-      items: state.pullRequests,
-      selectedIndex: state.selectedPrIndex,
-      windowSize: Math.max(3, Math.min(6, state.pullRequests.length)),
-      getLabel: (pr) => `#${pr.number} ${fitInline(pr.title, Math.max(24, Math.min(48, width - 54))).trimEnd()}`,
-      getDescription: (pr) => `${pr.status} · ${pr.checks} · ${pr.author}`,
-    }),
-  ];
-  if (selected) {
+  const compact = width < 100 || Number(height) < 15;
+  const children = [];
+  if (!compact) children.push(Text('Select a pull request to review. Ctrl+O opens this picker again from any pane.', { wrap: false }));
+  children.push(SelectList({
+    title: 'Pull Requests',
+    items: state.pullRequests,
+    selectedIndex: state.selectedPrIndex,
+    windowSize: Math.max(2, Math.min(compact ? 3 : 5, state.pullRequests.length)),
+    getLabel: (pr) => `#${pr.number} ${pr.title}`,
+    getDescription: (pr) => compact ? '' : `${pr.status} · ${pr.checks} · ${pr.author}`,
+    wrapItems: !compact,
+    rowLines: compact ? 1 : 2,
+    reserveItemLines: !compact,
+    theme: EXAMPLE_THEME,
+  }));
+  if (selected && !compact) {
+    const detailWidth = Math.max(20, width - 10);
+    const descriptionLines = wrapText(selected.description, detailWidth, '  ');
     children.push(
       Text(''),
-      Text(`Selected: #${selected.number} ${selected.title}`, { wrap: false }),
-      Text(`Branch: ${selected.branch} → ${selected.base} · Checks: ${selected.checks} · Comments: ${selected.comments.length}`, { wrap: false }),
-      ...wrapText(selected.description, Math.max(20, width - 10), '  ').slice(0, 4).map((line) => Text(line, { wrap: false })),
+      Text(fitInline(`Selected: #${selected.number} ${selected.title}`, detailWidth), { wrap: false }),
+      Text(fitInline(`Branch: ${selected.branch} → ${selected.base} · Checks: ${selected.checks} · Comments: ${selected.comments.length}`, detailWidth), { wrap: false }),
+      ...descriptionLines.slice(0, 3).map((line) => Text(line, { wrap: false })),
+      descriptionLines.length > 3 ? Text(color(EXAMPLE_THEME, 'textMuted', `  … ${descriptionLines.length - 3} more description line${descriptionLines.length - 3 === 1 ? '' : 's'}`), { wrap: false }) : null,
     );
   }
-  children.push(Text(fitInline('↑/↓ select · Enter open · Esc close', Math.max(24, width - 8)), { wrap: false }));
+  children.push(Text(fitInline('↑/↓ select · PgUp/PgDn page · Home/End edges · Enter open · Esc close', Math.max(24, width - 8)), { wrap: false }));
   return Modal({ title: ' Open Pull Request ', children, ...(height !== undefined ? { height } : {}) });
-}
-
-function confirmCommentModal(state, height = undefined) {
-  return ConfirmPrompt({
-    title: ' Post comment ',
-    message: 'Post this review comment?',
-    confirmLabel: 'Post',
-    cancelLabel: 'Cancel',
-    selected: state.confirmSelected,
-    ...(height !== undefined ? { height } : {}),
-  });
 }
 
 function generalPane(state, width, height) {
@@ -853,7 +919,7 @@ function generalPane(state, width, height) {
     '',
     'Review flow',
     '  Tab switches the central pane. Commits chooses a commit, Diff reads patch changes, Comments opens discussion blocks.',
-  ].filter((line) => line !== '');
+  ];
   return scrollablePane({
     title: ` GENERAL #${state.pr.number} `,
     pane: 'general',
@@ -869,12 +935,25 @@ function generalPane(state, width, height) {
 function commitsPane(state, width, height) {
   const bodyWidth = Math.max(18, width - 6);
   const lines = [];
+  const starts = [];
   state.pr.commits.forEach((commit, index) => {
+    starts[index] = lines.length;
     const selected = index === state.selectedCommitIndex;
-    lines.push(`${selected ? '›' : ' '} ${commit.sha} ${commit.title}`);
-    lines.push(`    by ${commit.author}`);
+    const token = selected ? 'selected' : 'text';
+    const titleRows = wrapText(`${selected ? '›' : ' '} ${commit.sha} ${commit.title}`, bodyWidth, '  ');
+    lines.push(...titleRows.map((row) => color(EXAMPLE_THEME, token, row)));
+    lines.push(`    by ${commit.author} · ${commit.files.length} changed file${commit.files.length === 1 ? '' : 's'}`);
     for (const file of commit.files) lines.push(`    • ${fitInline(file, bodyWidth - 6).trimEnd()}`);
     if (index < state.pr.commits.length - 1) lines.push('');
+  });
+  state.commitLineAnchors = starts;
+  const visibleRows = Math.max(1, Number(height) - 3);
+  state.paneScroll.commits = ensureSelectedCommentVisible({
+    scroll: state.paneScroll.commits ?? 0,
+    visibleRows,
+    starts,
+    selectedIndex: state.selectedCommitIndex,
+    totalRows: lines.length,
   });
   return scrollablePane({
     title: ` COMMITS ${state.selectedCommitIndex + 1}/${state.pr.commits.length} `,
@@ -884,15 +963,16 @@ function commitsPane(state, width, height) {
     width,
     height,
     active: state.activeTab === 'commits',
-    footerLabel: '↑/↓ select commit · Enter open diff',
+    footerLabel: '↑/↓ select · PgUp/PgDn page · Enter diff',
   });
 }
 
 function diffPane(state, width, height) {
   const commit = selectedCommit(state);
+  const bodyWidth = Math.max(18, width - 6);
   const lines = [
     `${commit.sha} ${commit.title}`,
-    `Files: ${commit.files.join(', ')}`,
+    ...wrapText(`Files: ${commit.files.join(', ')}`, bodyWidth, ''),
     '',
     ...commit.diff.map((line) => highlightPatchLine(line)),
   ];
@@ -908,16 +988,16 @@ function diffPane(state, width, height) {
   });
 }
 
-function commentsPane(state, width, height) {
-  const bodyWidth = Math.max(18, width - 8);
+function commentsPane(state, width, height, { showEditor = state.commentMode === 'editor' } = {}) {
+  const bodyWidth = Math.max(18, width - 4);
   clampSelectedComment(state);
-  const { lines, starts } = commentThreadLayout(state, bodyWidth);
+  const { lines, starts } = commentThreadLayout(state, bodyWidth, { showEditor });
   state.commentLineAnchors = starts;
-  const visibleRows = Math.max(1, Number(height) - 4);
+  const visibleRows = Math.max(1, Number(height) - 3);
   const max = scrollMax(lines.length, visibleRows);
   let scroll = state.paneScroll.comments ?? 0;
 
-  if (state.commentMode === 'editor' || state.commentsSticky) {
+  if (state.commentsSticky) {
     const previousTotalRows = state.scrollMetrics.comments?.totalRows ?? lines.length;
     scroll = resolveAutoScrollOffset({
       scroll,
@@ -926,7 +1006,7 @@ function commentsPane(state, width, height) {
       visibleRows,
       sticky: true,
     });
-  } else {
+  } else if (!showEditor || state.commentMode === 'list') {
     scroll = Math.max(0, Math.min(scroll, max));
     scroll = ensureSelectedCommentVisible({
       scroll,
@@ -941,30 +1021,31 @@ function commentsPane(state, width, height) {
   state.scrollMetrics.comments = { totalRows: lines.length, visibleRows };
   state.commentsSticky = scroll >= max;
 
-  const modeHelp = state.commentMode === 'editor'
-    ? 'Enter post · Ctrl+J newline · Esc cancel'
-    : '↑/↓ select · Enter read · N new comment · PgUp/PgDn scroll';
+  const modeHelp = showEditor
+    ? 'Enter post · Ctrl+J newline · PgUp/PgDn thread · Esc cancel'
+    : '↑/↓ select · PgUp/PgDn page · Enter read · N new · R reply';
 
   return WorkspacePane({
-    title: ` COMMENTS ${state.pr.comments.length}${state.commentMode === 'editor' ? ' · writing' : ''} `,
+    title: ` COMMENTS ${state.pr.comments.length}${showEditor ? ' · writing' : ''} `,
     active: state.activeTab === 'comments',
     height,
+    footer: `${modeHelp} · ${state.paneScroll.comments}/${max}`,
     children: [
       ScrollPane({
         title: '',
         lines,
         width: Math.max(10, width - 2),
-        height: Math.max(3, height - 2),
+        height: visibleRows,
         scroll: state.paneScroll.comments,
         footer: false,
         border: false,
       }),
-      Text(`${modeHelp} · ${state.paneScroll.comments}/${scrollMax(lines.length, visibleRows)}`, { wrap: false }),
     ],
   });
 }
 
-function commentThreadLayout(state, width) {
+function commentThreadLayout(state, width, { showEditor = state.commentMode === 'editor' } = {}) {
+  const safeWidth = Math.max(16, Number(width) || 16);
   const lines = [];
   const starts = [];
   if (!state.pr.comments.length) {
@@ -973,28 +1054,49 @@ function commentThreadLayout(state, width) {
   state.pr.comments.forEach((comment, index) => {
     starts[index] = lines.length;
     const selected = index === state.selectedCommentIndex;
-    const title = `${selected ? '› ' : '  '}${comment.author} @ ${comment.location} [${comment.status}]`;
-    lines.push(`┌─ ${title}`);
-    const body = wrapText(comment.body, Math.max(8, width - 4), '  ');
-    for (const row of body) lines.push(`│ ${row}`);
-    lines.push(`└${'─'.repeat(Math.max(8, Math.min(width - 1, title.length + 4)))}${selected ? ' Enter read' : ''}`);
+    const title = `${selected ? '› ' : ''}${comment.author} @ ${comment.location} [${comment.status}]`;
+    const borderToken = selected ? 'selected' : 'borderMuted';
+    lines.push(color(EXAMPLE_THEME, borderToken, threadTop(title, safeWidth)));
+    const body = wrapText(comment.body, Math.max(8, safeWidth - 4), '');
+    for (const row of body) lines.push(threadBody(row, safeWidth));
+    lines.push(color(EXAMPLE_THEME, borderToken, threadBottom(selected ? 'Enter read' : '', safeWidth)));
     if (index < state.pr.comments.length - 1) lines.push('');
   });
-  if (state.commentMode === 'editor') {
+  if (showEditor) {
     if (lines.length) lines.push('');
-    lines.push('┌─ New review comment');
+    lines.push(color(EXAMPLE_THEME, 'selected', threadTop('New review comment', safeWidth)));
     const editorLines = renderTextEditorLines({
       value: state.commentEditor.value,
       cursor: state.commentEditor.cursor,
-      width: Math.max(8, width - 4),
+      width: Math.max(8, safeWidth - 4),
       height: Math.max(3, Math.min(6, 3 + state.commentEditor.value.split('\n').length)),
       placeholder: 'Write a comment. Enter posts, Ctrl+J adds a new line.',
       lineNumbers: false,
     });
-    for (const line of editorLines) lines.push(`│ ${line}`);
-    lines.push('└' + '─'.repeat(Math.max(8, Math.min(width - 1, 22))));
+    for (const line of editorLines) lines.push(threadBody(line, safeWidth));
+    lines.push(color(EXAMPLE_THEME, 'selected', threadBottom('Enter review', safeWidth)));
   }
   return { lines, starts };
+}
+
+function threadTop(label, width) {
+  const safeWidth = Math.max(8, Number(width) || 8);
+  const safeLabel = truncateVisible(String(label ?? ''), Math.max(1, safeWidth - 6));
+  const prefix = `┌─ ${safeLabel} `;
+  return `${prefix}${'─'.repeat(Math.max(0, safeWidth - visibleLength(prefix) - 1))}┐`;
+}
+
+function threadBody(value, width) {
+  const safeWidth = Math.max(8, Number(width) || 8);
+  const contentWidth = Math.max(1, safeWidth - 4);
+  const content = truncateVisible(String(value ?? ''), contentWidth, '…');
+  return `│ ${content}${' '.repeat(Math.max(0, contentWidth - visibleLength(content)))} │`;
+}
+
+function threadBottom(label, width) {
+  const safeWidth = Math.max(8, Number(width) || 8);
+  const suffix = label ? ` ${truncateVisible(label, Math.max(1, safeWidth - 5))} ┘` : '┘';
+  return `└${'─'.repeat(Math.max(0, safeWidth - visibleLength(suffix) - 1))}${suffix}`;
 }
 
 function ensureSelectedCommentVisible({ scroll, visibleRows, starts, selectedIndex, totalRows }) {
@@ -1010,9 +1112,12 @@ function ensureSelectedCommentVisible({ scroll, visibleRows, starts, selectedInd
 function commentDetailModal(state, width, height) {
   const comment = selectedComment(state);
   if (!comment) {
-    return Modal({
-      title: ' Comment ',
-      children: [Text('No comments to read. Press Esc to return to the Comments pane.')],
+    return WorkspacePane({
+      title: ' COMMENT ',
+      active: true,
+      height,
+      footer: 'Esc back to Comments',
+      children: [Text('No comments to read.')],
     });
   }
 
@@ -1027,30 +1132,32 @@ function commentDetailModal(state, width, height) {
     '',
     `PR: #${state.pr.number} ${state.pr.title}`,
   ];
-  const visibleRows = Math.max(1, Number(height) - 7);
+  const visibleRows = Math.max(1, Number(height) - 3);
   const max = scrollMax(lines.length, visibleRows);
   state.commentDetailScroll = Math.max(0, Math.min(state.commentDetailScroll ?? 0, max));
   state.commentDetailMetrics = { totalRows: lines.length, visibleRows };
 
-  return Modal({
-    title: ' Read Comment ',
+  return WorkspacePane({
+    title: ` READ COMMENT ${state.selectedCommentIndex + 1}/${state.pr.comments.length} `,
+    active: true,
+    height,
+    footer: `↑/↓ line · PgUp/PgDn page · Home/End edges · Enter/Esc back · ${state.commentDetailScroll}/${max}`,
     children: [
       ScrollPane({
         title: '',
         lines,
-        width: Math.max(10, width - 6),
-        height: Math.max(4, visibleRows + 1),
+        width: Math.max(10, width - 2),
+        height: visibleRows,
         scroll: state.commentDetailScroll,
         border: false,
         footer: false,
       }),
-      Text(`↑/↓ scroll · Esc back to Comments · ${state.commentDetailScroll}/${max}`, { wrap: false }),
     ],
   });
 }
 
 function scrollablePane({ title, pane, state, lines, width, height, active, footerLabel }) {
-  const visibleRows = Math.max(1, Number(height) - 4);
+  const visibleRows = Math.max(1, Number(height) - 3);
   const metrics = state.scrollMetrics[pane] ?? { totalRows: 0, visibleRows };
   const result = resolveScrollKeyOffset({
     keyName: 'noop',
@@ -1065,29 +1172,49 @@ function scrollablePane({ title, pane, state, lines, width, height, active, foot
     title,
     active,
     height,
+    footer: `${footerLabel} · ${state.paneScroll[pane] ?? 0}/${result.maxScroll}`,
     children: [
       ScrollPane({
         title: '',
         lines,
         width: Math.max(10, width - 2),
-        height: Math.max(3, height - 2),
+        height: visibleRows,
         scroll: state.paneScroll[pane] ?? 0,
         footer: false,
         border: false,
       }),
-      Text(`${footerLabel} · ${state.paneScroll[pane] ?? 0}/${result.maxScroll}`, { wrap: false }),
     ],
   });
 }
 
 function handlePullRequestPickerKey(key, state) {
   if (key.name === 'up') {
-    state.selectedPrIndex = mod(state.selectedPrIndex - 1, state.pullRequests.length);
+    state.selectedPrIndex = clampIndex(state.selectedPrIndex - 1, state.pullRequests.length);
     state.status = `Selected PR #${state.pullRequests[state.selectedPrIndex].number}.`;
     return;
   }
   if (key.name === 'down') {
-    state.selectedPrIndex = mod(state.selectedPrIndex + 1, state.pullRequests.length);
+    state.selectedPrIndex = clampIndex(state.selectedPrIndex + 1, state.pullRequests.length);
+    state.status = `Selected PR #${state.pullRequests[state.selectedPrIndex].number}.`;
+    return;
+  }
+  if (key.name === 'page-up') {
+    state.selectedPrIndex = clampIndex(state.selectedPrIndex - 3, state.pullRequests.length);
+    state.status = `Selected PR #${state.pullRequests[state.selectedPrIndex].number}.`;
+    return;
+  }
+  if (key.name === 'page-down') {
+    state.selectedPrIndex = clampIndex(state.selectedPrIndex + 3, state.pullRequests.length);
+    state.status = `Selected PR #${state.pullRequests[state.selectedPrIndex].number}.`;
+    return;
+  }
+  if (key.name === 'home') {
+    state.selectedPrIndex = 0;
+    state.status = `Selected PR #${state.pullRequests[0].number}.`;
+    return;
+  }
+  if (key.name === 'end') {
+    state.selectedPrIndex = Math.max(0, state.pullRequests.length - 1);
     state.status = `Selected PR #${state.pullRequests[state.selectedPrIndex].number}.`;
     return;
   }
@@ -1108,7 +1235,7 @@ function handleConfirmKey(key, state) {
     state.status = 'Comment cancelled.';
     return;
   }
-  if (key.name === 'left' || key.name === 'right') {
+  if (key.name === 'left' || key.name === 'right' || key.name === 'tab') {
     state.confirmSelected = state.confirmSelected === 'confirm' ? 'cancel' : 'confirm';
     state.status = `Confirm choice: ${state.confirmSelected}.`;
     return;
@@ -1132,7 +1259,8 @@ function handleGeneralKey({ key, state }) {
 function handleCommitsKey({ key, state }) {
   if (key.name === 'up') return moveCommitSelection(state, -1);
   if (key.name === 'down') return moveCommitSelection(state, 1);
-  if (key.name === 'page-up' || key.name === 'page-down') return scrollPaneByKey(state, 'commits', key.name);
+  if (key.name === 'page-up') return moveAnchoredSelection(state, 'commits', -1);
+  if (key.name === 'page-down') return moveAnchoredSelection(state, 'commits', 1);
   if (key.name === 'home') return setCommitSelection(state, 0);
   if (key.name === 'end') return setCommitSelection(state, state.pr.commits.length - 1);
   if (key.name === 'enter') {
@@ -1170,15 +1298,18 @@ function handleCommentsKey({ key, state }) {
   if (state.commentMode === 'editor') return handleCommentEditorKey(key, state);
   if (key.name === 'up') return moveCommentSelection(state, -1);
   if (key.name === 'down') return moveCommentSelection(state, 1);
-  if (key.name === 'page-up' || key.name === 'page-down') return scrollPaneByKey(state, 'comments', key.name);
+  if (key.name === 'page-up') return moveAnchoredSelection(state, 'comments', -1);
+  if (key.name === 'page-down') return moveAnchoredSelection(state, 'comments', 1);
   if (key.name === 'home') return setCommentSelection(state, 0);
-  if (key.name === 'end') return setCommentSelection(state, state.pr.comments.length - 1);
+  if (key.name === 'end') return setCommentSelection(state, state.pr.comments.length - 1, { sticky: true });
   if (key.name === 'enter') return openSelectedComment(state);
   if (key.name === 'n' || key.name === 'r') {
+    const replyTarget = key.name === 'r' ? selectedComment(state) : null;
     state.commentMode = 'editor';
     state.commentEditor.clear();
+    if (replyTarget) state.commentEditor.insert(`@${replyTarget.author} `);
     state.commentsSticky = true;
-    state.status = 'Writing a review comment.';
+    state.status = replyTarget ? `Replying to ${replyTarget.author}.` : 'Writing a new review comment.';
     return;
   }
   if (key.name === 'escape') {
@@ -1202,6 +1333,7 @@ function handleCommentDetailKey(key, state) {
     totalRows: metrics.totalRows,
     visibleRows: metrics.visibleRows,
     pageStep: metrics.visibleRows,
+    includeHomeEnd: true,
   });
   if (!result.handled) return;
   state.commentDetailScroll = result.scroll;
@@ -1215,6 +1347,12 @@ function handleCommentEditorKey(key, state) {
     return;
   }
   if (key.name === 'page-up' || key.name === 'page-down') return scrollPaneByKey(state, 'comments', key.name);
+  if (key.name === 'tab') {
+    if (!key.shift) state.commentEditor.insert('  ');
+    state.commentsSticky = true;
+    state.status = key.shift ? 'Shift+Tab is reserved; use Backspace to outdent.' : 'Inserted comment indentation.';
+    return;
+  }
   if (key.name === 'enter' && !key.ctrl) {
     if (!state.commentEditor.value.trim()) {
       state.status = 'Empty comment ignored.';
@@ -1242,6 +1380,7 @@ function scrollPaneByKey(state, pane, keyName) {
     totalRows: metrics.totalRows,
     visibleRows: metrics.visibleRows,
     pageStep: metrics.visibleRows,
+    includeHomeEnd: true,
   });
   if (!result.handled) return;
   state.paneScroll[pane] = result.scroll;
@@ -1267,7 +1406,9 @@ function openPullRequestByIndex(state, index, options = {}) {
   state.commentEditor.clear();
   state.commentMode = 'list';
   state.selectedCommitIndex = 0;
-  state.selectedCommentIndex = 0;
+  state.selectedCommentIndex = Math.max(0, state.pr.comments.length - 1);
+  state.commentLineAnchors = [];
+  state.commitLineAnchors = [];
   state.paneScroll = { general: 0, commits: 0, diff: 0, comments: 0 };
   state.scrollMetrics = {
     general: { totalRows: 0, visibleRows: 1 },
@@ -1281,7 +1422,7 @@ function openPullRequestByIndex(state, index, options = {}) {
   state.modes.reset();
   if (!options.preserveToast) {
     state.toastTarget = null;
-    state.toasts?.show(`Opened PR #${state.pr.number}. Live comments will appear as review activity changes.`, 'success', 6);
+    state.toasts?.show(`Opened PR #${state.pr.number}. Live comments will appear while you review.`, 'success', TOAST_TTL);
   }
   state.status = `Opened PR #${state.pr.number}.`;
   return state.pr;
@@ -1306,7 +1447,7 @@ function postComment(state) {
   state.commentMode = 'list';
   state.commentsSticky = true;
   syncCurrentPullRequest(state);
-  state.toasts?.show(`Posted comment on ${comment.location}.`, 'success', 5);
+  state.toasts?.show(`Posted comment on ${comment.location}.`, 'success', TOAST_TTL);
   state.status = `Posted comment on ${comment.location}.`;
 }
 
@@ -1322,17 +1463,24 @@ function selectedComment(state) {
 }
 
 function moveCommentSelection(state, delta) {
-  setCommentSelection(state, state.selectedCommentIndex + delta);
+  const count = state.pr.comments.length;
+  const next = clampIndex(state.selectedCommentIndex + delta, count);
+  const keepPinned = delta > 0 && next === count - 1 && next === state.selectedCommentIndex;
+  setCommentSelection(state, next, { sticky: keepPinned });
 }
 
-function setCommentSelection(state, index) {
+function setCommentSelection(state, index, { sticky = false } = {}) {
   if (!state.pr.comments.length) {
     state.selectedCommentIndex = 0;
     state.status = 'No comments to select.';
     return;
   }
-  state.selectedCommentIndex = mod(index, state.pr.comments.length);
-  state.commentsSticky = false;
+  state.selectedCommentIndex = clampIndex(index, state.pr.comments.length);
+  state.commentsSticky = Boolean(sticky);
+  if (state.commentsSticky) {
+    const metrics = state.scrollMetrics.comments ?? { totalRows: 0, visibleRows: 1 };
+    state.paneScroll.comments = scrollMax(metrics.totalRows, metrics.visibleRows);
+  }
   const selected = selectedComment(state);
   state.status = `Selected comment from ${selected.author} at ${selected.location}.`;
 }
@@ -1354,11 +1502,11 @@ function clampSelectedComment(state) {
     state.selectedCommentIndex = 0;
     return;
   }
-  state.selectedCommentIndex = mod(state.selectedCommentIndex ?? 0, count);
+  state.selectedCommentIndex = clampIndex(state.selectedCommentIndex ?? 0, count);
 }
 
 function selectedCommit(state) {
-  return state.pr.commits[mod(state.selectedCommitIndex, state.pr.commits.length)] ?? state.pr.commits[0];
+  return state.pr.commits[clampIndex(state.selectedCommitIndex, state.pr.commits.length)] ?? state.pr.commits[0];
 }
 
 function moveCommitSelection(state, delta) {
@@ -1366,34 +1514,66 @@ function moveCommitSelection(state, delta) {
 }
 
 function setCommitSelection(state, index) {
-  state.selectedCommitIndex = mod(index, state.pr.commits.length);
+  state.selectedCommitIndex = clampIndex(index, state.pr.commits.length);
   state.paneScroll.diff = 0;
   state.status = `Selected commit ${selectedCommit(state).sha}.`;
 }
 
+function moveAnchoredSelection(state, pane, direction) {
+  const isComments = pane === 'comments';
+  const anchors = isComments ? state.commentLineAnchors : state.commitLineAnchors;
+  const count = isComments ? state.pr.comments.length : state.pr.commits.length;
+  if (!count) return;
+  const selectedIndex = isComments ? state.selectedCommentIndex : state.selectedCommitIndex;
+  const metrics = state.scrollMetrics[pane] ?? { visibleRows: 1 };
+  const pageRows = Math.max(1, Number(metrics.visibleRows) || 1);
+  const currentLine = anchors?.[selectedIndex] ?? 0;
+  const targetLine = currentLine + (direction < 0 ? -pageRows : pageRows);
+  let targetIndex = clampIndex(selectedIndex + (direction < 0 ? -3 : 3), count);
+
+  if (Array.isArray(anchors) && anchors.length) {
+    if (direction < 0) {
+      for (let index = selectedIndex - 1; index >= 0; index -= 1) {
+        targetIndex = index;
+        if ((anchors[index] ?? 0) <= targetLine) break;
+      }
+    } else {
+      for (let index = selectedIndex + 1; index < count; index += 1) {
+        targetIndex = index;
+        if ((anchors[index] ?? 0) >= targetLine) break;
+      }
+    }
+  }
+
+  if (isComments) {
+    const keepPinned = direction > 0 && targetIndex === count - 1 && targetIndex === selectedIndex;
+    setCommentSelection(state, targetIndex, { sticky: keepPinned });
+  } else setCommitSelection(state, targetIndex);
+}
+
 function contextHelpHints(state) {
   if (state.modes.current() === 'pr-picker') {
-    return [['↑/↓', 'select pull request'], ['Enter', 'open PR'], ['Esc', 'close picker'], ['Ctrl+C', 'exit']];
+    return [['↑/↓', 'select PR'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['Enter', 'open'], ['Esc', 'close'], ['Ctrl+C', 'exit']];
   }
   if (state.modes.current() === 'confirm') {
-    return [['←/→', 'choose post/cancel'], ['Enter', 'accept'], ['Esc', 'cancel'], ['Ctrl+O', 'open PR picker'], ['Ctrl+C', 'exit']];
+    return [['Tab/←/→', 'post/cancel'], ['Enter', 'accept'], ['Esc', 'back'], ['Ctrl+C', 'exit']];
   }
   if (state.modes.current() === 'comment-detail') {
-    return [['↑/↓', 'scroll comment'], ['Enter/Esc', 'back to comments'], ['Ctrl+O', 'open PR picker'], ['Ctrl+C', 'exit']];
+    return [['↑/↓', 'line'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['Enter/Esc', 'back'], ['Ctrl+C', 'exit']];
   }
   if (state.activeTab === 'general') {
-    return [['↑/↓', 'scroll line'], ['PgUp/PgDn', 'scroll page'], ['Enter', 'read-only note'], ['Ctrl+O', 'open PR picker'], ['Tab', 'switch pane'], ['Ctrl+C', 'exit']];
+    return [['↑/↓', 'line'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['Enter', 'read-only'], ['Ctrl+O', 'PRs'], ['Tab', 'pane']];
   }
   if (state.activeTab === 'commits') {
-    return [['↑/↓', 'select commit'], ['Enter', 'open diff'], ['Home/End', 'first/last'], ['Ctrl+O', 'open PR picker'], ['Tab', 'switch pane'], ['Ctrl+C', 'exit']];
+    return [['↑/↓', 'commit'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['Enter', 'diff'], ['Ctrl+O', 'PRs'], ['Tab', 'pane']];
   }
   if (state.activeTab === 'diff') {
-    return [['↑/↓', 'scroll line'], ['PgUp/PgDn', 'scroll page'], ['[ and ]', 'switch commit'], ['Esc', 'back to commits'], ['Ctrl+O', 'open PR picker'], ['Ctrl+C', 'exit']];
+    return [['↑/↓', 'line'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['[/]', 'commit'], ['Esc', 'commits'], ['Tab', 'pane']];
   }
   if (state.commentMode === 'editor') {
-    return [['Enter', 'post comment'], ['Ctrl+J', 'new line'], ['PgUp/PgDn', 'scroll thread'], ['Esc', 'cancel draft'], ['Ctrl+O', 'open PR picker'], ['Ctrl+C', 'exit']];
+    return [['Enter', 'review post'], ['Ctrl+J', 'newline'], ['Tab', 'indent'], ['PgUp/PgDn', 'thread'], ['Esc', 'draft'], ['Ctrl+O', 'PRs']];
   }
-  return [['↑/↓', 'select comment'], ['PgUp/PgDn', 'scroll page'], ['Enter', 'read selected'], ['N/R', 'new comment'], ['Ctrl+O', 'open PR picker'], ['Ctrl+C', 'exit']];
+  return [['↑/↓', 'comment'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['Enter', 'read'], ['N', 'new'], ['R', 'reply']];
 }
 
 function editInput(editor, key, state, label) {
@@ -1465,15 +1645,15 @@ function editInput(editor, key, state, label) {
 
 function highlightPatchLine(line) {
   const value = String(line ?? '');
-  if (value.startsWith('+') && !value.startsWith('+++')) return color(themes.dark, 'ok', value);
-  if (value.startsWith('-') && !value.startsWith('---')) return color(themes.dark, 'error', value);
-  if (value.startsWith('@@')) return color(themes.dark, 'accent', value);
-  if (value.startsWith('diff --git')) return color(themes.dark, 'muted', value);
+  if (value.startsWith('+') && !value.startsWith('+++')) return color(EXAMPLE_THEME, 'ok', value);
+  if (value.startsWith('-') && !value.startsWith('---')) return color(EXAMPLE_THEME, 'error', value);
+  if (value.startsWith('@@')) return color(EXAMPLE_THEME, 'accent', value);
+  if (value.startsWith('diff --git')) return color(EXAMPLE_THEME, 'muted', value);
   return value;
 }
 
 function isScrollKey(name) {
-  return name === 'up' || name === 'down' || name === 'page-up' || name === 'page-down';
+  return name === 'up' || name === 'down' || name === 'page-up' || name === 'page-down' || name === 'home' || name === 'end';
 }
 
 function ensurePullRequest(state) {
@@ -1481,8 +1661,9 @@ function ensurePullRequest(state) {
   if (!state.pr) state.pr = clonePullRequest(state.pullRequests[state.selectedPrIndex || 0] ?? PULL_REQUESTS[0]);
   state.descriptionEditor = state.descriptionEditor ?? new InputEditor(state.pr.description);
   state.commentEditor = state.commentEditor ?? new InputEditor('');
-  state.selectedCommentIndex = state.selectedCommentIndex ?? 0;
+  state.selectedCommentIndex = state.selectedCommentIndex ?? Math.max(0, state.pr.comments.length - 1);
   state.commentLineAnchors = state.commentLineAnchors ?? [];
+  state.commitLineAnchors = state.commitLineAnchors ?? [];
   state.commentDetailScroll = state.commentDetailScroll ?? 0;
   state.commentDetailMetrics = state.commentDetailMetrics ?? { totalRows: 0, visibleRows: 1 };
   state.commentMode = state.commentMode ?? 'list';
@@ -1497,6 +1678,7 @@ function ensurePullRequest(state) {
     diff: { totalRows: 0, visibleRows: 1 },
     comments: { totalRows: 0, visibleRows: 1 },
   };
+  state.viewport = state.viewport ?? { width: 110, height: 32 };
 }
 
 function clonePullRequests() {
@@ -1514,6 +1696,12 @@ function clonePullRequest(pr) {
 function mod(value, size) {
   const safeSize = Math.max(1, Number(size) || 1);
   return ((value % safeSize) + safeSize) % safeSize;
+}
+
+function clampIndex(value, length) {
+  const max = Math.max(0, Number(length) - 1);
+  const safe = Number.isFinite(Number(value)) ? Number(value) : 0;
+  return Math.max(0, Math.min(max, safe));
 }
 
 if (isDirectRun(import.meta.url)) {

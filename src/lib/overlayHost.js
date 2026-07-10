@@ -78,12 +78,19 @@ export function renderOverlayHost(node, width, renderNode) {
   let lines = fitLines(renderNode(content, width), width, height);
   const blocking = manager?.top?.();
   if (blocking) {
-    const overlayWidth = Math.min(width - 4, 80);
+    if (node.props.dim !== false) lines = dimBackgroundLines(lines, theme, width);
+    const overlayWidth = Math.max(20, Math.min(width - 6, 72));
     lines = overlayCentered(lines, renderNode(renderBlockingOverlay(blocking, theme, overlayWidth), overlayWidth), width, height, theme);
   }
   const toasts = manager?.toasts?.slice(-3) ?? [];
   if (toasts.length) lines = overlayToasts(lines, toasts, theme, width, height, Math.max(0, Number(node.props.toastBottomMargin) || 0), renderNode);
   return lines;
+}
+
+
+function dimBackgroundLines(lines, theme, width) {
+  const muted = theme?.textMuted ?? theme?.muted ?? '\x1b[2m';
+  return lines.map((line) => fit(`${muted}${stripAnsi(line)}\x1b[0m`, width));
 }
 
 function overlayCentered(lines, overlayLines, width, height) {

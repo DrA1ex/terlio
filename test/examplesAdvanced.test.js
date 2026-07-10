@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { parseKey, renderToString, stripAnsi } from '../src/lib/index.js';
+import { parseKey, renderToString, stripAnsi, visibleLength } from '../src/lib/index.js';
 import { createKeyInspectorState, createKeyInspectorView, handleKeyInspectorKey } from '../examples/keys.js';
 import { createBlocksGalleryState, createBlocksGalleryView, handleBlocksGalleryKey, primaryBlockAction } from '../examples/blocks.js';
 import { addIncomingReviewComment, buildReviewBlocks, createCodeReviewState, createCodeReviewView, handleCodeReviewKey, jumpToToastComment, submitReview, tickCodeReview } from '../examples/code-review.js';
@@ -83,22 +83,26 @@ test('code review workspace uses read-only PR details, opens diffs and posts com
 
   state.activeTab = 'comments';
   createCodeReviewView({ state, width: 128, height: 18 });
+  assert.equal(state.selectedCommentIndex, state.pr.comments.length - 1);
+  handleCodeReviewKey({ key: { name: 'home' }, state });
   handleCodeReviewKey({ key: { name: 'down' }, state });
   assert.equal(state.selectedCommentIndex, 1);
   handleCodeReviewKey({ key: { name: 'enter' }, state });
   assert.equal(state.modes.current(), 'comment-detail');
   let commentOutput = stripAnsi(renderToString(createCodeReviewView({ state, width: 128, height: 36 }), { width: 128, height: 36 }));
-  assert.match(commentOutput, /Read Comment/);
+  assert.match(commentOutput, /READ COMMENT/i);
   assert.match(commentOutput, /review-bot|mira|alex/);
   handleCodeReviewKey({ key: { name: 'escape' }, state });
   assert.equal(state.modes.current(), 'review');
 
   createCodeReviewView({ state, width: 128, height: 18 });
+  const beforePageUp = state.selectedCommentIndex;
   handleCodeReviewKey({ key: { name: 'page-up' }, state });
+  assert.ok(state.selectedCommentIndex < beforePageUp);
   assert.equal(state.commentsSticky, false);
-  for (let i = 0; i < 80 && !state.commentsSticky; i += 1) {
-    handleCodeReviewKey({ key: { name: 'page-down' }, state });
-  }
+  handleCodeReviewKey({ key: { name: 'end' }, state });
+  createCodeReviewView({ state, width: 128, height: 18 });
+  assert.equal(state.selectedCommentIndex, state.pr.comments.length - 1);
   assert.equal(state.commentsSticky, true);
 
   handleCodeReviewKey({ key: { name: 'n' }, state });
@@ -107,6 +111,15 @@ test('code review workspace uses read-only PR details, opens diffs and posts com
   }
   handleCodeReviewKey({ key: { name: 'enter' }, state });
   assert.equal(state.modes.current(), 'confirm');
+  const confirmOutput = stripAnsi(renderToString(createCodeReviewView({ state, width: 128, height: 36 }), { width: 128, height: 36 }));
+  assert.match(confirmOutput, /Post this review comment/);
+  assert.doesNotMatch(confirmOutput, /COMMENTS \d+ · writing/);
+  handleCodeReviewKey({ key: { name: 'o', ctrl: true }, state });
+  assert.equal(state.modes.current(), 'confirm');
+  handleCodeReviewKey({ key: { name: 'tab' }, state });
+  assert.equal(state.confirmSelected, 'cancel');
+  handleCodeReviewKey({ key: { name: 'tab' }, state });
+  assert.equal(state.confirmSelected, 'confirm');
   handleCodeReviewKey({ key: { name: 'enter' }, state });
   assert.equal(state.pr.comments.at(-1).author, 'you');
   assert.equal(state.selectedCommentIndex, state.pr.comments.length - 1);
@@ -123,6 +136,81 @@ test('code review workspace uses read-only PR details, opens diffs and posts com
 });
 
 
+
+
+
+test('code review comment composer owns Tab, supports replies and pauses live updates while editing', () => {
+  const state = createCodeReviewState();
+  handleCodeReviewKey({ key: { name: 'enter' }, state });
+  state.toasts.clear();
+  state.activeTab = 'comments';
+  handleCodeReviewKey({ key: { name: 'home' }, state });
+  handleCodeReviewKey({ key: { name: 'r' }, state });
+  assert.equal(state.commentMode, 'editor');
+  assert.equal(state.commentEditor.value, '@alex ');
+
+  handleCodeReviewKey({ key: { name: 'tab', shift: false }, state });
+  assert.equal(state.activeTab, 'comments');
+  assert.equal(state.commentEditor.value, '@alex   ');
+
+  const before = state.pr.comments.length;
+  state.liveCommentCountdown = 1;
+  const ticked = tickCodeReview({ state });
+  assert.equal(ticked, false);
+  assert.equal(state.pr.comments.length, before);
+  assert.equal(state.liveCommentCountdown, 1);
+
+  createCodeReviewView({ state, width: 128, height: 18 });
+  handleCodeReviewKey({ key: { name: 'page-up' }, state });
+  assert.equal(state.commentsSticky, false);
+  handleCodeReviewKey({ key: { name: 'escape' }, state });
+  assert.equal(state.commentMode, 'list');
+});
+
+test('code review stays within fixed frames across narrow and wide review modes', () => {
+  for (const [width, height] of [[80, 24], [100, 30], [136, 39], [160, 40]]) {
+    const state = createCodeReviewState();
+    let output = stripAnsi(renderToString(createCodeReviewView({ state, width, height }), { width, height }));
+    let lines = output.split('\n');
+    assert.equal(lines.length, height, `picker height at ${width}x${height}`);
+    assert.ok(Math.max(...lines.map(visibleLength)) <= width, `picker width at ${width}x${height}`);
+
+    handleCodeReviewKey({ key: { name: 'enter' }, state });
+    state.toasts.clear();
+    for (const tab of ['general', 'commits', 'diff', 'comments']) {
+      state.activeTab = tab;
+      output = stripAnsi(renderToString(createCodeReviewView({ state, width, height }), { width, height }));
+      lines = output.split('\n');
+      assert.equal(lines.length, height, `${tab} height at ${width}x${height}`);
+      assert.ok(Math.max(...lines.map(visibleLength)) <= width, `${tab} width at ${width}x${height}`);
+      assert.match(output, /LOCAL HELP/);
+    }
+  }
+});
+
+
+
+test('code review edge navigation clamps without losing sticky latest-comment behavior', () => {
+  const state = createCodeReviewState();
+  handleCodeReviewKey({ key: { name: 'end' }, state });
+  handleCodeReviewKey({ key: { name: 'down' }, state });
+  assert.equal(state.selectedPrIndex, state.pullRequests.length - 1);
+  handleCodeReviewKey({ key: { name: 'home' }, state });
+  handleCodeReviewKey({ key: { name: 'up' }, state });
+  assert.equal(state.selectedPrIndex, 0);
+
+  handleCodeReviewKey({ key: { name: 'enter' }, state });
+  state.toasts.clear();
+  state.activeTab = 'comments';
+  createCodeReviewView({ state, width: 100, height: 24 });
+  assert.equal(state.selectedCommentIndex, state.pr.comments.length - 1);
+  assert.equal(state.commentsSticky, true);
+  handleCodeReviewKey({ key: { name: 'down' }, state });
+  assert.equal(state.selectedCommentIndex, state.pr.comments.length - 1);
+  assert.equal(state.commentsSticky, true);
+  handleCodeReviewKey({ key: { name: 'page-down' }, state });
+  assert.equal(state.commentsSticky, true);
+});
 
 test('code review live comments show a toast and can jump to the target thread block', () => {
   const state = createCodeReviewState();
