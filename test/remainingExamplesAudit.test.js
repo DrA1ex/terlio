@@ -5,7 +5,7 @@ import { createEditorLabState, createEditorLabView, handleEditorLabKey } from '.
 import { createCommandPaletteState, createCommandPaletteView, getFilteredActions, handleCommandPaletteKey } from '../examples/command-palette.js';
 import { createStreamingWorkbenchState, createStreamingWorkbenchView, cleanupStreamingWorkbench } from '../examples/streaming-workbench.js';
 import { createKeyInspectorState, createKeyInspectorView } from '../examples/keys.js';
-import { createThemeGalleryState, createThemeGalleryView, handleThemeGalleryKey } from '../examples/themes.js';
+import { createThemeGalleryState, createThemeGalleryView, handleThemeGalleryKey, tickThemeGallery } from '../examples/themes.js';
 import { createBlocksGalleryState, createBlocksGalleryView, handleBlocksGalleryKey } from '../examples/blocks.js';
 import { createComponentsShowcaseView } from '../examples/components-showcase.js';
 
@@ -79,6 +79,37 @@ test('streaming workbench cleans up pending timers', () => {
   cleanupStreamingWorkbench({ state: workbench });
   assert.equal(workbench.streamTimer, null);
   assert.equal(workbench.streaming, false);
+});
+
+
+
+test('theme studio stages candidates, applies them to the root shell and supports comparison', () => {
+  const state = createThemeGalleryState();
+  const initialApplied = state.appliedTheme;
+  const initialSelected = state.selectedIndex;
+  const initialFrame = renderToString(createThemeGalleryView({ state, width: 100, height: 30 }), { width: 100, height: 30 });
+
+  handleThemeGalleryKey({ key: { name: 'down' }, state });
+  assert.notEqual(state.selectedIndex, initialSelected);
+  assert.equal(state.appliedTheme, initialApplied, 'selection should only stage a candidate');
+  const stagedFrame = renderToString(createThemeGalleryView({ state, width: 100, height: 30 }), { width: 100, height: 30 });
+  assert.equal(initialFrame.split('\n')[0], stagedFrame.split('\n')[0], 'root shell should keep the applied theme before Enter');
+
+  handleThemeGalleryKey({ key: { name: 'c', printable: true, text: 'c' }, state });
+  assert.equal(state.previewMode, 'compare');
+  handleThemeGalleryKey({ key: { name: 'enter' }, state });
+  assert.notEqual(state.appliedTheme, initialApplied);
+  const appliedSelectedIndex = state.selectedIndex;
+  assert.equal(state.overlays.toasts.length, 1);
+  const appliedFrame = renderToString(createThemeGalleryView({ state, width: 100, height: 30 }), { width: 100, height: 30 });
+  assert.notEqual(appliedFrame.split('\n')[0], initialFrame.split('\n')[0], 'applying should recolor the root shell');
+
+  tickThemeGallery({ state, delta: 3 });
+  assert.equal(state.overlays.toasts.length, 0);
+
+  handleThemeGalleryKey({ key: { name: 'up' }, state });
+  handleThemeGalleryKey({ key: { name: 'r', printable: true, text: 'r' }, state });
+  assert.equal(state.selectedIndex, appliedSelectedIndex);
 });
 
 test('theme gallery and structured response explorer expose contextual navigation', () => {

@@ -13,7 +13,7 @@ const groups = [
   ['UI mechanics examples', [
     ['npm run example:kit', 'Interaction Kit: interactive component catalog for nodes, workspace pieces, feedback overlays, editors, scrolling, palette, timeline and theme tokens.'],
     ['npm run example:keys', 'Key Inspector: responsive raw/normalized key diagnostics with live editor result and paste support.'],
-    ['npm run example:themes', 'Theme Gallery: responsive themes, semantic token gallery and whole-shell preview.'],
+    ['npm run example:themes', 'Theme Studio: stage, compare and really apply semantic themes to a live workspace.'],
     ['npm run example:blocks', 'Structured Response Explorer: response scenarios, ordered block map, rendered output, inspector and safe mock actions.'],
     ['npm run example:components', 'Static UI-runtime showcase with capability grid, virtual frames and patch-plan output.'],
   ]],

@@ -99,13 +99,13 @@ npm run example:keys
 
 A responsive terminal compatibility desk showing raw escape sequences, normalized key objects, recent actions, and the actual editor result. It includes multiline editing, bracketed paste, vertical/word movement diagnostics, and a compact fallback.
 
-### Theme Gallery
+### Theme Studio
 
 ```bash
 npm run example:themes
 ```
 
-A responsive Themes/Preview/Tokens workspace. It applies the selected theme to the whole shell, exposes semantic token output, supports scrollable galleries, and degrades to a clear compact fallback.
+A product-style Theme Studio. Selecting a theme stages a candidate preview; `Enter` applies it to the complete workspace, `C` compares the active and candidate themes, and the token inspector explains the semantic contract used by components. The layout is responsive and falls back cleanly on small terminals.
 
 ### Structured Response Explorer
 

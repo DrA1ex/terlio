@@ -281,14 +281,18 @@ test('code review live comments show a toast and can jump to the target thread b
   assert.ok(state.liveCommentCountdown >= 18);
 });
 
-test('theme gallery switches previews across all available themes', () => {
+test('theme studio stages, applies and previews semantic themes', () => {
   const state = createThemeGalleryState();
+  const initial = state.appliedTheme;
   handleThemeGalleryKey({ key: { name: 'down' }, state });
+  assert.equal(state.appliedTheme, initial);
   handleThemeGalleryKey({ key: { name: 'enter' }, state });
+  assert.notEqual(state.appliedTheme, initial);
   const output = stripAnsi(renderToString(createThemeGalleryView({ state, width: 112, height: 32 }), { width: 112, height: 32 }));
-  assert.match(output, /Theme Gallery/);
-  assert.match(output, /Selected theme/);
-  assert.match(output, /Theme token check/);
+  assert.match(output, /Theme Studio/);
+  assert.match(output, /THEME LIBRARY/);
+  assert.match(output, /LIVE PREVIEW/);
+  assert.match(output, /Applied .* whole workspace/);
 });
 
 
