@@ -31,6 +31,8 @@ npm run example:components
 npm run demo:support-desk
 ```
 
+`example:components` is the non-interactive reference: it prints a deterministic Component Composition Snapshot that demonstrates how product layout, semantic state, feedback components, virtual frames, and row-level patches fit together.
+
 ## First static render
 
 Use `renderToString()` when you want to render a UI tree to text. This is useful for tests, snapshots, demos, and non-interactive output.

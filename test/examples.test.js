@@ -244,13 +244,27 @@ test('streaming workbench transcript paging uses the rendered pane viewport', ()
   assert.equal(state.transcriptAutoscroll, true);
 });
 
-test('components showcase can render without a TTY and exposes frame diff operations', () => {
+test('components snapshot renders a cohesive one-shot report without a TTY', () => {
   const output = renderComponentsShowcase({ width: 88, height: 22 });
   const directOutput = renderToString(createComponentsShowcaseView(), { width: 88, height: 22 });
   const diff = createDiffShowcase();
   assert.equal(output, directOutput);
-  assert.match(output, /Components Showcase/);
+  assert.match(output, /Component Composition Snapshot/);
+  assert.match(output, /COMPOSITION MAP/);
+  assert.match(output, /COMPOSED SURFACE \+ RUNTIME/);
+  assert.match(output, /one-shot/);
   assert.deepEqual(diff.map((item) => item.row), [1, 2, 3]);
+});
+
+ test('components snapshot exposes the richer wide composition and compact fallback', () => {
+  const wide = renderToString(createComponentsShowcaseView({ width: 136, height: 39 }), { width: 136, height: 39 });
+  assert.match(wide, /PRODUCT SURFACE/);
+  assert.match(wide, /RUNTIME CONTRACT/);
+  assert.match(wide, /Semantic contract/);
+  assert.match(wide, /Render activity/);
+
+  const compact = renderToString(createComponentsShowcaseView({ width: 60, height: 19 }), { width: 60, height: 19 });
+  assert.match(compact, /needs more room/);
 });
 
 

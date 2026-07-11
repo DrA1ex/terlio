@@ -115,13 +115,13 @@ npm run example:blocks
 
 A scenario-driven explorer for structured assistant output. The left response map shows the ordered blocks that make up one answer, the main pane renders the complete response, and a docked inspector explains the selected block's payload, purpose, and safe actions. Use `Enter` to isolate a block, `[` / `]` to switch scenarios, and `C`, `A`, or `R` to simulate copy, diff-apply, and command-run workflows without touching files or starting processes.
 
-### Components Showcase
+### Component Composition Snapshot
 
 ```bash
 npm run example:components
 ```
 
-A non-interactive, CI-friendly UI runtime showcase with a capability grid, previous/next virtual frames, and an explicit frame patch plan showing changed rows and rendering benefit.
+A non-interactive, CI-friendly Component Composition Snapshot. It tells one cohesive release-readiness story: a composition map explains the path from shell to patch, a product surface demonstrates semantic status and progress components, and previous/next virtual frames make the row-level patch contract concrete.
 
 ## Removed duplicate examples
 

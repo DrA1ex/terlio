@@ -105,7 +105,7 @@ npm run example:blocks
 npm run example:components
 ```
 
-Interactive examples require a real terminal. `example:components` renders to normal stdout and is useful as a quick smoke test.
+Interactive examples require a real terminal. `example:components` renders a complete Component Composition Snapshot to normal stdout and is useful as a deterministic smoke test or CI artifact.
 
 `demo:chat` is the primary chat reference: it includes responsive conversation/composer sizing, slash completion, a searchable command palette, multiline and bracketed-paste editing, structured blocks, streaming-aware scroll anchoring, and a compact viewport fallback below `56×18`.
 
