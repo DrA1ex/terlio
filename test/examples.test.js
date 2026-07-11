@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { renderToString } from '../src/lib/index.js';
 import { createEditorLabState, createEditorLabView, handleEditorLabKey } from '../examples/editor-lab.js';
-import { createCommandPaletteState, createCommandPaletteView, getFilteredActions, handleCommandPaletteKey } from '../examples/command-palette.js';
+import { createCommandPaletteState, createCommandPaletteView, getFilteredActions, handleCommandPaletteKey, tickCommandPalette } from '../examples/command-palette.js';
 import { createStreamingWorkbenchState, createStreamingWorkbenchView, handleStreamingWorkbenchKey } from '../examples/streaming-workbench.js';
 import { createComponentsShowcaseView, createDiffShowcase, renderComponentsShowcase } from '../examples/components-showcase.js';
 import { createInteractionKitState, createInteractionKitView, handleInteractionKitKey } from '../examples/interaction-kit.js';
@@ -102,8 +102,16 @@ test('editor lab updates selected drafts and only creates a new draft from add a
   assert.equal(state.history.at(-1), 'brand new draft');
 });
 
-test('release command center filters actions and renders a guided palette overlay', () => {
+test('release command center starts with guidance and then opens the palette', () => {
   const state = createCommandPaletteState();
+  const intro = renderToString(createCommandPaletteView({ state, width: 100, height: 30 }), { width: 100, height: 30 });
+  assert.equal(state.overlays.top()?.type, 'help');
+  assert.match(intro, /START HERE/);
+  assert.match(intro, /Mission path/);
+  assert.match(intro, /activity[\s\S]*animation/);
+
+  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime: { exit() {} } });
+  assert.equal(state.overlays.top()?.type, 'palette');
   state.palette.editor.set('theme');
   const matches = getFilteredActions(state.palette.editor.value, state);
   const output = renderToString(createCommandPaletteView({ state, width: 100, height: 30 }), { width: 100, height: 30 });
@@ -114,36 +122,52 @@ test('release command center filters actions and renders a guided palette overla
   assert.match(output, /Current goal: Run release checks/);
 });
 
-test('release command center executes a concrete checks-to-deploy user path', () => {
+test('release command center closes the palette, animates commands and recommends the next step', () => {
   const runtime = { exit() {} };
   const state = createCommandPaletteState();
   const type = (value) => {
     for (const char of value) handleCommandPaletteKey({ key: { name: char, printable: true, text: char }, state, runtime });
   };
-  const open = () => handleCommandPaletteKey({ key: { name: 'command-palette', ctrl: true }, state, runtime });
+  const finishOperation = () => tickCommandPalette({ state, runtime, delta: 3 });
+  const acceptAdvice = () => handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+
+  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+  assert.equal(state.overlays.top()?.type, 'palette');
 
   type('checks');
   handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+  assert.equal(state.overlays.top()?.type, 'operation');
+  assert.equal(state.release.checks, false, 'state should not mutate before the activity finishes');
+  const activityFrame = renderToString(createCommandPaletteView({ state, width: 100, height: 30 }), { width: 100, height: 30 });
+  assert.match(activityFrame, /COMMAND ACTIVITY/);
+  assert.match(activityFrame, /Running release checks/);
+  finishOperation();
   assert.equal(state.release.checks, true);
-  assert.equal(state.overlays.top(), null);
+  assert.equal(state.overlays.top()?.type, 'modal');
+  assert.match(state.overlays.top()?.title ?? '', /WHAT TO DO NEXT/);
 
-  open();
+  acceptAdvice();
   type('notes');
   handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+  finishOperation();
   assert.equal(state.release.notes, true);
+  acceptAdvice();
 
-  open();
   type('approval');
   handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+  finishOperation();
   assert.equal(state.release.approved, true);
+  acceptAdvice();
 
-  open();
   type('deploy staging');
   handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+  assert.equal(state.overlays.top()?.type, 'operation');
+  finishOperation();
   assert.equal(state.overlays.top()?.type, 'confirm');
   handleCommandPaletteKey({ key: { name: 'right' }, state, runtime });
   handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
   assert.equal(state.release.deployed, true);
+  assert.equal(state.overlays.top()?.type, 'modal');
   assert.match(state.status, /Mission complete/);
 });
 

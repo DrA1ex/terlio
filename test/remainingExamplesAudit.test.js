@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { renderToString, stripAnsi, visibleLength } from '../src/lib/index.js';
 import { createEditorLabState, createEditorLabView, handleEditorLabKey } from '../examples/editor-lab.js';
-import { createCommandPaletteState, createCommandPaletteView, getFilteredActions, handleCommandPaletteKey } from '../examples/command-palette.js';
+import { createCommandPaletteState, createCommandPaletteView, getFilteredActions, handleCommandPaletteKey, tickCommandPalette } from '../examples/command-palette.js';
 import { createStreamingWorkbenchState, createStreamingWorkbenchView, cleanupStreamingWorkbench } from '../examples/streaming-workbench.js';
 import { createKeyInspectorState, createKeyInspectorView } from '../examples/keys.js';
 import { createThemeGalleryState, createThemeGalleryView, handleThemeGalleryKey, tickThemeGallery } from '../examples/themes.js';
@@ -66,6 +66,7 @@ test('release command center ranks fuzzy aliases and keeps disabled actions safe
 
   const runtime = { exit() {} };
   const state = createCommandPaletteState();
+  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
   for (const char of 'approval') {
     handleCommandPaletteKey({ key: { name: char, printable: true, text: char }, state, runtime });
   }
@@ -82,6 +83,32 @@ test('release command center ranks fuzzy aliases and keeps disabled actions safe
   const output = stripAnsi(renderToString(createCommandPaletteView({ state, width: 100, height: 30 }), { width: 100, height: 30 }));
   assert.match(output, /disabled|blocked/i);
 });
+
+test('release command activity and follow-up popup stay within responsive frames', () => {
+  const runtime = { exit() {} };
+  const state = createCommandPaletteState();
+  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+  for (const char of 'checks') handleCommandPaletteKey({ key: { name: char, printable: true, text: char }, state, runtime });
+  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+  assert.equal(state.overlays.top()?.type, 'operation');
+
+  for (const [width, height] of [[72, 22], [80, 24], [100, 30], [136, 39]]) {
+    const output = renderToString(createCommandPaletteView({ state, width, height }), { width, height });
+    const lines = output.split('\n');
+    assert.equal(lines.length, height);
+    assert.ok(lines.every((line) => visibleLength(line) <= width));
+  }
+
+  tickCommandPalette({ state, runtime, delta: 3 });
+  assert.equal(state.overlays.top()?.type, 'modal');
+  for (const [width, height] of [[72, 22], [80, 24], [100, 30], [136, 39]]) {
+    const output = renderToString(createCommandPaletteView({ state, width, height }), { width, height });
+    const lines = output.split('\n');
+    assert.equal(lines.length, height);
+    assert.ok(lines.every((line) => visibleLength(line) <= width));
+  }
+});
+
 test('streaming workbench cleans up pending timers', () => {
   const workbench = createStreamingWorkbenchState();
   workbench.streamTimer = setTimeout(() => {}, 1000);

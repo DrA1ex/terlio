@@ -6,7 +6,7 @@ import { createKeyInspectorState, createKeyInspectorView, handleKeyInspectorKey 
 import { createBlocksGalleryState, createBlocksGalleryView, handleBlocksGalleryKey, primaryBlockAction } from '../examples/blocks.js';
 import { addIncomingReviewComment, buildReviewBlocks, createCodeReviewState, createCodeReviewView, handleCodeReviewKey, jumpToToastComment, submitReview, tickCodeReview } from '../examples/code-review.js';
 import { createThemeGalleryState, createThemeGalleryView, handleThemeGalleryKey } from '../examples/themes.js';
-import { createCommandPaletteState, createCommandPaletteView } from '../examples/command-palette.js';
+import { createCommandPaletteState, createCommandPaletteView, handleCommandPaletteKey } from '../examples/command-palette.js';
 
 test('package exposes focused UI mechanics examples without duplicate legacy scripts', async () => {
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
@@ -298,6 +298,7 @@ test('theme studio stages, applies and previews semantic themes', () => {
 
 test('release command palette overlay stays inside the frame on a small supported terminal', () => {
   const state = createCommandPaletteState();
+  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime: { exit() {} } });
   const output = stripAnsi(renderToString(createCommandPaletteView({ state, width: 80, height: 24 }), { width: 80, height: 24 }));
   const lines = output.split('\n');
 

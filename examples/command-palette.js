@@ -9,6 +9,7 @@ import {
   ProgressBar,
   RequireViewport,
   Row,
+  Spinner,
   SelectList,
   Text,
   Timeline,
@@ -57,6 +58,18 @@ const ACTION_CATALOG = [
   ['app.exit', 'Exit the example', 'App', 'Q', 'Restore the terminal and exit cleanly.', ['quit', 'exit', 'close']],
 ];
 
+const COMMAND_OPERATION_META = {
+  'release.checks.run': { label: 'Running release checks', detail: 'Executing syntax, test and package verification.', duration: 1.5 },
+  'release.notes.generate': { label: 'Generating release notes', detail: 'Summarizing the staged changes into a concise changelog.', duration: 1.25 },
+  'release.approval.request': { label: 'Requesting release approval', detail: 'Preparing the release evidence and recording sign-off.', duration: 1.25 },
+  'release.deploy.staging': { label: 'Preparing staging deployment', detail: 'Building the deployment plan before confirmation.', duration: 1.5 },
+  'release.rollback': { label: 'Preparing staging rollback', detail: 'Resolving the last deployment and rollback target.', duration: 1.25 },
+  'release.summary.copy': { label: 'Preparing release summary', detail: 'Formatting the current release state for sharing.', duration: 0.9 },
+  'activity.toggle': { label: 'Updating activity view', detail: 'Recalculating the visible activity window.', duration: 0.7 },
+  'theme.next': { label: 'Applying workspace theme', detail: 'Repainting semantic surfaces and borders.', duration: 0.8 },
+  'scenario.reset': { label: 'Resetting release scenario', detail: 'Restoring the initial blocked release state.', duration: 1.0 },
+};
+
 export function createCommandPaletteState() {
   const state = {
     themeName: 'ocean',
@@ -69,11 +82,13 @@ export function createCommandPaletteState() {
     ],
     activityExpanded: false,
     lastActionId: null,
-    status: 'Step 1: open the palette, search “checks”, then press Enter.',
+    operation: null,
+    pendingAdviceActionId: null,
+    status: 'Read the introduction, then press Enter to start the release mission.',
   };
   state.registry = createReleaseRegistry();
   syncPaletteItems(state);
-  openPalette(state);
+  openIntroHelp(state);
   return state;
 }
 
@@ -82,6 +97,7 @@ export function createCommandPaletteView({ state, width = 104, height = 30 } = {
   const theme = themes[state.themeName] ?? themes.ocean;
   syncPaletteItems(state);
   refreshPaletteOverlay(state, width, height, theme);
+  refreshOperationOverlay(state, width, height, theme);
 
   const progress = missionProgress(state);
   const next = nextMissionStep(state);
@@ -93,6 +109,7 @@ export function createCommandPaletteView({ state, width = 104, height = 30 } = {
   const right = [
     { label: 'Theme', value: state.themeName },
     { label: 'Palette', value: state.overlays.top()?.type === 'palette' ? 'open' : 'closed' },
+    { label: 'Activity', value: state.operation ? `${Math.round(state.operation.progress)}%` : 'idle' },
   ];
   const activity = KeyHintBar({
     title: ' COMMAND CENTER KEYS ',
@@ -172,6 +189,11 @@ export function handleCommandPaletteKey({ key, state, runtime = { exit() {} } })
     return;
   }
 
+  if (top?.type === 'operation') {
+    state.status = `${state.operation?.label ?? 'The command'} is still running. Ctrl+C still exits safely.`;
+    return;
+  }
+
   if (top) {
     state.overlays.handleKey(key, { state, runtime });
     return;
@@ -182,12 +204,20 @@ export function handleCommandPaletteKey({ key, state, runtime = { exit() {} } })
     return;
   }
 
-  const result = state.registry.handleKey(key, actionContext(state, runtime), { scopes: ['global'] });
-  if (result.type === 'executed') return;
-  if (result.type === 'disabled') {
-    const reason = disabledReason(result.action?.id, state) || `${result.action?.title ?? 'This action'} is currently disabled.`;
-    state.overlays.toast(reason, 'warning');
-    state.status = reason;
+  const ctx = actionContext(state, runtime);
+  const action = state.registry.findByKey(key, ctx, { scopes: ['global'] });
+  if (action) {
+    if (state.registry.isDisabled(action, ctx)) {
+      const reason = disabledReason(action.id, state) || `${action.title} is currently disabled.`;
+      state.overlays.toast(reason, 'warning');
+      state.status = reason;
+      return;
+    }
+    if (['palette.open', 'help.shortcuts', 'app.exit'].includes(action.id)) {
+      state.registry.execute(action, ctx);
+      return;
+    }
+    startCommandOperation(state, action.id, runtime);
     return;
   }
 
@@ -196,8 +226,18 @@ export function handleCommandPaletteKey({ key, state, runtime = { exit() {} } })
   }
 }
 
-export function tickCommandPalette({ state, delta = 0.25 } = {}) {
-  return Boolean(state?.overlays?.tick?.(delta));
+export function tickCommandPalette({ state, runtime = { exit() {} }, delta = 0.25 } = {}) {
+  if (!state) return false;
+  let changed = Boolean(state.overlays?.tick?.(delta));
+  if (!state.operation) return changed;
+
+  state.operation.elapsed += delta;
+  state.operation.frame += 1;
+  state.operation.progress = Math.min(100, state.operation.elapsed / state.operation.duration * 100);
+  changed = true;
+
+  if (state.operation.progress >= 100) finishCommandOperation(state, runtime);
+  return changed;
 }
 
 export function getFilteredActions(query, state = null) {
@@ -300,9 +340,11 @@ function createReleaseRegistry() {
             recordActivity(state, 'success', 'deploy', `Release ${RELEASE_VERSION} deployed to staging.`);
             state.overlays.toast('Staging deployment completed.', 'success');
             state.status = 'Mission complete. Explore theme, activity, rollback and reset commands.';
+            showPendingAdvice(state, { outcome: 'success', summary: `Release ${RELEASE_VERSION} reached staging.` });
           },
           onCancel: () => {
             state.status = 'Deployment cancelled. Reopen the palette when you are ready.';
+            showPendingAdvice(state, { outcome: 'cancelled', summary: 'The staging deployment was cancelled.' });
           },
         });
         state.status = 'Confirm or cancel the staging deployment.';
@@ -340,6 +382,11 @@ function createReleaseRegistry() {
             recordActivity(state, 'warning', 'rollback', 'Staging deployment rolled back.');
             state.overlays.toast('Staging release rolled back.', 'warning');
             state.status = 'Rollback complete. The release remains approved and can be deployed again.';
+            showPendingAdvice(state, { outcome: 'success', summary: 'The staging release was rolled back safely.' });
+          },
+          onCancel: () => {
+            state.status = 'Rollback cancelled. The staging release remains deployed.';
+            showPendingAdvice(state, { outcome: 'cancelled', summary: 'The rollback was cancelled.' });
           },
         });
       },
@@ -676,19 +723,136 @@ function handlePaletteOverlayKey({ key, state, runtime }) {
   if (result.type !== 'accept' || !result.item) return;
 
   state.overlays.pop();
-  const execution = state.registry.execute(result.item.id, actionContext(state, runtime));
-  if (execution.type === 'disabled') {
-    const reason = disabledReason(result.item.id, state) || `${result.item.title} is disabled.`;
+  startCommandOperation(state, result.item.id, runtime);
+}
+
+function startCommandOperation(state, actionId, runtime = { exit() {} }) {
+  if (state.operation) return;
+  const action = state.registry.find(actionId);
+  if (!action) {
+    state.overlays.toast('The selected command is no longer registered.', 'error');
+    state.status = 'Command registry mismatch.';
+    return;
+  }
+  const ctx = actionContext(state, runtime);
+  if (state.registry.isDisabled(action, ctx)) {
+    const reason = disabledReason(action.id, state) || `${action.title} is currently disabled.`;
     state.overlays.toast(reason, 'warning');
     state.status = reason;
     return;
   }
+
+  const meta = COMMAND_OPERATION_META[action.id] ?? {
+    label: action.title,
+    detail: action.description || 'Applying the selected workspace action.',
+    duration: 0.9,
+  };
+  state.operation = {
+    actionId: action.id,
+    label: meta.label,
+    detail: meta.detail,
+    duration: Math.max(0.5, Number(meta.duration) || 0.9),
+    elapsed: 0,
+    progress: 0,
+    frame: 0,
+  };
+  recordActivity(state, 'activity', 'command', `Started: ${action.title}.`);
+  state.status = `${meta.label}…`;
+  state.overlays.push({ type: 'operation', title: ` ${meta.label} `, blocking: true, opaqueRows: false, shadow: true });
+}
+
+function finishCommandOperation(state, runtime = { exit() {} }) {
+  const operation = state.operation;
+  if (!operation) return;
+  if (state.overlays.top()?.type === 'operation') state.overlays.pop();
+  state.operation = null;
+
+  const execution = state.registry.execute(operation.actionId, actionContext(state, runtime));
+  if (execution.type === 'disabled') {
+    const reason = disabledReason(operation.actionId, state) || `${execution.action?.title ?? 'This action'} is disabled.`;
+    state.overlays.toast(reason, 'warning');
+    state.status = reason;
+    showNextStepPopup(state, operation.actionId, { outcome: 'blocked', summary: reason });
+    return;
+  }
   if (execution.type === 'missing') {
-    state.overlays.toast('The selected command is no longer registered.', 'danger');
+    state.overlays.toast('The selected command is no longer registered.', 'error');
     state.status = 'Command registry mismatch.';
     return;
   }
-  state.lastActionId = result.item.id;
+
+  state.lastActionId = operation.actionId;
+  if (state.overlays.top()?.type === 'confirm') {
+    state.pendingAdviceActionId = operation.actionId;
+    return;
+  }
+  showNextStepPopup(state, operation.actionId, { outcome: 'success' });
+}
+
+function operationOverlayNode(state, theme, width) {
+  const operation = state.operation;
+  const safeWidth = Math.max(38, Math.min(width, 68));
+  const barWidth = Math.max(16, Math.min(36, safeWidth - 24));
+  return Box({
+    border: true,
+    borderColor: theme.borderActive,
+    padding: { left: 2, right: 2, top: 1, bottom: 1 },
+    title: ' COMMAND ACTIVITY ',
+  },
+    Spinner({ frame: operation?.frame ?? 0, label: color(theme, 'textAccent', operation?.label ?? 'Working') }),
+    Text(operation?.detail ?? 'Applying the selected command.'),
+    ProgressBar({ value: operation?.progress ?? 0, total: 100, width: barWidth, label: 'progress' }),
+    Text(color(theme, 'textMuted', 'The palette is closed while this action runs. Input is temporarily locked.')),
+  );
+}
+
+function refreshOperationOverlay(state, width, height, theme) {
+  const top = state.overlays.top();
+  if (top?.type !== 'operation' || !state.operation) return;
+  const overlayWidth = Math.max(42, Math.min(width - 8, 72));
+  top.width = overlayWidth;
+  top.opaqueRows = false;
+  top.shadow = true;
+  top.node = operationOverlayNode(state, theme, overlayWidth - 2);
+}
+
+function showPendingAdvice(state, { outcome = 'success', summary = '' } = {}) {
+  const actionId = state.pendingAdviceActionId;
+  state.pendingAdviceActionId = null;
+  if (actionId) showNextStepPopup(state, actionId, { outcome, summary });
+}
+
+function showNextStepPopup(state, actionId, { outcome = 'success', summary = '' } = {}) {
+  const action = state.registry.find(actionId);
+  const next = nextMissionStep(state);
+  const completed = missionProgress(state).completed === MISSION_STEPS.length;
+  const outcomeText = summary || (outcome === 'cancelled'
+    ? `${action?.title ?? 'The command'} was cancelled.`
+    : `${action?.title ?? 'The command'} completed.`);
+  const recommendation = next
+    ? `Recommended next: ${next.label}. Search “${next.query}” in the palette.`
+    : completed
+      ? 'The staging mission is complete. Try release summary, rollback, theme or reset commands.'
+      : 'Reopen the palette to choose another available command.';
+  const theme = themes[state.themeName] ?? themes.ocean;
+
+  state.overlays.modal({
+    title: ' WHAT TO DO NEXT ',
+    children: [
+      Text(color(theme, outcome === 'cancelled' ? 'warning' : 'success', outcomeText)),
+      Text(recommendation),
+      Text(''),
+      Text('Enter opens the command palette for the next action.'),
+      Text('Esc returns to the workspace without opening it.'),
+    ],
+    footer: 'Enter open palette · Esc continue',
+    onAccept: () => openPalette(state),
+    onCancel: () => {
+      state.status = next
+        ? `Next recommended action: ${next.label}. Press / when ready.`
+        : 'Advice closed. Press / to explore more commands.';
+    },
+  });
 }
 
 function refreshPaletteOverlay(state, width, height, theme) {
@@ -714,16 +878,48 @@ function openPalette(state) {
     : 'Palette open. Explore rollback, theme, activity and reset actions.';
 }
 
+function openIntroHelp(state) {
+  state.overlays.help({
+    title: ' RELEASE COMMAND CENTER · START HERE ',
+    width: 82,
+    opaqueRows: true,
+    shadow: true,
+    children: [
+      Text('Goal'),
+      Text(`Move release ${RELEASE_VERSION} from blocked to deployed on staging.`),
+      Text(''),
+      Text('What to know'),
+      Text('• The command palette is the primary interface. Open it with / or Ctrl+P.'),
+      Text('• Search by intent: checks, notes, approval, deploy staging.'),
+      Text('• Disabled commands explain which prerequisite is missing.'),
+      Text('• Every accepted command closes the palette and runs a short activity animation.'),
+      Text('• After completion, a popup recommends the next useful action.'),
+      Text(''),
+      Text('Mission path: checks → release notes → approval → staging deploy.'),
+      Text(''),
+      Text('Press Enter to open the palette and begin. Esc closes this introduction.'),
+    ],
+    onAccept: () => openPalette(state),
+    onCancel: () => {
+      state.status = 'Introduction closed. Press / or Ctrl+P to start the mission.';
+    },
+  });
+}
+
 function openHelp(state) {
   const next = nextMissionStep(state);
   state.overlays.help({
     title: ' Release Command Center Help ',
+    width: 80,
+    opaqueRows: true,
+    shadow: true,
     children: [
       Text('User path'),
       Text('1. Press / or Ctrl+P to open the command palette.'),
       Text('2. Type a goal such as checks, notes, approval or deploy staging.'),
       Text('3. Review disabled state and command details, then press Enter.'),
-      Text('4. Watch release state and activity update behind the palette.'),
+      Text('4. The palette closes and a short activity animation runs.'),
+      Text('5. Use the follow-up popup to open the next recommended action.'),
       Text(''),
       Text(next ? `Recommended now: ${next.id}` : 'The required staging mission is complete.'),
       Text('Esc always returns one interaction level.'),
@@ -833,6 +1029,8 @@ function normalizeState(state) {
   state.overlays ??= createOverlayManager();
   state.activity ??= [];
   state.activityExpanded = Boolean(state.activityExpanded);
+  state.operation ??= null;
+  state.pendingAdviceActionId ??= null;
   state.status ??= 'Press / to open the release command palette.';
 }
 

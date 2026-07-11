@@ -7,7 +7,7 @@ const groups = [
   ]],
   ['Product-style examples', [
     ['npm run example:editor', 'Editor Lab: multiline editor, saved-draft navigation, diagnostics, adaptive help and compact fallback.'],
-    ['npm run example:palette', 'Release Command Center: complete a checks → notes → approval → staging deploy mission through a searchable action palette.'],
+    ['npm run example:palette', 'Release Command Center: start with a mission briefing, execute searchable actions through animated command activity, and follow contextual next-step guidance.'],
     ['npm run example:stream', 'Streaming Workbench: multiline prompt, sticky scrollback, runtime controls, templates and timer cleanup.'],
   ]],
   ['UI mechanics examples', [
