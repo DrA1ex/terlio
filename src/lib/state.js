@@ -23,8 +23,13 @@ export function createMessage({ role, content = '', blocks = null, status = 'com
 
 export function appendMessageChunk(message, chunk) {
   const text = String(chunk ?? '');
+  const hadStructuredBlocks = Array.isArray(message.blocks) && message.blocks.length > 0;
+  const wasEmpty = !message.content;
   message.content += text;
-  if (Array.isArray(message.blocks)) {
+  // A fresh streaming message becomes block-backed on its first chunk.
+  // Existing plain-text messages stay plain so legacy/session content is not replaced
+  // by a synthetic block containing only the newest chunk.
+  if (hadStructuredBlocks || wasEmpty) {
     appendBlockContent(ensureTextBlock(message), text);
   }
   message.updatedAt = new Date().toISOString();

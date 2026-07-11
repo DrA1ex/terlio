@@ -20,7 +20,7 @@ These examples share the current UI/UX standard: a stable workspace shell, heade
 npm run demo:chat
 ```
 
-The main mock AI terminal. Demonstrates commands, themes, providers, skills, sessions, command palette, suggestions, structured assistant blocks, and streaming.
+The main mock AI terminal. It now opens as a responsive, ocean-themed chat workspace with a top-aligned onboarding state, a bounded conversation viewport, stable slash-command completion, a full-width searchable command palette, multiline/bracketed-paste input, session-derived titles, three-second toast feedback, and scroll anchoring that preserves the reader’s position while a response streams. Use `Ctrl+J` for a newline, `Tab` to accept a command suggestion, `Shift+Tab` to move backward, `PgUp/PgDn` to read the transcript, `Ctrl+P` for the palette, and `Esc` to dismiss the current interaction level. Terminals below `56×18` receive a clean resize fallback instead of a broken frame.
 
 ### Support Triage Desk
 

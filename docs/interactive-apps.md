@@ -59,7 +59,7 @@ editor.backspace();
 Common methods:
 
 - `set(value)` and `clear()`
-- `insert(text)` and `insertLineBreak()`
+- `insert(text)`, `insertPaste(text)`, and `insertLineBreak()`
 - `backspace()` and `deleteForward()`
 - `move(delta)`, `home()`, `end()`
 - `killToStart()`, `killToEnd()`, `deleteWordBack()`
@@ -67,12 +67,14 @@ Common methods:
 - `getCursorPosition()` returns `{ line, column }`
 - `getParts()` returns `{ before, current, after }`
 
+Use `insertPaste()` for bracketed paste so CRLF and tabs are normalized while embedded newlines remain data rather than being routed as shortcuts.
+
 A typical key handler:
 
 ```js
 function handleEditorKey(editor, key) {
   if (key.printable) editor.insert(key.text);
-  else if (key.name === 'paste') editor.insert(key.text);
+  else if (key.name === 'paste') editor.insertPaste(key.text);
   else if (key.name === 'backspace') editor.backspace();
   else if (key.name === 'delete') editor.deleteForward();
   else if (key.name === 'left') key.meta ? editor.moveWord(-1) : editor.move(-1);

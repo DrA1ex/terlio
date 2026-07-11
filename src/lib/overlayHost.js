@@ -79,8 +79,16 @@ export function renderOverlayHost(node, width, renderNode) {
   const blocking = manager?.top?.();
   if (blocking) {
     if (node.props.dim !== false) lines = dimBackgroundLines(lines, theme, width);
-    const overlayWidth = Math.max(20, Math.min(width - 6, 72));
-    lines = overlayCentered(lines, renderNode(renderBlockingOverlay(blocking, theme, overlayWidth), overlayWidth), width, height, theme);
+    const requestedWidth = Number(blocking.width);
+    const defaultWidth = Math.max(20, Math.min(width - 6, 72));
+    const overlayWidth = Math.max(20, Math.min(width, Number.isFinite(requestedWidth) ? requestedWidth : defaultWidth));
+    lines = overlayCentered(
+      lines,
+      renderNode(renderBlockingOverlay(blocking, theme, overlayWidth), overlayWidth),
+      width,
+      height,
+      { opaqueRows: blocking.opaqueRows === true },
+    );
   }
   const toasts = manager?.toasts?.slice(-3) ?? [];
   if (toasts.length) lines = overlayToasts(lines, toasts, theme, width, height, Math.max(0, Number(node.props.toastBottomMargin) || 0), renderNode);
@@ -93,13 +101,16 @@ function dimBackgroundLines(lines, theme, width) {
   return lines.map((line) => fit(`${muted}${stripAnsi(line)}\x1b[0m`, width));
 }
 
-function overlayCentered(lines, overlayLines, width, height) {
+function overlayCentered(lines, overlayLines, width, height, { opaqueRows = false } = {}) {
   const clean = overlayLines.filter(Boolean);
-  const boxWidth = Math.min(width - 4, Math.max(...clean.map((line) => visibleLength(stripAnsi(line))), 20));
+  const boxWidth = Math.min(width, Math.max(...clean.map((line) => visibleLength(stripAnsi(line))), 20));
   const startRow = Math.max(1, Math.floor((height - clean.length) / 2));
   const startCol = Math.max(0, Math.floor((width - boxWidth) / 2));
   const next = [...lines];
-  for (let i = 0; i < clean.length && startRow + i < height; i++) next[startRow + i] = overlayLine(next[startRow + i], fit(clean[i], boxWidth), startCol, width);
+  for (let i = 0; i < clean.length && startRow + i < height; i++) {
+    const background = opaqueRows ? ' '.repeat(width) : next[startRow + i];
+    next[startRow + i] = overlayLine(background, fit(clean[i], boxWidth), startCol, width);
+  }
   return next;
 }
 
@@ -202,6 +213,7 @@ function renderBlockingOverlay(overlay, theme, width = 80) {
     offsetY: 1,
     shadowColor,
   }, [node]);
+  if (overlay.node) return overlay.shadow === false ? overlay.node : wrapShadow(overlay.node);
   if (overlay.type === 'confirm') {
     return wrapShadow(ConfirmPrompt({
       title: overlay.title ?? ' Confirm ',

@@ -13,18 +13,18 @@ import { createSkillState, enabledSkillNames, skills } from './skills.js';
 import { appendMessageBlock, appendMessageChunk, completeMessage, createMessage, lastAssistantMessage, lastUserMessage, trimMessages } from './state.js';
 import { StreamCancelled } from './mockModel.js';
 import { createChatScreen } from './chat/components.js';
+import { createOverlayManager } from './overlayHost.js';
 
-const MIN_COLUMNS = 48;
-const MIN_ROWS = 16;
 const SUGGESTION_WINDOW_SIZE = 7;
-const TRANSCRIPT_SCROLL_STEP = 6;
 
 export function createAppPaletteItems() {
   const commandItems = commandList.map((command) => ({
     id: command.name,
     title: command.description,
     description: command.usage,
+    category: commandCategory(command.name),
     keywords: [command.name.replace(/^\//, ''), command.usage, command.description],
+    aliases: commandAliases(command.name),
     value: { insert: commandInsert(command) },
   }));
 
@@ -32,6 +32,7 @@ export function createAppPaletteItems() {
     id: `theme.${name}`,
     title: `Theme: ${name}`,
     description: `Switch visual theme with /theme ${name}`,
+    category: 'Appearance',
     keywords: ['theme', 'color', name],
     value: { insert: `/theme ${name}` },
   }));
@@ -40,16 +41,18 @@ export function createAppPaletteItems() {
     id: `provider.${name}`,
     title: `Provider: ${name}`,
     description: `Switch model provider with /provider ${name}`,
+    category: 'Model',
     keywords: ['provider', 'model', name],
     value: { insert: `/provider ${name}` },
   }));
 
   const skillItems = skills.map((skill) => ({
-    id: `skill.${skill.id}.toggle`,
+    id: `skill.${skill.name}.toggle`,
     title: `Skill: ${skill.title}`,
-    description: `Toggle skill with /skill on ${skill.id}`,
-    keywords: ['skill', skill.id, skill.title, skill.description],
-    value: { insert: `/skill on ${skill.id}` },
+    description: `Enable with /skill on ${skill.name}`,
+    category: 'Skills',
+    keywords: ['skill', skill.name, skill.title, skill.description],
+    value: { insert: `/skill on ${skill.name}` },
   }));
 
   return [...commandItems, ...themeItems, ...providerItems, ...skillItems];
@@ -66,7 +69,7 @@ export class RichTerminalApp {
     this.busy = false;
     this.abortController = null;
 
-    this.themeName = 'dark';
+    this.themeName = 'ocean';
     this.theme = themes[this.themeName];
     this.skillState = this.createDefaultSkillState();
     this.providerName = 'mock';
@@ -80,14 +83,20 @@ export class RichTerminalApp {
     this.editor = new InputEditor();
     this.history = [];
     this.historyIndex = null;
-    this.status = 'Ready. Type /help for commands.';
+    this.status = 'Ready. Type / for commands or Ctrl+P for the palette.';
     this.suggestionIndex = 0;
+    this.suggestionsDismissed = false;
     this.scrollOffset = 0;
+    this.transcriptHeight = 6;
+    this.transcriptTotalRows = 0;
+    this.lastViewportWidth = null;
     this.frame = 0;
     this.debug = { enabled: false, events: [] };
     this.focus = new FocusManager(['input', 'suggestions', 'transcript', 'debug']);
     this.modes = new ModeManager('input');
     this.palette = createCommandPaletteState({ items: createAppPaletteItems(this), windowSize: 7 });
+    this.overlays = createOverlayManager();
+    this.tickTimer = null;
     this.renderer = new TerminalRenderer({ output: this.output });
 
     this.boundOnData = this.onData.bind(this);
@@ -128,7 +137,10 @@ export class RichTerminalApp {
     this.input.on('data', this.boundOnData);
     this.output.on('resize', this.boundOnResize);
 
-    this.addSystemMessage('Mock AI Terminal started. Type a message or start with / for commands. Suggestions can be navigated with ↑/↓ and applied with Enter. Sessions are available through /session. Command palette: Ctrl+P.');
+    this.tickTimer = setInterval(() => {
+      if (this.overlays.tick(0.25)) this.render();
+    }, 250);
+    this.tickTimer.unref?.();
     this.render();
   }
 
@@ -139,6 +151,11 @@ export class RichTerminalApp {
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
+    }
+
+    if (this.tickTimer) {
+      clearInterval(this.tickTimer);
+      this.tickTimer = null;
     }
 
     this.input.off('data', this.boundOnData);
@@ -158,13 +175,18 @@ export class RichTerminalApp {
   }
 
   setTheme(name) {
-    this.themeName = themes[name] ? name : 'dark';
+    this.themeName = themes[name] ? name : 'ocean';
     this.theme = themes[this.themeName];
   }
 
   setProvider(name) {
     this.provider = createProvider(name);
     this.providerName = this.provider.name;
+  }
+
+  notify(message, level = 'info', detail = '') {
+    this.overlays.toast(message, level, 3, detail);
+    this.render();
   }
 
   addMessage(role, content, { blocks = null, status = 'complete', meta = {} } = {}) {
@@ -181,6 +203,10 @@ export class RichTerminalApp {
   }
 
   addUserMessage(content) {
+    if (this.sessionTitle === 'Untitled session') {
+      const title = String(content ?? '').replace(/\s+/g, ' ').trim();
+      if (title) this.sessionTitle = title.slice(0, 64);
+    }
     return this.addMessage('user', content);
   }
 
@@ -206,6 +232,7 @@ export class RichTerminalApp {
     this.pushHistory(line);
     this.editor.clear();
     this.resetSuggestionCycle();
+    this.suggestionsDismissed = false;
     this.historyIndex = null;
 
     if (line.startsWith('/')) {
@@ -221,14 +248,16 @@ export class RichTerminalApp {
     const { name, args } = parseCommand(line);
     const command = findCommand(name);
     if (!command) {
-      this.addSystemMessage(`Unknown command: ${name}. Type /help.`);
+      this.status = `Unknown command: ${name}.`;
+      this.notify(`Unknown command: ${name}`, 'error', 'Type / to browse available commands.');
       return;
     }
 
     try {
       await command.run(this, args);
     } catch (error) {
-      this.addSystemMessage(`Command failed: ${error.message}`);
+      this.status = `Command failed: ${error.message}`;
+      this.notify('Command failed', 'error', error.message);
     }
     this.render();
   }
@@ -276,7 +305,8 @@ export class RichTerminalApp {
     if (this.busy) return;
     const lastUser = lastUserMessage(this.messages);
     if (!lastUser) {
-      this.addSystemMessage('No user message to retry.');
+      this.status = 'Nothing to retry.';
+      this.notify('Nothing to retry', 'warning', 'Send a message first.');
       return;
     }
     await this.respond(lastUser.content);
@@ -286,7 +316,8 @@ export class RichTerminalApp {
     if (this.busy) return;
     const lastAssistant = lastAssistantMessage(this.messages);
     if (!lastAssistant || !lastAssistant.content.trim()) {
-      this.addSystemMessage('No last assistant response for this action.');
+      this.status = 'No assistant response is available.';
+      this.notify('No assistant response', 'warning', 'Run a prompt before using this action.');
       return;
     }
 
@@ -330,7 +361,8 @@ export class RichTerminalApp {
     this.historyIndex = null;
     this.editor.clear();
     this.scrollOffset = 0;
-    this.addSystemMessage(`New session created: ${this.sessionId}`);
+    this.status = 'New session created.';
+    this.notify('New session', 'success', shortSessionLabel(this.sessionId));
   }
 
   saveSession() {
@@ -355,7 +387,8 @@ export class RichTerminalApp {
     applySerializedSkillState(this.skillState, snapshot.skillState);
     this.editor.clear();
     this.scrollOffset = 0;
-    this.addSystemMessage(`Session loaded: ${snapshot.title} (${snapshot.id})`);
+    this.status = `Session loaded: ${snapshot.title}.`;
+    this.notify('Session loaded', 'success', snapshot.title);
   }
 
   snapshot() {
@@ -413,25 +446,43 @@ export class RichTerminalApp {
     }
 
     if (key.name === 'escape') {
-      if (this.busy && this.abortController) this.abortController.abort();
-      else this.resetSuggestionCycle();
+      if (this.busy && this.abortController) {
+        this.abortController.abort();
+        this.status = 'Cancelling response…';
+      } else if (this.isSuggestionMode()) {
+        this.suggestionsDismissed = true;
+        this.status = 'Command suggestions dismissed. Edit the input to reopen them.';
+      } else if (this.scrollOffset > 0) {
+        this.scrollOffset = 0;
+        this.status = 'Returned to the latest response.';
+      } else {
+        this.resetSuggestionCycle();
+      }
       this.render();
       return;
     }
 
     if (key.name === 'enter') {
-      if (this.shouldAcceptSuggestionBeforeSubmit()) this.acceptCurrentSuggestion();
+      if (key.ctrl) {
+        this.mutateInput(() => this.editor.insertLineBreak());
+      } else if (this.shouldAcceptSuggestionBeforeSubmit()) this.acceptCurrentSuggestion();
       else this.submitInput();
       return;
     }
 
     if (key.name === 'tab') {
-      this.handleSuggestionTab(key.shift ? -1 : 1);
+      if (this.isSuggestionMode()) {
+        if (key.shift) this.moveSuggestion(-1);
+        else this.acceptCurrentSuggestion();
+      }
       return;
     }
 
     if (key.name === 'paste') {
-      this.mutateInput(() => this.editor.insert(key.text));
+      this.mutateInput(() => {
+        if (typeof this.editor.insertPaste === 'function') this.editor.insertPaste(key.text);
+        else this.editor.insert(key.text);
+      });
       return;
     }
 
@@ -446,13 +497,15 @@ export class RichTerminalApp {
     }
 
     if (key.name === 'home' || (key.cmd && key.name === 'left')) {
-      this.editor.home();
+      if (key.cmd) this.editor.home();
+      else this.editor.lineStart();
       this.render();
       return;
     }
 
     if (key.name === 'end' || (key.cmd && key.name === 'right')) {
-      this.editor.end();
+      if (key.cmd) this.editor.end();
+      else this.editor.lineEnd();
       this.render();
       return;
     }
@@ -493,12 +546,18 @@ export class RichTerminalApp {
     }
 
     if (key.name === 'up') {
-      if (!this.moveSuggestion(-1)) this.historyUp();
+      if (key.ctrl || key.meta) this.scrollTranscript(1);
+      else if (this.isSuggestionMode()) this.moveSuggestion(-1);
+      else if (this.editor.value.includes('\n')) { this.editor.moveVertical(-1); this.render(); }
+      else this.historyUp();
       return;
     }
 
     if (key.name === 'down') {
-      if (!this.moveSuggestion(1)) this.historyDown();
+      if (key.ctrl || key.meta) this.scrollTranscript(-1);
+      else if (this.isSuggestionMode()) this.moveSuggestion(1);
+      else if (this.editor.value.includes('\n')) { this.editor.moveVertical(1); this.render(); }
+      else this.historyDown();
       return;
     }
 
@@ -515,12 +574,12 @@ export class RichTerminalApp {
     }
 
     if (key.name === 'page-up') {
-      this.scrollTranscript(TRANSCRIPT_SCROLL_STEP);
+      this.scrollTranscript(Math.max(3, this.transcriptHeight - 2));
       return;
     }
 
     if (key.name === 'page-down') {
-      this.scrollTranscript(-TRANSCRIPT_SCROLL_STEP);
+      this.scrollTranscript(-Math.max(3, this.transcriptHeight - 2));
       return;
     }
 
@@ -553,6 +612,7 @@ export class RichTerminalApp {
       this.historyIndex = null;
       this.resetSuggestionCycle();
       this.status = `Inserted ${result.item.id}. Press Enter to run or edit arguments.`;
+      this.overlays.toast(`Inserted ${result.item.id}`, 'success', 3, 'Edit arguments or press Enter to run.');
       this.render();
       return;
     }
@@ -562,6 +622,7 @@ export class RichTerminalApp {
 
   mutateInput(fn) {
     fn();
+    this.suggestionsDismissed = false;
     this.historyIndex = null;
     this.resetSuggestionCycle();
     this.render();
@@ -572,6 +633,7 @@ export class RichTerminalApp {
     if (this.historyIndex === null) this.historyIndex = this.history.length - 1;
     else this.historyIndex = Math.max(0, this.historyIndex - 1);
     this.editor.set(this.history[this.historyIndex] ?? '');
+    this.suggestionsDismissed = false;
     this.resetSuggestionCycle();
     this.render();
   }
@@ -585,6 +647,7 @@ export class RichTerminalApp {
       this.historyIndex += 1;
       this.editor.set(this.history[this.historyIndex] ?? '');
     }
+    this.suggestionsDismissed = false;
     this.resetSuggestionCycle();
     this.render();
   }
@@ -593,7 +656,12 @@ export class RichTerminalApp {
     this.suggestionIndex = 0;
   }
 
+  isSuggestionMode() {
+    return !this.busy && !this.suggestionsDismissed && this.editor.value.trimStart().startsWith('/');
+  }
+
   getCurrentSuggestions() {
+    if (!this.isSuggestionMode()) return [];
     const suggestions = getSuggestions(this.editor.value, this);
     if (suggestions.length === 0) return [];
     this.suggestionIndex = mod(this.suggestionIndex, suggestions.length);
@@ -601,7 +669,7 @@ export class RichTerminalApp {
   }
 
   moveSuggestion(delta) {
-    if (this.busy || !this.editor.value.trimStart().startsWith('/')) return false;
+    if (!this.isSuggestionMode()) return false;
     const suggestions = this.getCurrentSuggestions();
     if (!suggestions.length) return false;
     this.suggestionIndex = mod(this.suggestionIndex + delta, suggestions.length);
@@ -630,7 +698,7 @@ export class RichTerminalApp {
   }
 
   shouldAcceptSuggestionBeforeSubmit() {
-    if (this.busy || !this.editor.value.trimStart().startsWith('/')) return false;
+    if (!this.isSuggestionMode()) return false;
     const suggestions = this.getCurrentSuggestions();
     if (!suggestions.length) return false;
 
@@ -648,6 +716,7 @@ export class RichTerminalApp {
 
     const suggestion = suggestions[this.suggestionIndex];
     this.editor.set(suggestion.insert);
+    this.suggestionsDismissed = false;
     this.resetSuggestionCycle();
     this.historyIndex = null;
     this.render();
@@ -662,38 +731,82 @@ export class RichTerminalApp {
   render() {
     if (!this.running) return;
 
-    const columns = Math.max(MIN_COLUMNS, this.output.columns || 80);
-    const rows = Math.max(MIN_ROWS, this.output.rows || 24);
+    const columns = Math.max(1, this.output.columns || 80);
+    const rows = Math.max(1, this.output.rows || 24);
     this.frame += 1;
 
-    const screen = createChatScreen({
+    const buildScreen = (scrollOffset = this.scrollOffset) => createChatScreen({
       columns,
       rows,
       theme: this.theme,
       themeName: this.themeName,
       providerName: this.providerName,
       sessionId: this.sessionId,
+      sessionTitle: this.sessionTitle,
       skillState: this.skillState,
       messages: this.messages,
       inputValue: this.editor.value,
+      inputCursor: this.editor.cursor,
       inputParts: this.editor.getParts(),
       suggestions: this.getCurrentSuggestions(),
+      suggestionsVisible: this.isSuggestionMode(),
       suggestionIndex: this.suggestionIndex,
       suggestionWindowSize: SUGGESTION_WINDOW_SIZE,
       mode: this.modes.current(),
       palette: this.palette,
+      overlays: this.overlays,
       debug: this.debug,
       status: this.status,
       busy: this.busy,
-      scrollOffset: this.scrollOffset,
+      scrollOffset,
       frame: this.frame,
     });
 
+    let screen = buildScreen();
+    const sameWidth = this.lastViewportWidth === columns;
+    const grew = sameWidth && screen.transcriptTotalRows > this.transcriptTotalRows;
+    if (grew && this.scrollOffset > 0) {
+      this.scrollOffset += screen.transcriptTotalRows - this.transcriptTotalRows;
+      screen = buildScreen(this.scrollOffset);
+    }
+
     this.scrollOffset = screen.scrollOffset;
+    this.transcriptHeight = Math.max(1, screen.transcriptHeight || this.transcriptHeight);
+    this.transcriptTotalRows = screen.transcriptTotalRows;
+    this.lastViewportWidth = columns;
     this.renderer.renderNode(screen.node, { width: columns, height: rows });
     this.output.write(ansi.reset);
   }
 
+}
+
+function shortSessionLabel(id) {
+  const raw = String(id ?? 'session');
+  const parts = raw.split('_');
+  return parts.length > 1 ? `${parts[0].slice(-8)}-${parts.at(-1).slice(-5)}` : raw.slice(-14);
+}
+
+function commandCategory(name) {
+  if (['/help', '/about'].includes(name)) return 'Help';
+  if (['/theme', '/themes'].includes(name)) return 'Appearance';
+  if (['/provider', '/skills', '/skill'].includes(name)) return 'Configuration';
+  if (name === '/session') return 'Sessions';
+  if (['/retry', '/regenerate', '/shorter', '/longer', '/explain', '/apply', '/copy-last', '/blocks'].includes(name)) return 'Assistant';
+  if (['/debug', '/status', '/intents', '/history'].includes(name)) return 'Diagnostics';
+  return 'Workspace';
+}
+
+function commandAliases(name) {
+  return {
+    '/help': ['commands', 'shortcuts'],
+    '/session': ['save', 'open', 'conversation'],
+    '/provider': ['model'],
+    '/theme': ['color', 'appearance'],
+    '/retry': ['again'],
+    '/regenerate': ['redo'],
+    '/clear': ['clean'],
+    '/exit': ['quit'],
+  }[name] ?? [];
 }
 
 function commandInsert(command) {

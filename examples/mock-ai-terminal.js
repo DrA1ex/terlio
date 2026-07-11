@@ -24,6 +24,11 @@ process.on('uncaughtException', (error) => {
   console.error(error);
   shutdown(1);
 });
+process.on('unhandledRejection', (error) => {
+  app.stop();
+  console.error(error);
+  shutdown(1);
+});
 
 try {
   app.start();

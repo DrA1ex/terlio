@@ -40,13 +40,12 @@ test('ChatScreen renders the main shell from reusable components', () => {
 
   const output = plain(node, { width: 100, height: 18 });
   assert.match(output, /Mock AI Terminal/);
-  assert.match(output, /provider:mock theme:dark/);
-  assert.match(output, /skills:code, writer/);
-  assert.match(output, /system/);
-  assert.match(output, /you/);
-  assert.match(output, /ai/);
+  assert.match(output, /mock · dark/);
+  assert.match(output, /skills code, writer/);
+  // Compact height prioritizes the latest turn; older turns remain available through transcript scrolling.
+  assert.match(output, /assistant/);
   assert.match(output, /Mock answer/);
-  assert.match(output, /Suggestions 1\/1/);
+  assert.match(output, /COMMANDS · 1 match/);
   assert.match(output, /\/help/);
   assert.match(output, /Ready\./);
 });
@@ -55,7 +54,7 @@ test('createChatScreen clamps transcript scroll offset and keeps frame height st
   const messages = Array.from({ length: 20 }, (_, index) => createMessage({ role: 'user', content: `message ${index}` }));
   const screen = createChatScreen({
     columns: 64,
-    rows: 16,
+    rows: 18,
     theme: themes.dark,
     messages,
     inputParts: { before: '', current: ' ', after: '' },
@@ -65,8 +64,8 @@ test('createChatScreen clamps transcript scroll offset and keeps frame height st
 
   assert.ok(screen.scrollOffset < 999);
   assert.ok(screen.transcriptHeight >= 1);
-  const text = plain(screen.node, { width: 64, height: 16 });
-  assert.equal(text.split('\n').length, 16);
+  const text = plain(screen.node, { width: 64, height: 18 });
+  assert.equal(text.split('\n').length, 18);
   assert.match(text, /scroll:\+/);
 });
 
@@ -93,7 +92,7 @@ test('ChatScreen can render command palette as an overlay section', () => {
   }), { width: 72, height: 20 });
 
   assert.match(output, /Command Palette/);
-  assert.match(output, /Query: theme/);
+  assert.match(output, /Search\s+theme/);
   assert.match(output, /\/theme/);
 });
 
@@ -150,6 +149,6 @@ test('RichTerminalApp.render delegates to component ChatScreen and TerminalRende
   const frame = stripAnsi(app.renderer.previousFrame.toString());
   assert.match(frame, /Mock AI Terminal/);
   assert.match(frame, /hello from app/);
-  assert.match(frame, /Suggestions/);
+  assert.match(frame, /COMMANDS/);
   assert.match(frame, /\/help/);
 });

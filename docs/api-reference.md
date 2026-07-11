@@ -473,7 +473,7 @@ new InputEditor(value = '')
 Methods:
 
 - `set(value)`, `clear()`
-- `insert(text)`, `insertLineBreak()`
+- `insert(text)`, `insertPaste(text)`, `insertLineBreak()`
 - `backspace()`, `deleteForward()`
 - `move(delta)`, `moveWord(delta)`, `moveVertical(delta)`
 - `home()`, `end()`, `lineStart()`, `lineEnd()`

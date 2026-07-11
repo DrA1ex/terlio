@@ -98,3 +98,15 @@ test('mock provider can build and stream structured blocks', async () => {
   assert.match(text, /terminal|layer|code/i);
   assert.ok(streamed.some((block) => block.type === 'code'));
 });
+
+test('appending to an existing plain message preserves its full legacy content', () => {
+  const message = createMessage({ role: 'assistant', content: 'first line\nsecond line' });
+  appendMessageChunk(message, '\nthird line');
+  assert.equal(message.content, 'first line\nsecond line\nthird line');
+  assert.equal(message.blocks.length, 0);
+
+  const output = stripAnsi(renderTranscriptLines({ columns: 72, messages: [message], theme: themes.dark }).join('\n'));
+  assert.match(output, /first line/);
+  assert.match(output, /second line/);
+  assert.match(output, /third line/);
+});

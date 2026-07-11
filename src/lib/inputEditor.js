@@ -22,6 +22,15 @@ export class InputEditor {
     this.cursor += charLength(inserted);
   }
 
+  insertPaste(text) {
+    const chars = Array.from(this.value);
+    const normalized = String(text ?? '').replace(/\r\n?/g, '\n').replace(/\t/g, '  ');
+    const inserted = Array.from(normalized).filter((char) => char === '\n' || isPrintable(char)).join('');
+    chars.splice(this.cursor, 0, ...Array.from(inserted));
+    this.value = chars.join('');
+    this.cursor += charLength(inserted);
+  }
+
   insertLineBreak() {
     const chars = Array.from(this.value);
     chars.splice(this.cursor, 0, '\n');

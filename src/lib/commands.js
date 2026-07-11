@@ -49,7 +49,8 @@ export const commands = [
       }
 
       app.skillState.set(skill.name, action === 'on');
-      app.addSystemMessage(`Skill ${skill.name} ${action === 'on' ? 'enabled' : 'disabled'}. Active: ${enabledSkillNames(app.skillState).join(', ') || 'none'}.`);
+      app.status = `Skill ${skill.name} ${action === 'on' ? 'enabled' : 'disabled'}.`;
+      app.notify?.(`Skill ${skill.name} ${action === 'on' ? 'enabled' : 'disabled'}`, action === 'on' ? 'success' : 'info', `Active: ${enabledSkillNames(app.skillState).join(', ') || 'none'}`);
     },
   },
   {
@@ -63,7 +64,8 @@ export const commands = [
         return;
       }
       app.setTheme(themeName);
-      app.addSystemMessage(`Theme changed: ${themeName}.`);
+      app.status = `Theme changed to ${themeName}.`;
+      app.notify?.(`Theme: ${themeName}`, 'success', 'Applied to the whole chat workspace.');
     },
   },
   {
@@ -95,7 +97,8 @@ export const commands = [
       }
 
       app.setProvider(providerName);
-      app.addSystemMessage(`Provider changed: ${app.provider.title}.`);
+      app.status = `Provider changed to ${app.provider.title}.`;
+      app.notify?.(`Provider: ${app.providerName}`, 'success', app.provider.title);
     },
   },
   {
@@ -116,7 +119,8 @@ export const commands = [
 
       if (action === 'save') {
         const saved = app.saveSession();
-        app.addSystemMessage(`Session saved: ${saved.title}\nid: ${saved.id}\npath: ${app.sessionStore.pathFor(saved.id)}`);
+        app.status = `Session saved: ${saved.title}.`;
+        app.notify?.('Session saved', 'success', saved.title);
         return;
       }
 
@@ -146,7 +150,8 @@ export const commands = [
           return;
         }
         app.sessionStore.remove(id);
-        app.addSystemMessage(`Session removed if it existed: ${id}`);
+        app.status = `Session removed: ${id}.`;
+        app.notify?.('Session removed', 'info', id);
         return;
       }
 
@@ -242,12 +247,14 @@ export const commands = [
       const [action = 'show'] = args;
       if (action === 'on') {
         app.toggleDebug(true);
-        app.addSystemMessage('Debug overlay enabled.');
+        app.status = 'Debug overlay enabled.';
+        app.notify?.('Debug overlay enabled', 'info', 'Recent input events are now visible.');
         return;
       }
       if (action === 'off') {
         app.toggleDebug(false);
-        app.addSystemMessage('Debug overlay disabled.');
+        app.status = 'Debug overlay disabled.';
+        app.notify?.('Debug overlay disabled', 'info');
         return;
       }
       if (action === 'show') {
@@ -298,7 +305,8 @@ export const commands = [
     description: 'Clear the on-screen history.',
     run(app) {
       app.clearMessages();
-      app.addSystemMessage('Screen history cleared.');
+      app.status = 'Conversation cleared.';
+      app.notify?.('Conversation cleared', 'info');
     },
   },
   {
@@ -309,10 +317,11 @@ export const commands = [
       app.clearMessages();
       app.history = [];
       app.historyIndex = null;
-      app.setTheme('dark');
+      app.setTheme('ocean');
       app.setProvider('mock');
       app.skillState = app.createDefaultSkillState();
-      app.addSystemMessage('State reset: theme dark, provider mock, history cleared, skills restored to defaults.');
+      app.status = 'Workspace reset to defaults.';
+      app.notify?.('Workspace reset', 'success', 'Theme ocean, mock provider, default skills.');
     },
   },
   {
@@ -472,16 +481,17 @@ export function helpText() {
     commandRows,
     '',
     'Keys:',
-    'Tab / Shift+Tab                                      cycle suggestions; if only one suggestion exists, apply it',
-    '↑ / ↓                                                select a suggestion when the command list is open; otherwise input history',
-    'Enter                                                apply the selected suggestion or run the typed command',
-    '← / →, Home / End, Ctrl+A / Ctrl+E                    move within the line',
+    'Tab                                                  apply the selected slash-command suggestion',
+    'Shift+Tab                                            select the previous suggestion',
+    '↑ / ↓                                                select suggestions; move in multiline input; otherwise browse history',
+    'Enter / Ctrl+J                                       send input / insert a newline',
+    '← / →, Home / End, Ctrl+A / Ctrl+E                    move within the current line',
     'Alt+← / Alt+→                                        move by words',
-    'Cmd+← / Cmd+→                                        line start / end in terminals that emit CSI 1;9D/C',
+    'Cmd+← / Cmd+→                                        move to document start / end when supported',
     'Ctrl+K / Ctrl+U / Ctrl+W                              delete to end, to start, or the word to the left',
     'PageUp / PageDown                                    scroll transcript',
     'Ctrl+L                                               redraw the screen and return to transcript bottom',
-    'Esc                                                  cancel the current streaming response',
+    'Esc                                                  cancel streaming, dismiss suggestions, or return to latest',
     'Ctrl+C / Ctrl+D                                      exit',
   ].join('\n');
 }
