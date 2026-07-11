@@ -25,7 +25,7 @@ test('editor lab view renders live editor state and reacts to editing keys', () 
   handleEditorLabKey({ key: { name: 'x', printable: true, text: 'x' }, state });
   const output = renderToString(createEditorLabView({ state, width: 90 }), { width: 90, height: 24 });
   assert.match(output, /Editor Lab/);
-  assert.match(output, /value : x/);
+  assert.match(output, /1 │ x/);
   assert.match(output, /Last keys|History/);
   assert.match(output, /LOCAL HELP/);
   assert.match(output, /submit draft/);
@@ -59,7 +59,7 @@ test('editor lab keeps editor arrows local, supports Ctrl-J and lets history arr
 
   const historyOutput = renderToString(createEditorLabView({ state: { ...state, activeTab: 'history' }, width: 90, height: 32 }), { width: 90, height: 32 });
   assert.match(historyOutput, /Add another/);
-  assert.match(historyOutput, /┬|┼/);
+  assert.match(historyOutput, /LOCAL HELP/);
 
   state.activeTab = 'diagnostics';
   const initialOutput = renderToString(createEditorLabView({ state, width: 90, height: 32 }), { width: 90, height: 32 });

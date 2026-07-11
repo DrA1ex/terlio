@@ -4,11 +4,13 @@ import {
   InputEditor,
   KeyHintBar,
   Panel,
+  RequireViewport,
   Row,
   SelectList,
   Text,
   Toast,
   WorkspaceCommandBar,
+  WorkspaceFooter,
   WorkspacePane,
   WorkspaceShell,
   fitInline,
@@ -72,46 +74,28 @@ export function createCommandPaletteView({ state, width = 96, height = 30 } = {}
   const selectedAction = items[selected];
   const layout = splitWorkspaceColumns(width);
   const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['palette'] });
-  const tabHint = responsiveTabHint('Tab focus · Enter accept/inspect · PgUp/PgDn page active pane · Ctrl+C exit', TABS, visibleTabs);
+  const tabHint = responsiveTabHint('Tab focus · Enter accept/inspect · PgUp/PgDn page · Home/End jump · Ctrl+C exit', TABS, visibleTabs);
   const stats = [
     { label: 'Matches', value: items.length },
     { label: 'Selected', value: selectedAction?.[0] ?? 'none' },
     { label: 'Accepted', value: state.accepted.length },
   ];
-  const right = [
-    { label: 'Query', value: state.search.value || '<empty>' },
-    { label: 'Status', value: fitInline(state.status, 44).trimEnd() },
-  ];
+  const right = [{ label: 'Query', value: state.search.value || '<empty>' }];
   const helpHints = contextHelpHints(state);
   const command = state.activeTab === 'palette' ? WorkspaceCommandBar({
     mode: 'PALETTE',
     prompt: 'search',
     value: `${state.search.value || '<empty>'}▌`,
     suggestions: groupCounts(items),
-    hint: 'typing edits only while Palette is focused',
+    hint: 'type to filter · arrows select',
     theme: EXAMPLE_THEME,
   }) : null;
-  const activity = KeyHintBar({
-    title: ' LOCAL HELP ',
-    hints: helpHints,
-    theme: EXAMPLE_THEME,
-    gridBorder: true,
-  });
+  const activity = KeyHintBar({ title: ' LOCAL HELP ', hints: helpHints, theme: EXAMPLE_THEME, adaptive: true });
+  const footer = WorkspaceFooter({ left: [state.status], right: [`focus: ${state.activeTab}`], theme: EXAMPLE_THEME });
   const { mainHeight } = resolveWorkspaceShellLayout({
-    width,
-    height,
-    title: 'Command Palette',
-    subtitle: 'action launcher workspace',
-    stats,
-    right,
-    focus: state.activeTab,
-    tabs: visibleTabs,
-    activeTab: state.activeTab,
-    tabHint,
-    command,
-    activity,
-    theme: EXAMPLE_THEME,
-    minMainHeight: 6,
+    width, height, title: 'Command Palette', subtitle: 'searchable action launcher', stats, right,
+    focus: state.activeTab, tabs: visibleTabs, activeTab: state.activeTab, tabHint,
+    command, activity, footer, theme: EXAMPLE_THEME, minMainHeight: 6,
   });
   const main = layout.mode === 'wide'
     ? Row({ gap: 2, widths: layout.widths },
@@ -128,20 +112,17 @@ export function createCommandPaletteView({ state, width = 96, height = 30 } = {}
         )
       : narrowPane(state, items, selected, selectedAction, width, mainHeight);
 
-  return WorkspaceShell({
-    title: 'Command Palette',
-    subtitle: 'action launcher workspace',
-    stats,
-    right,
-    focus: state.activeTab,
-    tabs: visibleTabs,
-    activeTab: state.activeTab,
-    tabHint,
-    main,
-    command,
-    activity,
-    height,
+  const shell = WorkspaceShell({
+    title: 'Command Palette', subtitle: 'searchable action launcher', stats, right,
+    focus: state.activeTab, tabs: visibleTabs, activeTab: state.activeTab, tabHint,
+    main, command, activity, footer, height, theme: EXAMPLE_THEME,
+  });
+  return RequireViewport({
+    width, height, minWidth: 58, minHeight: 19,
+    title: 'Command Palette needs more room',
+    message: 'Resize to keep the action list, details and search bar readable.',
     theme: EXAMPLE_THEME,
+    children: shell,
   });
 }
 
@@ -186,10 +167,11 @@ export function handleCommandPaletteKey({ key, state, runtime }) {
 export function getFilteredActions(query) {
   const terms = String(query ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (!terms.length) return ACTIONS;
-  return ACTIONS.filter(([action, description, group, shortcut, detail]) => {
-    const haystack = `${action} ${description} ${group} ${shortcut} ${detail}`.toLowerCase();
-    return terms.every((term) => haystack.includes(term));
-  });
+  return ACTIONS
+    .map((item, index) => ({ item, index, score: scoreAction(item, terms) }))
+    .filter((entry) => Number.isFinite(entry.score))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((entry) => entry.item);
 }
 
 function handlePaletteKey({ key, state, items, runtime }) {
@@ -273,6 +255,18 @@ function handleAcceptedKey({ key, state, runtime }) {
   }
   if (key.name === 'down') {
     moveAcceptedSelection(state, 1);
+    return;
+  }
+  if (key.name === 'home') {
+    state.acceptedSelection = 0;
+    state.paneScroll.accepted = 0;
+    state.status = 'Moved to first accepted action.';
+    return;
+  }
+  if (key.name === 'end') {
+    state.acceptedSelection = Math.max(0, state.accepted.length - 1);
+    state.paneScroll.accepted = Math.max(0, state.accepted.length - WINDOW_SIZE);
+    state.status = 'Moved to last accepted action.';
     return;
   }
   if (key.name === 'enter') {
@@ -389,7 +383,7 @@ function detailsPane(state, action, width, height) {
       title: ` ${state.activeTab === 'details' ? '▶' : ' '} DETAILS `,
       active: state.activeTab === 'details',
       height,
-      children: [Toast({ level: 'warning', message: 'No command matches the current query.' })],
+      children: [Panel(' No matches ', Text('No command matches the current query.'), Text('Edit or clear the filter to continue.'))],
     });
   }
   const [id, description, group, shortcut, detail] = action;
@@ -440,7 +434,7 @@ function acceptedPane(state, width, height) {
     active: state.activeTab === 'accepted',
     height,
     children: [
-      Toast({ level: state.accepted.length ? 'success' : 'info', message: state.accepted.length ? `${state.accepted.length} action(s) accepted.` : 'No accepted actions yet.' }),
+      Text(state.accepted.length ? `${state.accepted.length} action(s) accepted in this local demo.` : 'No accepted actions yet.'),
       ...window.rows.map((line) => Text(line, { wrap: false })),
     ],
   });
@@ -458,6 +452,7 @@ function contextHelpHints(state) {
       ['↑/↓', 'select log row'],
       ['Enter', 'inspect selected'],
       ['PgUp/PgDn', 'scroll log'],
+      ['Home/End', 'first/last'],
       ['Esc', 'back to palette'],
       ['Tab', 'switch pane'],
       ['Q', 'exit'],
@@ -497,6 +492,35 @@ function normalizeAcceptedSelection(state) {
     return;
   }
   state.acceptedSelection = Math.max(0, Math.min(state.accepted.length - 1, state.acceptedSelection));
+}
+
+function scoreAction(item, terms) {
+  const [id, description, group, shortcut, detail] = item;
+  const fields = [id, description, group, shortcut, detail].map((value) => String(value ?? '').toLowerCase());
+  let score = 0;
+  for (const term of terms) {
+    let best = -Infinity;
+    fields.forEach((field, fieldIndex) => {
+      if (!field) return;
+      if (field === term) best = Math.max(best, 120 - fieldIndex * 8);
+      else if (field.startsWith(term)) best = Math.max(best, 90 - fieldIndex * 8);
+      else if (field.includes(term)) best = Math.max(best, 55 - fieldIndex * 6);
+      else {
+        let cursor = 0;
+        let gaps = 0;
+        for (const char of term) {
+          const found = field.indexOf(char, cursor);
+          if (found < 0) { cursor = -1; break; }
+          gaps += found - cursor;
+          cursor = found + 1;
+        }
+        if (cursor >= 0) best = Math.max(best, 28 - Math.min(20, gaps) - fieldIndex * 4);
+      }
+    });
+    if (!Number.isFinite(best)) return -Infinity;
+    score += best;
+  }
+  return score;
 }
 
 function groupCounts(items) {

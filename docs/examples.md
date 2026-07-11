@@ -48,7 +48,7 @@ examples/support-desk/
 ### AI Code Review Terminal
 
 ```bash
-npm run example:code-review
+npm run demo:code-review
 ```
 
 A responsive pull-request review workspace. It opens with a keyboard-driven PR picker, keeps General details read-only, pages through commits and diffs, and presents full-width review-thread cards with a sticky latest-comment position. Use `N` for a new comment, `R` to reply to the selected author, `Ctrl+J` for a newline, and `J` to jump to a live-comment toast. Confirmation is focus-trapped, transient feedback is rendered as an overlay, and all panes preserve their scroll position through terminal resizes.
@@ -61,7 +61,7 @@ A responsive pull-request review workspace. It opens with a keyboard-driven PR p
 npm run example:editor
 ```
 
-A polished InputEditor workspace with a live draft buffer, visible cursor state, editable saved drafts, an explicit `+ Add another` draft slot for creating new drafts, PgUp/PgDn-scrollable diagnostics/history panes, and bordered-grid local help.
+A responsive InputEditor workspace with a live multiline draft, visible cursor metrics, editable saved drafts, an explicit `+ Add another` slot, Home/End/Delete history controls, PgUp/PgDn-scrollable diagnostics, adaptive local help, and a compact viewport fallback.
 
 ### Command Palette
 
@@ -69,7 +69,7 @@ A polished InputEditor workspace with a live draft buffer, visible cursor state,
 npm run example:palette
 ```
 
-A product-style command launcher with grouped actions, searchable metadata, selected-action details, accepted-action log, responsive layout, tab-scoped keyboard handling, PgUp/PgDn scrolling for long panes, bordered-grid local help, and measured workspace sizing so the Actions pane stays bounded above the command bar on small terminals.
+A product-style command launcher with grouped actions, fuzzy scoring across titles, descriptions and aliases, selected-action details, a stable accepted-action log, tab-scoped keyboard handling, PgUp/PgDn scrolling, adaptive local help, and a compact viewport fallback.
 
 ### Streaming Workbench
 
@@ -77,7 +77,7 @@ A product-style command launcher with grouped actions, searchable metadata, sele
 npm run example:stream
 ```
 
-A streaming workspace with an explicit prompt editor, Ctrl+J newline support, transcript autoscroll, read-only transcript line scrolling with ↑/↓, page scrolling with PgUp/PgDn, runtime control rail, chunk progress, cancellation path, clear `[ and ]` template switching, and a `+ Add new one` flow for saving the current prompt plus a scenario response as a reusable template.
+A responsive streaming workspace with a multiline prompt editor, compact template controls, sticky transcript autoscroll that preserves scrollback, line/page navigation, runtime progress and cancellation, reusable-template creation, compact viewport fallback, and explicit timer cleanup on exit.
 
 ## UI mechanics examples
 
@@ -91,21 +91,13 @@ npm run example:kit
 
 An interactive component catalog for the library. It provides a searchable catalog, live preview pane, inspector pane, local help, and samples for core render nodes, workspace shell pieces, selection lists, display helpers, feedback overlays, progress blocks, editors, scroll panes, command palette, timeline blocks, responsive columns, and theme tokens.
 
-### Stream Mechanics
-
-```bash
-npm run example:agent-stream
-```
-
-A low-level structured streaming reference. It shows queueing chunk and block events, cancellation, retry/regenerate actions, progress, pending timers, and transcript updates without adding a larger product shell.
-
 ### Key Inspector
 
 ```bash
 npm run example:keys
 ```
 
-Shows raw escape sequences, normalized key objects, and editor actions. Use this when debugging terminal compatibility.
+A responsive terminal compatibility desk showing raw escape sequences, normalized key objects, recent actions, and the actual editor result. It includes multiline editing, bracketed paste, vertical/word movement diagnostics, and a compact fallback.
 
 ### Theme Gallery
 
@@ -113,15 +105,15 @@ Shows raw escape sequences, normalized key objects, and editor actions. Use this
 npm run example:themes
 ```
 
-Renders the same structured scene across built-in themes, including panels, blocks, diffs, status colors and toast shadows.
+A responsive Themes/Preview/Tokens workspace. It applies the selected theme to the whole shell, exposes semantic token output, supports scrollable galleries, and degrades to a clear compact fallback.
 
-### Blocks Gallery
+### Structured Response Explorer
 
 ```bash
 npm run example:blocks
 ```
 
-Shows `text`, `code`, `diff`, `command`, `warning`, and `tool_result` blocks with selection state and mock block actions.
+A scenario-driven explorer for structured assistant output. The left response map shows the ordered blocks that make up one answer, the main pane renders the complete response, and a docked inspector explains the selected block's payload, purpose, and safe actions. Use `Enter` to isolate a block, `[` / `]` to switch scenarios, and `C`, `A`, or `R` to simulate copy, diff-apply, and command-run workflows without touching files or starting processes.
 
 ### Components Showcase
 
@@ -129,11 +121,11 @@ Shows `text`, `code`, `diff`, `command`, `warning`, and `tool_result` blocks wit
 npm run example:components
 ```
 
-Non-interactive UI runtime showcase. It can run in regular stdout, so it is useful for quick smoke checks and CI-style output inspection.
+A non-interactive, CI-friendly UI runtime showcase with a capability grid, previous/next virtual frames, and an explicit frame patch plan showing changed rows and rendering benefit.
 
 ## Removed duplicate examples
 
-The previous `example:chat`, `example:composer`, `example:command-center`, and `example:sessions` scripts were removed from the examples list. Their useful mechanics are covered by `demo:chat`, `example:editor`, `example:palette`, and `example:kit`.
+The previous `example:chat`, `example:composer`, `example:command-center`, `example:sessions`, and duplicate `example:agent-stream` scripts were removed from the examples list. Their useful mechanics are covered by `demo:chat`, `example:editor`, `example:palette`, `example:stream`, and `example:kit`.
 
 ## Running examples directly
 

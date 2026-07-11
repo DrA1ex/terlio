@@ -5,7 +5,6 @@ import { parseKey, renderToString, stripAnsi, visibleLength } from '../src/lib/i
 import { createKeyInspectorState, createKeyInspectorView, handleKeyInspectorKey } from '../examples/keys.js';
 import { createBlocksGalleryState, createBlocksGalleryView, handleBlocksGalleryKey, primaryBlockAction } from '../examples/blocks.js';
 import { addIncomingReviewComment, buildReviewBlocks, createCodeReviewState, createCodeReviewView, handleCodeReviewKey, jumpToToastComment, submitReview, tickCodeReview } from '../examples/code-review.js';
-import { cancelAgentStream, createAgentStreamState, createAgentStreamView, handleAgentStreamKey, submitAgentPrompt } from '../examples/agent-stream.js';
 import { createThemeGalleryState, createThemeGalleryView, handleThemeGalleryKey } from '../examples/themes.js';
 import { createCommandPaletteState, createCommandPaletteView } from '../examples/command-palette.js';
 
@@ -13,9 +12,12 @@ test('package exposes focused UI mechanics examples without duplicate legacy scr
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(pkg.scripts['example:kit'], 'node examples/interaction-kit.js');
   assert.equal(pkg.scripts['example:components'], 'node examples/components-showcase.js');
-  for (const name of ['keys', 'blocks', 'code-review', 'agent-stream', 'themes']) {
+  for (const name of ['keys', 'blocks', 'themes']) {
     assert.equal(pkg.scripts[`example:${name}`], `node examples/${name}.js`);
   }
+  assert.equal(pkg.scripts['example:agent-stream'], undefined);
+  assert.equal(pkg.scripts['demo:code-review'], 'node examples/code-review.js');
+  assert.equal(pkg.scripts['example:code-review'], undefined);
   for (const removed of ['example:chat', 'example:composer', 'example:command-center', 'example:sessions']) {
     assert.equal(pkg.scripts[removed], undefined);
   }
@@ -31,15 +33,40 @@ test('key inspector shows raw normalized key data and editor result', () => {
   assert.match(output, /insert "x"/);
 });
 
-test('blocks gallery renders all structured block types and records block actions', () => {
+test('structured response explorer navigates scenarios, isolates blocks and records safe actions', () => {
   const state = createBlocksGalleryState();
   handleBlocksGalleryKey({ key: { name: 'down' }, state });
+  assert.equal(state.selectedIndex, 1);
   handleBlocksGalleryKey({ key: { name: 'enter' }, state });
-  assert.match(primaryBlockAction({ type: 'command', command: 'npm test' }), /run command/);
+  assert.equal(state.isolated, true);
+  assert.equal(state.focus, 'response');
+  handleBlocksGalleryKey({ key: { name: 'escape' }, state });
+  assert.equal(state.isolated, false);
+  handleBlocksGalleryKey({ key: { name: ']', printable: true, text: ']' }, state });
+  assert.equal(state.scenarioIndex, 1);
+  assert.match(primaryBlockAction({ type: 'command', command: 'npm test' }), /mock run/);
   const output = stripAnsi(renderToString(createBlocksGalleryView({ state, width: 108, height: 32 }), { width: 108, height: 32 }));
-  assert.match(output, /Blocks Gallery/);
-  assert.match(output, /tool_result/);
-  assert.match(output, /code/);
+  assert.match(output, /Structured Response Explorer/);
+  assert.match(output, /RESPONSE MAP/);
+  assert.match(output, /BLOCK INSPECTOR/);
+  assert.match(output, /tool_result|command/);
+});
+
+test('structured response explorer keeps diff and command actions explicit and simulated', () => {
+  const state = createBlocksGalleryState();
+  state.selectedIndex = 2;
+  handleBlocksGalleryKey({ key: { name: 'a', printable: true, text: 'a' }, state });
+  assert.equal(state.overlays.hasBlocking(), true);
+  handleBlocksGalleryKey({ key: { name: 'enter' }, state });
+  assert.equal(state.overlays.hasBlocking(), false);
+  assert.match(state.actionLog.at(-1), /mock apply/);
+
+  state.selectedIndex = 4;
+  handleBlocksGalleryKey({ key: { name: 'r', printable: true, text: 'r' }, state });
+  assert.equal(state.overlays.hasBlocking(), true);
+  handleBlocksGalleryKey({ key: { name: 'enter' }, state });
+  assert.match(state.actionLog.at(-1), /mock run/);
+  assert.ok(state.overlays.toasts.length >= 1);
 });
 
 test('code review demo opens PR picker and can switch pull requests with Ctrl+O', () => {
@@ -252,21 +279,6 @@ test('code review live comments show a toast and can jump to the target thread b
   assert.ok(ticked);
   assert.equal(state.pr.comments.length, before + 2);
   assert.ok(state.liveCommentCountdown >= 18);
-});
-
-test('agent stream demo creates a cancellable structured stream queue', () => {
-  const state = createAgentStreamState();
-  submitAgentPrompt(state, { invalidate() {} }, 'review renderer lifecycle');
-  assert.equal(state.streaming, true);
-  assert.ok(state.streamTotal > 0);
-  cancelAgentStream(state, 'cancelled');
-  assert.equal(state.streaming, false);
-  handleAgentStreamKey({ key: { name: 'e' }, state, runtime: { invalidate() {} } });
-  assert.equal(state.streaming, true);
-  cancelAgentStream(state, 'cancelled');
-  const output = stripAnsi(renderToString(createAgentStreamView({ state, width: 110, height: 32 }), { width: 110, height: 32 }));
-  assert.match(output, /Stream Mechanics/);
-  assert.match(output, /stream cancelled/);
 });
 
 test('theme gallery switches previews across all available themes', () => {

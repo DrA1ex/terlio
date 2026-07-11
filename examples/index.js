@@ -3,20 +3,19 @@ const groups = [
   ['Demos', [
     ['npm run demo:chat', 'Full AI chat workspace with commands, skills, sessions, palette, themes and structured blocks.'],
     ['npm run demo:support-desk', 'Support Triage Desk: product-style queue, reply composer, SLA blocks, timeline and modals.'],
-    ['npm run example:code-review', 'AI Code Review Terminal: PR picker, tabbed review panes, highlighted diffs, live comments and toast jump target.'],
+    ['npm run demo:code-review', 'AI Code Review Terminal: PR picker, tabbed review panes, highlighted diffs, live comments and toast jump target.'],
   ]],
   ['Product-style examples', [
-    ['npm run example:editor', 'Editor Lab: multiline InputEditor, saved drafts, diagnostics/history panes and bordered help grid.'],
-    ['npm run example:palette', 'Command Palette: searchable action launcher, details pane, accepted log and measured responsive layout.'],
-    ['npm run example:stream', 'Streaming Workbench: prompt editor, transcript autoscroll/scrollback and reusable template flow.'],
+    ['npm run example:editor', 'Editor Lab: multiline editor, saved-draft navigation, diagnostics, adaptive help and compact fallback.'],
+    ['npm run example:palette', 'Command Palette: fuzzy action search, details, stable accepted log and responsive compact fallback.'],
+    ['npm run example:stream', 'Streaming Workbench: multiline prompt, sticky scrollback, runtime controls, templates and timer cleanup.'],
   ]],
   ['UI mechanics examples', [
     ['npm run example:kit', 'Interaction Kit: interactive component catalog for nodes, workspace pieces, feedback overlays, editors, scrolling, palette, timeline and theme tokens.'],
-    ['npm run example:agent-stream', 'Stream Mechanics: low-level structured stream queue, chunk/block events, cancellation, retry and progress.'],
-    ['npm run example:keys', 'Key Inspector: raw escape sequences, normalized keys and editor action diagnostics.'],
-    ['npm run example:themes', 'Theme Gallery: compare panels, blocks, diffs, status colors and toast shadows across themes.'],
-    ['npm run example:blocks', 'Blocks Gallery: structured block rendering, selected block state and mock block actions.'],
-    ['npm run example:components', 'Static UI-runtime showcase with virtual frames, layout primitives and frame diff output.'],
+    ['npm run example:keys', 'Key Inspector: responsive raw/normalized key diagnostics with live editor result and paste support.'],
+    ['npm run example:themes', 'Theme Gallery: responsive themes, semantic token gallery and whole-shell preview.'],
+    ['npm run example:blocks', 'Structured Response Explorer: response scenarios, ordered block map, rendered output, inspector and safe mock actions.'],
+    ['npm run example:components', 'Static UI-runtime showcase with capability grid, virtual frames and patch-plan output.'],
   ]],
 ];
 

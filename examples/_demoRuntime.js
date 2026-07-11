@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { ansi, parseKey, renderToFrame, TerminalRenderer } from '../src/lib/index.js';
 
 export class InteractiveRuntime {
-  constructor({ title, state = {}, render, onKey, onTick = null, tickMs = 0 }) {
+  constructor({ title, state = {}, render, onKey, onTick = null, tickMs = 0, onStop = null }) {
     this.title = title;
     this.state = {
       keyLog: [],
@@ -14,6 +14,8 @@ export class InteractiveRuntime {
     this.onKey = onKey;
     this.onTick = onTick;
     this.tickMs = Number(tickMs) || 0;
+    this.onStop = typeof onStop === 'function' ? onStop : null;
+    this.stopNotified = false;
     this.tickTimer = null;
     this.input = process.stdin;
     this.output = process.stdout;
@@ -57,6 +59,10 @@ export class InteractiveRuntime {
     this.output.off('resize', this.boundOnResize);
     if (this.input.isTTY) this.input.setRawMode(false);
     this.input.pause();
+    if (!this.stopNotified) {
+      this.stopNotified = true;
+      try { this.onStop?.({ state: this.state, runtime: this }); } catch {}
+    }
     this.renderer.reset();
     this.output.write(ansi.showCursor + ansi.normalScreen + ansi.reset + '\n');
   }
@@ -76,8 +82,8 @@ export class InteractiveRuntime {
 
   render() {
     if (!this.running) return;
-    const width = Math.max(50, this.output.columns || 90);
-    const height = Math.max(16, this.output.rows || 28);
+    const width = Math.max(1, this.output.columns || 90);
+    const height = Math.max(1, this.output.rows || 28);
     const view = this.renderView({ state: this.state, runtime: this, width, height });
     const frame = renderToFrame(view, { width, height });
     this.renderer.renderFrame(frame);
@@ -123,6 +129,11 @@ export function runInteractiveDemo(config) {
   process.on('SIGINT', () => runtime.exit(130));
   process.on('SIGTERM', () => runtime.exit(143));
   process.on('uncaughtException', (error) => {
+    runtime.stop();
+    console.error(error);
+    process.exit(1);
+  });
+  process.on('unhandledRejection', (error) => {
     runtime.stop();
     console.error(error);
     process.exit(1);

@@ -84,7 +84,7 @@ Demos:
 ```bash
 npm run demo:chat
 npm run demo:support-desk
-npm run example:code-review
+npm run demo:code-review
 ```
 
 Product-style examples:
@@ -99,7 +99,6 @@ UI mechanics examples:
 
 ```bash
 npm run example:kit
-npm run example:agent-stream
 npm run example:keys
 npm run example:themes
 npm run example:blocks
@@ -109,6 +108,8 @@ npm run example:components
 Interactive examples require a real terminal. `example:components` renders to normal stdout and is useful as a quick smoke test.
 
 `demo:chat` is the primary chat reference: it includes responsive conversation/composer sizing, slash completion, a searchable command palette, multiline and bracketed-paste editing, structured blocks, streaming-aware scroll anchoring, and a compact viewport fallback below `56×18`.
+
+`demo:code-review` is the reviewed pull-request workflow. `example:agent-stream` was removed because its useful streaming mechanics are already covered more clearly by `example:stream`. The remaining examples have also been audited for responsive sizing, local keyboard ownership, scrolling, compact fallbacks, and clean timer/terminal teardown.
 
 ## Library usage
 

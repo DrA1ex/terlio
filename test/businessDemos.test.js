@@ -15,9 +15,11 @@ import { fileURLToPath } from 'node:url';
 
 const packageJson = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8'));
 
-test('business demo scripts expose chat and support desk only', () => {
+test('business demo scripts expose chat, support desk and code review', () => {
   assert.equal(packageJson.scripts['demo:support-desk'], 'node examples/support-desk.js');
   assert.ok(packageJson.scripts['demo:chat']);
+  assert.equal(packageJson.scripts['demo:code-review'], 'node examples/code-review.js');
+  assert.equal(packageJson.scripts['example:code-review'], undefined);
   assert.equal(packageJson.scripts['demo:release-room'], undefined);
 });
 

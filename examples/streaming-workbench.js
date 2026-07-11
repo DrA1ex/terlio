@@ -5,9 +5,11 @@ import {
   KeyHintBar,
   Panel,
   ProgressBar,
+  RequireViewport,
   Row,
   Text,
   TextEditorView,
+  WorkspaceFooter,
   WorkspacePane,
   WorkspaceShell,
   fitInline,
@@ -79,15 +81,16 @@ export function createStreamingWorkbenchView({ state, width = 100, height = 30 }
   ];
   const right = [
     { label: 'Scenario', value: activeScenarioTitle(state) },
-    { label: 'Status', value: fitInline(state.status, 46).trimEnd() },
+    { label: 'Autoscroll', value: state.transcriptAutoscroll ? 'on' : 'paused' },
   ];
   const tabHint = responsiveTabHint('Tab focus · Enter submit from Prompt · Esc cancel stream · PgUp/PgDn scroll active pane', TABS, visibleTabs);
   const activity = KeyHintBar({
     title: ' LOCAL HELP ',
     hints: helpHints,
     theme: EXAMPLE_THEME,
-    gridBorder: true,
+    adaptive: true,
   });
+  const footer = WorkspaceFooter({ left: [state.status], right: [`focus: ${state.activeTab}`], theme: EXAMPLE_THEME });
   const { mainHeight } = resolveWorkspaceShellLayout({
     width,
     height,
@@ -100,6 +103,7 @@ export function createStreamingWorkbenchView({ state, width = 100, height = 30 }
     activeTab: state.activeTab,
     tabHint,
     activity,
+    footer,
     theme: EXAMPLE_THEME,
     minMainHeight: 3,
   });
@@ -118,7 +122,7 @@ export function createStreamingWorkbenchView({ state, width = 100, height = 30 }
         )
       : narrowPane(state, width, mainHeight);
 
-  return WorkspaceShell({
+  const shell = WorkspaceShell({
     title: 'Streaming Workbench',
     subtitle: 'incremental output lab',
     stats,
@@ -129,8 +133,16 @@ export function createStreamingWorkbenchView({ state, width = 100, height = 30 }
     tabHint,
     main,
     activity,
+    footer,
     height,
     theme: EXAMPLE_THEME,
+  });
+  return RequireViewport({
+    width, height, minWidth: 58, minHeight: 19,
+    title: 'Streaming Workbench needs more room',
+    message: 'Resize to keep the prompt, transcript and runtime controls readable.',
+    theme: EXAMPLE_THEME,
+    children: shell,
   });
 }
 
@@ -416,27 +428,35 @@ function promptPane(state, width, height) {
   const editor = activeEditor(state);
   const editorTitle = state.pendingTemplate ? ' Scenario response ' : ' Draft ';
   const editorPlaceholder = state.pendingTemplate ? 'write the assistant response for this template...' : 'type a prompt, then press Enter...';
+  const roomy = height >= 14;
+  const selectedLabel = selectedAddRow(state)
+    ? '+ Add new one'
+    : `${state.replyIndex + 1}/${state.templates.length} · ${scenario?.title ?? 'Custom'}`;
+  const children = [
+    TextEditorView({
+      title: editorTitle,
+      value: editor.value,
+      cursor: editor.cursor,
+      width: Math.max(24, width - 4),
+      height: Math.max(3, roomy ? Math.min(6, height - 10) : height - 5),
+      placeholder: editorPlaceholder,
+      lineNumbers: true,
+    }),
+    Text(`Template: ${selectedLabel}`, { wrap: false }),
+  ];
+  if (roomy) {
+    children.push(
+      Panel(' Templates ', ...templateRows(state, width)),
+      Panel(' Scenario ', ...scenarioRows(state, scenario, width)),
+    );
+  } else {
+    children.push(Text(state.pendingTemplate ? 'Enter saves · Esc cancels template creation.' : '[ / ] switches templates · Enter submits or opens + Add new one.'));
+  }
   return WorkspacePane({
     title: ` ${state.activeTab === 'prompt' ? '▶' : ' '} PROMPT `,
     active: state.activeTab === 'prompt',
     height,
-    children: [
-      TextEditorView({
-        title: editorTitle,
-        value: editor.value,
-        cursor: editor.cursor,
-        width: Math.max(24, width - 4),
-        height: Math.max(3, Math.min(6, height - 13)),
-        placeholder: editorPlaceholder,
-        lineNumbers: false,
-      }),
-      Panel(' Templates ',
-        ...templateRows(state, width),
-      ),
-      Panel(' Scenario ',
-        ...scenarioRows(state, scenario, width),
-      ),
-    ],
+    children,
   });
 }
 
@@ -556,6 +576,14 @@ function cancelStream(state) {
   state.streaming = false;
   if (state.streamTimer) clearTimeout(state.streamTimer);
   state.streamTimer = null;
+}
+
+export function cleanupStreamingWorkbench({ state }) {
+  if (state?.streamTimer) clearTimeout(state.streamTimer);
+  if (state) {
+    state.streamTimer = null;
+    state.streaming = false;
+  }
 }
 
 function chunkText(text) {
@@ -705,5 +733,6 @@ if (isDirectRun(import.meta.url)) {
     state: createStreamingWorkbenchState(),
     render: createStreamingWorkbenchView,
     onKey: handleStreamingWorkbenchKey,
+    onStop: cleanupStreamingWorkbench,
   });
 }

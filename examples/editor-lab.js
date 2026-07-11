@@ -2,19 +2,22 @@
 import {
   InputEditor,
   KeyHintBar,
+  RequireViewport,
   Panel,
   Row,
   Text,
   TextEditorView,
   renderNode,
   color,
+  WorkspaceFooter,
   WorkspacePane,
   WorkspaceShell,
   fitInline,
   splitWorkspaceColumns,
+  resolveWorkspaceShellLayout,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
-import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, scrollOffset, scrollToVisible, visibleScrollableRows, workspaceMainHeight } from './_workspaceExampleUtils.js';
+import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, scrollOffset, scrollToVisible, visibleScrollableRows } from './_workspaceExampleUtils.js';
 
 const TABS = [
   { id: 'editor', label: 'Editor' },
@@ -48,16 +51,30 @@ export function createEditorLabState() {
 export function createEditorLabView({ state, width = 92, height = 28 } = {}) {
   const layout = splitWorkspaceColumns(width);
   const helpHints = contextHelpHints(state, height);
-  const showCommand = false;
-  const helpGridRows = helpHints.length ? Math.ceil(helpHints.length / 3) : 0;
-  const mainHeight = workspaceMainHeight(height, {
-    min: 6,
-    activityRows: helpGridRows ? helpGridRows * 2 + 1 : 0,
-    commandRows: showCommand ? 4 : 0,
-    footerRows: 0,
-  });
   const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['editor'] });
   const editor = state.editor;
+  const stats = [
+    { label: 'Chars', value: Array.from(editor.value).length },
+    { label: 'Words', value: wordCount(editor.value) },
+    { label: 'Cursor', value: `${editor.getCursorPosition().line + 1}:${editor.getCursorPosition().column + 1}` },
+  ];
+  const right = [
+    { label: 'Submitted', value: state.submitted.length },
+    { label: 'Saved drafts', value: state.history.length },
+  ];
+  const tabHint = responsiveTabHint('Tab focus · Ctrl+J newline · Enter submit/load · PgUp/PgDn scroll · Ctrl+C exit', TABS, visibleTabs);
+  const activity = helpHints.length ? KeyHintBar({
+    title: ' LOCAL HELP ',
+    hints: helpHints,
+    theme: EXAMPLE_THEME,
+    adaptive: true,
+  }) : null;
+  const footer = WorkspaceFooter({ left: [state.status], right: [`focus: ${state.activeTab}`], theme: EXAMPLE_THEME });
+  const { mainHeight } = resolveWorkspaceShellLayout({
+    width, height, title: 'Editor Lab', subtitle: 'InputEditor compatibility desk', stats, right,
+    focus: state.activeTab, tabs: visibleTabs, activeTab: state.activeTab, tabHint,
+    activity, footer, theme: EXAMPLE_THEME, minMainHeight: 5,
+  });
   const main = layout.mode === 'wide'
     ? Row({ gap: 2, widths: layout.widths },
         editorPane(state, Math.max(30, layout.widths[0]), mainHeight),
@@ -71,33 +88,27 @@ export function createEditorLabView({ state, width = 92, height = 28 } = {}) {
         )
       : narrowPane(state, width, mainHeight);
 
-  return WorkspaceShell({
+  const shell = WorkspaceShell({
     title: 'Editor Lab',
     subtitle: 'InputEditor compatibility desk',
-    stats: [
-      { label: 'value', value: editor.value || '<empty>' },
-      { label: 'cursor', value: `${editor.cursor}/${Array.from(editor.value).length}` },
-      { label: 'line', value: `${editor.getCursorPosition().line + 1}:${editor.getCursorPosition().column + 1}` },
-    ],
-    right: [
-      { label: 'Submitted', value: state.submitted.length },
-      { label: 'History', value: state.history.length },
-      { label: 'Status', value: fitInline(state.status, 42).trimEnd() },
-    ],
+    stats,
+    right,
     focus: state.activeTab,
     tabs: visibleTabs,
     activeTab: state.activeTab,
-    tabHint: responsiveTabHint('Type text · Ctrl+J newline · Enter submit/load · PgUp/PgDn scroll pane · Tab focus · Ctrl+C exit', TABS, visibleTabs),
+    tabHint,
     main,
-    command: null,
-    activity: helpHints.length ? KeyHintBar({
-      title: ' LOCAL HELP ',
-      hints: helpHints,
-      theme: EXAMPLE_THEME,
-      gridBorder: true,
-    }) : null,
+    activity,
+    footer,
     height,
     theme: EXAMPLE_THEME,
+  });
+  return RequireViewport({
+    width, height, minWidth: 58, minHeight: 18,
+    title: 'Editor Lab needs more room',
+    message: 'Resize to keep the draft, diagnostics and saved-history controls readable.',
+    theme: EXAMPLE_THEME,
+    children: shell,
   });
 }
 
@@ -165,7 +176,32 @@ export function handleEditorLabKey({ key, state }) {
       moveHistorySelection(state, key.name === 'up' ? -1 : 1);
       return;
     }
-    state.status = 'Diagnostics uses PageUp/PageDown only.';
+    state.status = 'Diagnostics is read-only; use PageUp/PageDown.';
+    return;
+  }
+
+  if (state.activeTab === 'history' && (key.name === 'home' || key.name === 'end')) {
+    state.historySelection = key.name === 'home' ? 0 : state.history.length;
+    state.ensureHistoryVisible = true;
+    state.status = key.name === 'home' ? 'Selected first saved draft.' : 'Selected + Add another.';
+    return;
+  }
+
+  if (state.activeTab === 'history' && key.name === 'delete') {
+    const index = clampIndex(state.historySelection ?? 0, state.history.length + 1);
+    if (index >= state.history.length) {
+      state.status = 'The + Add another row cannot be deleted.';
+      return;
+    }
+    const [removed] = state.history.splice(index, 1);
+    state.historySelection = Math.min(index, state.history.length);
+    state.ensureHistoryVisible = true;
+    state.status = `Deleted saved draft: ${removed}`;
+    return;
+  }
+
+  if (state.activeTab !== 'editor' && ['left', 'right', 'home', 'end', 'backspace', 'kill-end', 'kill-start', 'delete-word-left'].includes(key.name)) {
+    state.status = `${state.activeTab === 'history' ? 'History' : 'Diagnostics'} is read-only for editor navigation; press Tab to focus Editor.`;
     return;
   }
 
@@ -245,26 +281,22 @@ export function handleEditorLabKey({ key, state }) {
 }
 
 function editorPane(state, width, height) {
+  const position = state.editor.getCursorPosition();
   return WorkspacePane({
     title: ` ${state.activeTab === 'editor' ? '▶' : ' '} LIVE EDITOR `,
     active: state.activeTab === 'editor',
     height,
     children: [
-      Panel(' State ',
-        Text(color(EXAMPLE_THEME, 'accent', `value : ${state.editor.value || '<empty>'}`)),
-        Text(`cursor: ${state.editor.cursor}/${Array.from(state.editor.value).length}`),
-        Text(`words : ${wordCount(state.editor.value)}`),
-        Text(`line  : ${state.editor.getCursorPosition().line + 1}:${state.editor.getCursorPosition().column + 1}`),
-      ),
       TextEditorView({
         title: ' Draft buffer ',
         value: state.editor.value,
         cursor: state.editor.cursor,
         width: Math.max(24, width - 4),
-        height: Math.max(3, Math.min(5, height - 9)),
+        height: Math.max(3, height - 5),
         placeholder: 'type a message, then press Enter to submit...',
-        lineNumbers: false,
+        lineNumbers: true,
       }),
+      Text(`chars ${Array.from(state.editor.value).length} · words ${wordCount(state.editor.value)} · cursor ${position.line + 1}:${position.column + 1}`, { wrap: false }),
     ],
   });
 }
@@ -456,9 +488,10 @@ function contextHelpHints(state, height = 28) {
     return [
       ['↑/↓', 'select history item'],
       ['PgUp/PgDn', 'scroll history'],
-      ['Tab', 'switch tab'],
+      ['Home/End', 'first / add another'],
       ['Enter', 'load draft / add another'],
-      ['Ctrl+J', 'newline in editor'],
+      ['Delete', 'remove saved draft'],
+      ['Tab', 'switch tab'],
       ['Ctrl+C', 'exit'],
     ];
   }

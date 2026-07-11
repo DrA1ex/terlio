@@ -18,8 +18,7 @@
     "example:kit": "node examples/interaction-kit.js",
     "example:keys": "node examples/keys.js",
     "example:blocks": "node examples/blocks.js",
-    "example:code-review": "node examples/code-review.js",
-    "example:agent-stream": "node examples/agent-stream.js",
+    "demo:code-review": "node examples/code-review.js",
     "example:themes": "node examples/themes.js",
     "demo:chat": "node examples/mock-ai-terminal.js",
     "demo:support-desk": "node examples/support-desk.js"
