@@ -69,7 +69,7 @@ A responsive InputEditor workspace with a live multiline draft, visible cursor m
 npm run example:palette
 ```
 
-A product-style command launcher with grouped actions, fuzzy scoring across titles, descriptions and aliases, selected-action details, a stable accepted-action log, tab-scoped keyboard handling, PgUp/PgDn scrolling, adaptive local help, and a compact viewport fallback.
+A guided **Release Command Center** built around one concrete user path: run checks, generate notes, request approval, and confirm a staging deployment. The searchable palette uses fuzzy title/description/alias matching, categories, shortcuts, dynamic disabled states, action details, confirmations, semantic toasts, real workspace mutations, activity history, theme switching, and a responsive compact fallback. Press `/` or `Ctrl+P` to reopen the palette after each step.
 
 ### Streaming Workbench
 

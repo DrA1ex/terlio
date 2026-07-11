@@ -60,18 +60,28 @@ test('editor history supports edge navigation and deleting saved drafts without 
   assert.match(state.status, /Deleted saved draft/);
 });
 
-test('command palette ranks subsequence matches and keeps accepted results local', () => {
-  const fuzzy = getFilteredActions('ctnw');
-  assert.equal(fuzzy[0][0], 'chat.new');
-  const state = createCommandPaletteState();
-  for (const char of 'ocean') handleCommandPaletteKey({ key: { name: char, printable: true, text: char }, state, runtime: { exit() {} } });
-  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime: { exit() {} } });
-  assert.equal(state.activeTab, 'accepted');
-  assert.match(state.accepted.at(-1), /theme\.ocean/);
-  const output = stripAnsi(renderToString(createCommandPaletteView({ state, width: 100, height: 30 }), { width: 100, height: 30 }));
-  assert.match(output, /accepted in this local demo/);
-});
+test('release command center ranks fuzzy aliases and keeps disabled actions safe', () => {
+  const fuzzy = getFilteredActions('rlschk');
+  assert.equal(fuzzy[0].id, 'release.checks.run');
 
+  const runtime = { exit() {} };
+  const state = createCommandPaletteState();
+  for (const char of 'approval') {
+    handleCommandPaletteKey({ key: { name: char, printable: true, text: char }, state, runtime });
+  }
+  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+  assert.equal(state.release.approved, false);
+  assert.match(state.status, /checks|notes/i);
+  assert.ok(state.overlays.toasts.some((toast) => toast.level === 'warning'));
+
+  state.overlays.pop();
+  handleCommandPaletteKey({ key: { name: 'a', printable: true, text: 'a' }, state, runtime });
+  assert.equal(state.release.approved, false);
+  assert.match(state.status, /checks|notes/i);
+
+  const output = stripAnsi(renderToString(createCommandPaletteView({ state, width: 100, height: 30 }), { width: 100, height: 30 }));
+  assert.match(output, /disabled|blocked/i);
+});
 test('streaming workbench cleans up pending timers', () => {
   const workbench = createStreamingWorkbenchState();
   workbench.streamTimer = setTimeout(() => {}, 1000);

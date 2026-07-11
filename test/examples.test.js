@@ -102,31 +102,49 @@ test('editor lab updates selected drafts and only creates a new draft from add a
   assert.equal(state.history.at(-1), 'brand new draft');
 });
 
-test('command palette filters actions and renders a selected scrollable list', () => {
+test('release command center filters actions and renders a guided palette overlay', () => {
   const state = createCommandPaletteState();
-  state.search.set('theme');
-  handleCommandPaletteKey({ key: { name: 'down' }, state, runtime: { exit() {} } });
-  const matches = getFilteredActions(state.search.value);
-  const output = renderToString(createCommandPaletteView({ state, width: 96 }), { width: 96, height: 24 });
-  assert.ok(matches.length >= 3);
-  assert.match(output, /Command Palette/);
-  assert.match(output, /theme\.ocean|theme\.matrix|theme\.dark/);
+  state.palette.editor.set('theme');
+  const matches = getFilteredActions(state.palette.editor.value, state);
+  const output = renderToString(createCommandPaletteView({ state, width: 100, height: 30 }), { width: 100, height: 30 });
+  assert.equal(matches[0].id, 'theme.next');
+  assert.match(output, /Release Command Center/);
+  assert.match(output, /RELEASE COMMAND PALETTE/);
+  assert.match(output, /Cycle workspace theme/);
+  assert.match(output, /Current goal: Run release checks/);
 });
 
-test('command palette routes keys only to the active tab', () => {
+test('release command center executes a concrete checks-to-deploy user path', () => {
+  const runtime = { exit() {} };
   const state = createCommandPaletteState();
-  const before = state.selectedIndex;
-  state.activeTab = 'details';
-  handleCommandPaletteKey({ key: { name: 'down' }, state, runtime: { exit() {} } });
-  assert.equal(state.selectedIndex, before);
-  assert.match(state.status, /read-only/);
+  const type = (value) => {
+    for (const char of value) handleCommandPaletteKey({ key: { name: char, printable: true, text: char }, state, runtime });
+  };
+  const open = () => handleCommandPaletteKey({ key: { name: 'command-palette', ctrl: true }, state, runtime });
 
-  state.activeTab = 'palette';
-  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime: { exit() {} } });
-  assert.equal(state.activeTab, 'accepted');
-  assert.equal(state.accepted.length, 1);
-  handleCommandPaletteKey({ key: { name: 'up' }, state, runtime: { exit() {} } });
-  assert.equal(state.acceptedSelection, 0);
+  type('checks');
+  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+  assert.equal(state.release.checks, true);
+  assert.equal(state.overlays.top(), null);
+
+  open();
+  type('notes');
+  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+  assert.equal(state.release.notes, true);
+
+  open();
+  type('approval');
+  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+  assert.equal(state.release.approved, true);
+
+  open();
+  type('deploy staging');
+  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+  assert.equal(state.overlays.top()?.type, 'confirm');
+  handleCommandPaletteKey({ key: { name: 'right' }, state, runtime });
+  handleCommandPaletteKey({ key: { name: 'enter' }, state, runtime });
+  assert.equal(state.release.deployed, true);
+  assert.match(state.status, /Mission complete/);
 });
 
 test('streaming workbench view renders prompt, controls and transcript area', () => {

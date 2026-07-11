@@ -109,6 +109,8 @@ Interactive examples require a real terminal. `example:components` renders a com
 
 `demo:chat` is the primary chat reference: it includes responsive conversation/composer sizing, slash completion, a searchable command palette, multiline and bracketed-paste editing, structured blocks, streaming-aware scroll anchoring, and a compact viewport fallback below `56×18`.
 
+`example:palette` is a guided Release Command Center: use `/` or `Ctrl+P` to search actions, complete checks → notes → approval → staging deploy, inspect disabled reasons, confirm risky actions, and watch the workspace update.
+
 `demo:code-review` is the reviewed pull-request workflow. `example:agent-stream` was removed because its useful streaming mechanics are already covered more clearly by `example:stream`. The remaining examples have also been audited for responsive sizing, local keyboard ownership, scrolling, compact fallbacks, and clean timer/terminal teardown.
 
 `example:themes` is a staged Theme Studio: browse a candidate without changing the shell, compare it with the active theme, then press `Enter` to apply it to the entire workspace. The token inspector shows the semantic contract behind the visual change.

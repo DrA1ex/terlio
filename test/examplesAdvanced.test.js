@@ -296,16 +296,15 @@ test('theme studio stages, applies and previews semantic themes', () => {
 });
 
 
-test('command palette keeps Actions bounded above the Palette command bar on small terminals', () => {
+test('release command palette overlay stays inside the frame on a small supported terminal', () => {
   const state = createCommandPaletteState();
   const output = stripAnsi(renderToString(createCommandPaletteView({ state, width: 80, height: 24 }), { width: 80, height: 24 }));
   const lines = output.split('\n');
-  const actionsTop = lines.findIndex((line) => line.includes('ACTIONS'));
-  const paletteTop = lines.findIndex((line, index) => index > actionsTop && line.includes(' PALETTE'));
-  const actionsBottom = lines.findIndex((line, index) => index > actionsTop && index < paletteTop && line.startsWith('└'));
 
   assert.equal(lines.length, 24);
-  assert.ok(actionsTop >= 0, 'Actions pane should render');
-  assert.ok(paletteTop > actionsTop, 'Palette command bar should render after Actions');
-  assert.ok(actionsBottom > actionsTop && actionsBottom < paletteTop, 'Actions pane should close before Palette command bar starts');
+  assert.ok(lines.every((line) => visibleLength(line) <= 80));
+  assert.match(output, /RELEASE COMMAND PALETTE/);
+  assert.match(output, /SEARCH ACTIONS/);
+  assert.match(output, /COMMANDS/);
+  assert.match(output, /STATUS/);
 });

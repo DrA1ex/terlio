@@ -1,539 +1,851 @@
 #!/usr/bin/env node
 import {
-  Column,
-  InputEditor,
+  Badge,
+  Box,
   KeyHintBar,
-  Panel,
+  KeyValueBlock,
+  MetricBlock,
+  OverlayHost,
+  ProgressBar,
   RequireViewport,
   Row,
   SelectList,
   Text,
-  Toast,
+  Timeline,
   WorkspaceCommandBar,
   WorkspaceFooter,
   WorkspacePane,
   WorkspaceShell,
-  fitInline,
-  renderNode,
+  color,
+  createActionRegistry,
+  createCommandPaletteState as createPaletteState,
+  createOverlayManager,
+  createTimelineEvent,
+  getCommandPaletteMatches,
+  getPaletteQuery,
+  handleCommandPaletteKey as handlePaletteStateKey,
   resolveWorkspaceShellLayout,
-  splitWorkspaceColumns,
+  themes,
+  truncateVisible,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
-import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, scrollOffset, visibleScrollableRows } from './_workspaceExampleUtils.js';
 
-const ACTIONS = [
-  ['chat.new', 'Start a new chat transcript', 'Chat', '⌘N', 'Safe reset that preserves the current session in history.'],
-  ['chat.retry', 'Retry the last user request', 'Chat', 'R', 'Replays the last prompt against the active provider.'],
-  ['chat.regenerate', 'Regenerate the last assistant answer', 'Chat', 'G', 'Keeps the prompt and replaces only the final assistant turn.'],
-  ['message.copy-last', 'Copy the last assistant answer', 'Message', 'Y', 'Copies text and structured block summaries.'],
-  ['message.shorter', 'Ask the model to shorten the last answer', 'Message', 'S', 'Queues a rewrite instruction against the current answer.'],
-  ['message.longer', 'Ask the model to expand the last answer', 'Message', 'L', 'Requests a more detailed answer while keeping context.'],
-  ['session.save', 'Save the current session', 'Session', '⌘S', 'Persists messages, provider, theme and enabled skills.'],
-  ['session.open', 'Open the session picker', 'Session', 'O', 'Shows recent sessions with preview and delete confirmation.'],
-  ['session.delete', 'Delete a saved session', 'Session', 'D', 'Requires confirmation before removing local data.'],
-  ['provider.mock', 'Switch to the regex mock provider', 'Provider', 'M', 'Fast deterministic replies for demos and tests.'],
-  ['provider.replay', 'Switch to the deterministic replay provider', 'Provider', 'P', 'Replays scripted chunks to validate streaming UI.'],
-  ['theme.dark', 'Switch to the dark theme', 'Theme', '1', 'Default high-contrast theme for long terminal sessions.'],
-  ['theme.ocean', 'Switch to the ocean theme', 'Theme', '2', 'Cool accent theme for product demos.'],
-  ['theme.matrix', 'Switch to the matrix theme', 'Theme', '3', 'Dense green terminal theme for diagnostics.'],
-  ['skill.code.on', 'Enable code assistant skill', 'Skill', 'C', 'Enables code-oriented mock planning and block output.'],
-  ['skill.writer.on', 'Enable writer skill', 'Skill', 'W', 'Enables rewrite and tone-oriented examples.'],
-  ['skill.debugger.on', 'Enable debugger skill', 'B', 'Adds structured warning and tool-result suggestions.'],
-  ['debug.keys', 'Open the key diagnostics screen', 'Diagnostics', 'K', 'Useful when terminal modifiers emit unexpected sequences.'],
-  ['debug.render', 'Show renderer frame timings', 'Diagnostics', 'F', 'Displays frame diff and redraw diagnostics.'],
-  ['terminal.suspend', 'Suspend rich UI and run a shell command', 'Terminal', '!', 'Leaves alternate screen before running a process.'],
-  ['terminal.redraw', 'Reset renderer and redraw the frame', 'Terminal', 'Ctrl+L', 'Clears stale artifacts and forces a full frame render.'],
-  ['help.shortcuts', 'Show keyboard shortcuts', 'Help', '?', 'Opens contextual key help.'],
-  ['help.commands', 'Show slash command reference', 'Help', '/', 'Lists command usage and argument hints.'],
-  ['app.exit', 'Exit the example', 'App', 'Q', 'Restores the terminal and exits cleanly.'],
+const RELEASE_VERSION = '2.8.0';
+const THEME_ORDER = ['ocean', 'forest', 'synth', 'dark'];
+const MIN_WIDTH = 72;
+const MIN_HEIGHT = 22;
+
+const MISSION_STEPS = [
+  { id: 'release.checks.run', label: 'Run release checks', query: 'checks' },
+  { id: 'release.notes.generate', label: 'Generate release notes', query: 'notes' },
+  { id: 'release.approval.request', label: 'Request approval', query: 'approval' },
+  { id: 'release.deploy.staging', label: 'Deploy to staging', query: 'deploy staging' },
 ];
 
-const WINDOW_SIZE = 9;
-const TABS = [
-  { id: 'palette', label: 'Palette' },
-  { id: 'details', label: 'Details' },
-  { id: 'accepted', label: 'Accepted' },
+const ACTION_CATALOG = [
+  ['release.checks.run', 'Run release checks', 'Release', 'C', 'Verify tests, syntax and package metadata.', ['checks', 'verify', 'tests', 'quality']],
+  ['release.notes.generate', 'Generate release notes', 'Release', 'N', 'Create a concise changelog from the staged changes.', ['notes', 'changelog', 'summary']],
+  ['release.approval.request', 'Request release approval', 'Release', 'A', 'Ask for approval after checks and notes are ready.', ['approval', 'review', 'signoff']],
+  ['release.deploy.staging', 'Deploy release to staging', 'Deploy', 'D', 'Open a confirmation before simulating a staging deploy.', ['deploy', 'ship', 'staging']],
+  ['release.deploy.production', 'Deploy release to production', 'Deploy', '', 'Permanently disabled in this safe example.', ['production', 'prod', 'live']],
+  ['release.rollback', 'Roll back staging release', 'Deploy', 'B', 'Available only after the staging deployment completes.', ['rollback', 'undo', 'revert']],
+  ['release.summary.copy', 'Copy release summary', 'Utility', 'Y', 'Simulate copying the current release summary.', ['copy', 'summary', 'clipboard']],
+  ['activity.toggle', 'Toggle expanded activity', 'View', 'L', 'Show or hide the longer activity feed.', ['activity', 'log', 'history']],
+  ['theme.next', 'Cycle workspace theme', 'Appearance', 'T', 'Apply the next semantic theme to the whole workspace.', ['theme', 'color', 'appearance']],
+  ['scenario.reset', 'Reset release scenario', 'Scenario', 'R', 'Return the mission to its initial blocked state.', ['reset', 'restart', 'clear']],
+  ['help.shortcuts', 'Show command-center help', 'Help', '?', 'Open contextual help for the palette and workspace.', ['help', 'keys', 'shortcuts']],
+  ['app.exit', 'Exit the example', 'App', 'Q', 'Restore the terminal and exit cleanly.', ['quit', 'exit', 'close']],
 ];
 
 export function createCommandPaletteState() {
-  return {
-    search: new InputEditor(''),
-    selectedIndex: 0,
-    accepted: [],
-    acceptedSelection: 0,
-    activeTab: 'palette',
-    paneScroll: { details: 0, accepted: 0 },
-    status: 'Type to filter actions. Enter accepts the selected action.',
+  const state = {
+    themeName: 'ocean',
+    release: createReleaseState(),
+    registry: null,
+    palette: createPaletteState({ items: [], windowSize: 7, groupByCategory: true }),
+    overlays: createOverlayManager(),
+    activity: [
+      createTimelineEvent({ type: 'system_event', actor: 'workspace', text: `Release ${RELEASE_VERSION} loaded in a blocked state.` }),
+    ],
+    activityExpanded: false,
+    lastActionId: null,
+    status: 'Step 1: open the palette, search “checks”, then press Enter.',
   };
+  state.registry = createReleaseRegistry();
+  syncPaletteItems(state);
+  openPalette(state);
+  return state;
 }
 
-export function createCommandPaletteView({ state, width = 96, height = 30 } = {}) {
-  const items = getFilteredActions(state.search.value);
-  const selected = normalizeSelected(state, items.length);
-  normalizeAcceptedSelection(state);
-  const selectedAction = items[selected];
-  const layout = splitWorkspaceColumns(width);
-  const visibleTabs = responsiveTabs(TABS, state.activeTab, width, { pinned: ['palette'] });
-  const tabHint = responsiveTabHint('Tab focus · Enter accept/inspect · PgUp/PgDn page · Home/End jump · Ctrl+C exit', TABS, visibleTabs);
+export function createCommandPaletteView({ state, width = 104, height = 30 } = {}) {
+  normalizeState(state);
+  const theme = themes[state.themeName] ?? themes.ocean;
+  syncPaletteItems(state);
+  refreshPaletteOverlay(state, width, height, theme);
+
+  const progress = missionProgress(state);
+  const next = nextMissionStep(state);
   const stats = [
-    { label: 'Matches', value: items.length },
-    { label: 'Selected', value: selectedAction?.[0] ?? 'none' },
-    { label: 'Accepted', value: state.accepted.length },
+    { label: 'Release', value: RELEASE_VERSION },
+    { label: 'Readiness', value: `${progress.completed}/${MISSION_STEPS.length}` },
+    { label: 'State', value: releaseStage(state) },
   ];
-  const right = [{ label: 'Query', value: state.search.value || '<empty>' }];
-  const helpHints = contextHelpHints(state);
-  const command = state.activeTab === 'palette' ? WorkspaceCommandBar({
-    mode: 'PALETTE',
-    prompt: 'search',
-    value: `${state.search.value || '<empty>'}▌`,
-    suggestions: groupCounts(items),
-    hint: 'type to filter · arrows select',
-    theme: EXAMPLE_THEME,
-  }) : null;
-  const activity = KeyHintBar({ title: ' LOCAL HELP ', hints: helpHints, theme: EXAMPLE_THEME, adaptive: true });
-  const footer = WorkspaceFooter({ left: [state.status], right: [`focus: ${state.activeTab}`], theme: EXAMPLE_THEME });
+  const right = [
+    { label: 'Theme', value: state.themeName },
+    { label: 'Palette', value: state.overlays.top()?.type === 'palette' ? 'open' : 'closed' },
+  ];
+  const activity = KeyHintBar({
+    title: ' COMMAND CENTER KEYS ',
+    adaptive: true,
+    maxColumns: 5,
+    minColumnWidth: 16,
+    theme,
+    hints: [
+      ['/', 'open palette'],
+      ['Ctrl+P', 'open palette'],
+      ['?', 'show help'],
+      ['T', 'cycle theme'],
+      ['R', 'reset mission'],
+      ['Q', 'exit'],
+    ],
+  });
+  const footer = WorkspaceFooter({
+    left: [state.status],
+    right: [next ? `next: ${next.id}` : 'mission complete'],
+    theme,
+  });
   const { mainHeight } = resolveWorkspaceShellLayout({
-    width, height, title: 'Command Palette', subtitle: 'searchable action launcher', stats, right,
-    focus: state.activeTab, tabs: visibleTabs, activeTab: state.activeTab, tabHint,
-    command, activity, footer, theme: EXAMPLE_THEME, minMainHeight: 6,
-  });
-  const main = layout.mode === 'wide'
-    ? Row({ gap: 2, widths: layout.widths },
-        palettePane(state, items, selected, Math.max(30, layout.widths[0]), mainHeight),
-        detailsPane(state, selectedAction, Math.max(40, layout.widths[1]), mainHeight),
-        acceptedPane(state, Math.max(28, layout.widths[2]), mainHeight),
-      )
-    : layout.mode === 'medium'
-      ? Row({ gap: 2, widths: layout.widths },
-          palettePane(state, items, selected, Math.max(30, layout.widths[0]), mainHeight),
-          state.activeTab === 'accepted'
-            ? acceptedPane(state, Math.max(40, layout.widths[1]), mainHeight)
-            : detailsPane(state, selectedAction, Math.max(40, layout.widths[1]), mainHeight),
-        )
-      : narrowPane(state, items, selected, selectedAction, width, mainHeight);
-
-  const shell = WorkspaceShell({
-    title: 'Command Palette', subtitle: 'searchable action launcher', stats, right,
-    focus: state.activeTab, tabs: visibleTabs, activeTab: state.activeTab, tabHint,
-    main, command, activity, footer, height, theme: EXAMPLE_THEME,
-  });
-  return RequireViewport({
-    width, height, minWidth: 58, minHeight: 19,
-    title: 'Command Palette needs more room',
-    message: 'Resize to keep the action list, details and search bar readable.',
-    theme: EXAMPLE_THEME,
-    children: shell,
-  });
-}
-
-export function handleCommandPaletteKey({ key, state, runtime }) {
-  const items = getFilteredActions(state.search.value);
-  normalizeSelected(state, items.length);
-  normalizeAcceptedSelection(state);
-
-  if (key.name === 'q' && key.ctrl) {
-    runtime.exit(0);
-    return;
-  }
-
-  if (key.name === 'q' && state.activeTab !== 'palette') {
-    runtime.exit(0);
-    return;
-  }
-
-  if (key.name === 'tab') {
-    cycleTab(state, TABS, key.shift ? -1 : 1, { statusPrefix: 'Focus moved to' });
-    return;
-  }
-
-  if (key.name === 'page-up' || key.name === 'page-down') {
-    pageActivePane(state, key.name === 'page-up' ? -1 : 1);
-    return;
-  }
-
-  if (state.activeTab === 'accepted') {
-    handleAcceptedKey({ key, state, runtime });
-    return;
-  }
-
-  if (state.activeTab === 'details') {
-    handleDetailsKey({ key, state, items, runtime });
-    return;
-  }
-
-  handlePaletteKey({ key, state, items, runtime });
-}
-
-export function getFilteredActions(query) {
-  const terms = String(query ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if (!terms.length) return ACTIONS;
-  return ACTIONS
-    .map((item, index) => ({ item, index, score: scoreAction(item, terms) }))
-    .filter((entry) => Number.isFinite(entry.score))
-    .sort((a, b) => b.score - a.score || a.index - b.index)
-    .map((entry) => entry.item);
-}
-
-function handlePaletteKey({ key, state, items, runtime }) {
-  if (key.name === 'escape') {
-    if (state.search.value) {
-      state.search.clear();
-      state.selectedIndex = 0;
-      state.status = 'Filter cleared.';
-    } else {
-      state.status = 'Palette is already empty.';
-    }
-    return;
-  }
-
-  if (key.name === 'q') {
-    runtime.exit(0);
-    return;
-  }
-
-  if (key.name === 'enter') {
-    acceptSelectedAction(state, items);
-    return;
-  }
-
-  if (key.name === 'up') return moveSelection(state, -1, items.length);
-  if (key.name === 'down') return moveSelection(state, 1, items.length);
-  if (key.name === 'home') return setSelection(state, 0, items.length, 'Moved to first action.');
-  if (key.name === 'end') return setSelection(state, items.length - 1, items.length, 'Moved to last action.');
-
-  if (key.name === 'backspace') return editSearch(state, () => state.search.backspace());
-  if (key.name === 'delete') return editSearch(state, () => state.search.deleteForward());
-  if (key.name === 'kill-start') return editSearch(state, () => state.search.killToStart());
-  if (key.name === 'kill-end') return editSearch(state, () => state.search.killToEnd());
-  if (key.name === 'delete-word-left') return editSearch(state, () => state.search.deleteWordBack());
-  if (key.name === 'left') {
-    key.meta ? state.search.moveWord(-1) : state.search.move(-1);
-    state.status = 'Moved filter cursor.';
-    return;
-  }
-  if (key.name === 'right') {
-    key.meta ? state.search.moveWord(1) : state.search.move(1);
-    state.status = 'Moved filter cursor.';
-    return;
-  }
-  if (key.name === 'paste') return editSearch(state, () => state.search.insert(key.text));
-  if (key.printable) return editSearch(state, () => state.search.insert(key.text));
-}
-
-function handleDetailsKey({ key, state, items, runtime }) {
-  if (key.name === 'escape') {
-    state.activeTab = 'palette';
-    state.status = 'Returned to Palette.';
-    return;
-  }
-  if (key.name === 'q') {
-    runtime.exit(0);
-    return;
-  }
-  if (key.name === 'enter') {
-    acceptSelectedAction(state, items);
-    return;
-  }
-  if (key.name === 'up' || key.name === 'down') {
-    state.status = 'Details is read-only. Use PgUp/PgDn if content overflows.';
-  }
-}
-
-function handleAcceptedKey({ key, state, runtime }) {
-  if (key.name === 'escape') {
-    state.activeTab = 'palette';
-    state.status = 'Returned to Palette.';
-    return;
-  }
-  if (key.name === 'q') {
-    runtime.exit(0);
-    return;
-  }
-  if (key.name === 'up') {
-    moveAcceptedSelection(state, -1);
-    return;
-  }
-  if (key.name === 'down') {
-    moveAcceptedSelection(state, 1);
-    return;
-  }
-  if (key.name === 'home') {
-    state.acceptedSelection = 0;
-    state.paneScroll.accepted = 0;
-    state.status = 'Moved to first accepted action.';
-    return;
-  }
-  if (key.name === 'end') {
-    state.acceptedSelection = Math.max(0, state.accepted.length - 1);
-    state.paneScroll.accepted = Math.max(0, state.accepted.length - WINDOW_SIZE);
-    state.status = 'Moved to last accepted action.';
-    return;
-  }
-  if (key.name === 'enter') {
-    const item = state.accepted[state.acceptedSelection];
-    if (!item) {
-      state.activeTab = 'palette';
-      state.status = 'No accepted action to inspect.';
-      return;
-    }
-    const id = item.split(' — ')[0];
-    const index = getFilteredActions('').findIndex(([action]) => action === id);
-    if (index >= 0) {
-      state.search.set(id);
-      state.selectedIndex = 0;
-      state.activeTab = 'details';
-      state.status = `Inspecting accepted action ${id}.`;
-    }
-    return;
-  }
-}
-
-function acceptSelectedAction(state, items) {
-  if (!items.length) {
-    state.status = 'Nothing to accept.';
-    return;
-  }
-  const [action, description, group] = items[state.selectedIndex];
-  if (action === 'app.exit') {
-    state.status = 'Use Q to exit this example.';
-    return;
-  }
-  state.accepted.push(`${action} — ${description}`);
-  state.acceptedSelection = state.accepted.length - 1;
-  state.activeTab = 'accepted';
-  state.status = `Accepted ${action} from ${group}.`;
-  state.paneScroll.accepted = Math.max(0, state.accepted.length - 4);
-}
-
-function editSearch(state, fn) {
-  fn();
-  state.selectedIndex = 0;
-  state.activeTab = 'palette';
-  state.status = 'Filter updated.';
-}
-
-function moveSelection(state, delta, size) {
-  if (!size) {
-    state.selectedIndex = 0;
-    state.status = 'No matching actions.';
-    return;
-  }
-  state.selectedIndex = Math.max(0, Math.min(size - 1, state.selectedIndex + delta));
-  state.status = 'Moved palette selection.';
-}
-
-function setSelection(state, index, size, status) {
-  if (!size) return;
-  state.selectedIndex = Math.max(0, Math.min(size - 1, index));
-  state.status = status;
-}
-
-function moveAcceptedSelection(state, delta) {
-  if (!state.accepted.length) {
-    state.acceptedSelection = 0;
-    state.status = 'No accepted actions yet.';
-    return;
-  }
-  state.acceptedSelection = Math.max(0, Math.min(state.accepted.length - 1, state.acceptedSelection + delta));
-  state.paneScroll.accepted = Math.max(0, state.acceptedSelection - 4);
-  state.status = 'Moved accepted-action selection.';
-}
-
-function pageActivePane(state, direction) {
-  const page = WINDOW_SIZE;
-  if (state.activeTab === 'palette') {
-    const size = getFilteredActions(state.search.value).length;
-    moveSelection(state, direction * page, size);
-    state.status = direction < 0 ? 'Moved palette one page up.' : 'Moved palette one page down.';
-    return;
-  }
-  if (state.activeTab === 'accepted') {
-    state.paneScroll.accepted = scrollOffset(state.paneScroll.accepted, direction * page, Math.max(1, state.accepted.length), WINDOW_SIZE);
-    state.acceptedSelection = Math.max(0, Math.min(Math.max(0, state.accepted.length - 1), state.paneScroll.accepted));
-    state.status = direction < 0 ? 'Accepted log page up.' : 'Accepted log page down.';
-    return;
-  }
-  state.paneScroll.details = scrollOffset(state.paneScroll.details, direction * page, 18, WINDOW_SIZE);
-  state.status = direction < 0 ? 'Details page up.' : 'Details page down.';
-}
-
-function palettePane(state, items, selected, width, height) {
-  return WorkspacePane({
-    title: ` ${state.activeTab === 'palette' ? '▶' : ' '} ACTIONS ${items.length ? selected + 1 : 0}/${items.length} `,
-    active: state.activeTab === 'palette',
+    width,
     height,
+    title: 'Release Command Center',
+    subtitle: 'move one release from blocked to deployed through a searchable action palette',
+    stats,
+    right,
+    focus: state.overlays.top()?.type ?? 'workspace',
+    activity,
+    footer,
+    theme,
+    minMainHeight: 7,
+  });
+
+  const main = releaseWorkspace(state, theme, width, mainHeight);
+  const shell = WorkspaceShell({
+    title: 'Release Command Center',
+    subtitle: 'move one release from blocked to deployed through a searchable action palette',
+    stats,
+    right,
+    focus: state.overlays.top()?.type ?? 'workspace',
+    main,
+    activity,
+    footer,
+    height,
+    theme,
+  });
+  const hosted = OverlayHost({
+    content: shell,
+    manager: state.overlays,
+    theme,
+    width,
+    height,
+    toastBottomMargin: 7,
+  });
+
+  return RequireViewport({
+    width,
+    height,
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
+    title: 'Release Command Center needs more room',
+    message: 'Resize to keep the mission, release state and command palette readable.',
+    theme,
+    children: hosted,
+  });
+}
+
+export function handleCommandPaletteKey({ key, state, runtime = { exit() {} } }) {
+  normalizeState(state);
+  syncPaletteItems(state);
+  const top = state.overlays.top();
+
+  if (top?.type === 'palette') {
+    handlePaletteOverlayKey({ key, state, runtime });
+    return;
+  }
+
+  if (top) {
+    state.overlays.handleKey(key, { state, runtime });
+    return;
+  }
+
+  if ((key.printable && key.text === '/') || key.name === 'command-palette' || (key.ctrl && key.name === 'p')) {
+    openPalette(state);
+    return;
+  }
+
+  const result = state.registry.handleKey(key, actionContext(state, runtime), { scopes: ['global'] });
+  if (result.type === 'executed') return;
+  if (result.type === 'disabled') {
+    const reason = disabledReason(result.action?.id, state) || `${result.action?.title ?? 'This action'} is currently disabled.`;
+    state.overlays.toast(reason, 'warning');
+    state.status = reason;
+    return;
+  }
+
+  if (key.name === 'escape') {
+    state.status = 'Nothing to close. Press / to open the command palette.';
+  }
+}
+
+export function tickCommandPalette({ state, delta = 0.25 } = {}) {
+  return Boolean(state?.overlays?.tick?.(delta));
+}
+
+export function getFilteredActions(query, state = null) {
+  const working = state ?? createCommandPaletteState();
+  syncPaletteItems(working);
+  working.palette.editor.set(String(query ?? ''));
+  working.palette.selectedIndex = 0;
+  return getCommandPaletteMatches(working.palette);
+}
+
+function createReleaseRegistry() {
+  return createActionRegistry([
+    {
+      id: 'palette.open',
+      title: 'Open release command palette',
+      description: 'Search and execute release actions.',
+      category: 'Navigation',
+      aliases: ['palette', 'commands', 'search'],
+      keys: ['/', 'ctrl+p'],
+      scope: 'global',
+      hidden: true,
+      execute: ({ state }) => openPalette(state),
+    },
+    {
+      id: 'release.checks.run',
+      title: 'Run release checks',
+      description: 'Verify tests, syntax and package metadata.',
+      category: 'Release',
+      aliases: ['checks', 'verify', 'tests', 'quality'],
+      keys: ['c'],
+      scope: 'global',
+      execute: ({ state }) => {
+        if (state.release.checks) {
+          state.overlays.toast('Release checks already passed.', 'info');
+          state.status = 'Checks are already complete. Continue with release notes.';
+          return;
+        }
+        state.release.checks = true;
+        recordActivity(state, 'success', 'checks', 'All release checks passed.');
+        state.overlays.toast('Release checks passed.', 'success');
+        state.status = 'Step 2: open the palette and search “notes”.';
+      },
+    },
+    {
+      id: 'release.notes.generate',
+      title: 'Generate release notes',
+      description: 'Create a concise changelog from the staged changes.',
+      category: 'Release',
+      aliases: ['notes', 'changelog', 'summary'],
+      keys: ['n'],
+      scope: 'global',
+      execute: ({ state }) => {
+        if (state.release.notes) {
+          state.overlays.toast('Release notes already exist.', 'info');
+          state.status = 'Release notes are ready. Continue with approval.';
+          return;
+        }
+        state.release.notes = true;
+        recordActivity(state, 'activity', 'notes', 'Generated release notes for 14 staged changes.');
+        state.overlays.toast('Release notes generated.', 'success');
+        state.status = state.release.checks
+          ? 'Step 3: search “approval” and request sign-off.'
+          : 'Release notes are ready. Run checks before approval can be requested.';
+      },
+    },
+    {
+      id: 'release.approval.request',
+      title: 'Request release approval',
+      description: 'Ask for approval after checks and notes are ready.',
+      category: 'Release',
+      aliases: ['approval', 'review', 'signoff'],
+      keys: ['a'],
+      scope: 'global',
+      disabled: ({ state }) => !state.release.checks || !state.release.notes || state.release.approved,
+      execute: ({ state }) => {
+        state.release.approved = true;
+        recordActivity(state, 'activity', 'approval', 'Release approved for staging deployment.');
+        state.overlays.toast('Release approved for staging.', 'success');
+        state.status = 'Step 4: search “deploy staging”, then confirm the deployment.';
+      },
+    },
+    {
+      id: 'release.deploy.staging',
+      title: 'Deploy release to staging',
+      description: 'Open a confirmation before simulating a staging deploy.',
+      category: 'Deploy',
+      aliases: ['deploy', 'ship', 'staging'],
+      keys: ['d'],
+      scope: 'global',
+      disabled: ({ state }) => !state.release.approved || state.release.deployed,
+      execute: ({ state }) => {
+        state.overlays.confirm({
+          title: ' Deploy to staging? ',
+          message: `Release ${RELEASE_VERSION} is approved. This example will simulate the deployment locally.`,
+          confirmLabel: 'Deploy',
+          cancelLabel: 'Cancel',
+          selected: 'cancel',
+          onConfirm: () => {
+            state.release.deployed = true;
+            recordActivity(state, 'success', 'deploy', `Release ${RELEASE_VERSION} deployed to staging.`);
+            state.overlays.toast('Staging deployment completed.', 'success');
+            state.status = 'Mission complete. Explore theme, activity, rollback and reset commands.';
+          },
+          onCancel: () => {
+            state.status = 'Deployment cancelled. Reopen the palette when you are ready.';
+          },
+        });
+        state.status = 'Confirm or cancel the staging deployment.';
+      },
+    },
+    {
+      id: 'release.deploy.production',
+      title: 'Deploy release to production',
+      description: 'Permanently disabled in this safe example.',
+      category: 'Deploy',
+      aliases: ['production', 'prod', 'live'],
+      keys: [],
+      scope: 'global',
+      disabled: true,
+      execute: () => undefined,
+    },
+    {
+      id: 'release.rollback',
+      title: 'Roll back staging release',
+      description: 'Available only after the staging deployment completes.',
+      category: 'Deploy',
+      aliases: ['rollback', 'undo', 'revert'],
+      keys: ['b'],
+      scope: 'global',
+      disabled: ({ state }) => !state.release.deployed,
+      execute: ({ state }) => {
+        state.overlays.confirm({
+          title: ' Roll back staging? ',
+          message: `Return release ${RELEASE_VERSION} to the approved, not-deployed state?`,
+          confirmLabel: 'Roll back',
+          cancelLabel: 'Keep deployed',
+          selected: 'cancel',
+          onConfirm: () => {
+            state.release.deployed = false;
+            recordActivity(state, 'warning', 'rollback', 'Staging deployment rolled back.');
+            state.overlays.toast('Staging release rolled back.', 'warning');
+            state.status = 'Rollback complete. The release remains approved and can be deployed again.';
+          },
+        });
+      },
+    },
+    {
+      id: 'release.summary.copy',
+      title: 'Copy release summary',
+      description: 'Simulate copying the current release summary.',
+      category: 'Utility',
+      aliases: ['copy', 'summary', 'clipboard'],
+      keys: ['y'],
+      scope: 'global',
+      execute: ({ state }) => {
+        state.overlays.toast(`Copied release ${RELEASE_VERSION} summary.`, 'info');
+        state.status = 'Copy action simulated; no clipboard access was used.';
+        recordActivity(state, 'activity', 'copy', 'Copied the release summary locally.');
+      },
+    },
+    {
+      id: 'activity.toggle',
+      title: 'Toggle expanded activity',
+      description: 'Show or hide the longer activity feed.',
+      category: 'View',
+      aliases: ['activity', 'log', 'history'],
+      keys: ['l'],
+      scope: 'global',
+      execute: ({ state }) => {
+        state.activityExpanded = !state.activityExpanded;
+        state.status = `${state.activityExpanded ? 'Expanded' : 'Collapsed'} the activity feed.`;
+      },
+    },
+    {
+      id: 'theme.next',
+      title: 'Cycle workspace theme',
+      description: 'Apply the next semantic theme to the whole workspace.',
+      category: 'Appearance',
+      aliases: ['theme', 'color', 'appearance'],
+      keys: ['t'],
+      scope: 'global',
+      execute: ({ state }) => {
+        const index = THEME_ORDER.indexOf(state.themeName);
+        state.themeName = THEME_ORDER[(index + 1) % THEME_ORDER.length];
+        state.overlays.toast(`Theme changed to ${state.themeName}.`, 'info');
+        state.status = `Applied the ${state.themeName} theme to the whole command center.`;
+        recordActivity(state, 'activity', 'theme', `Applied theme ${state.themeName}.`);
+      },
+    },
+    {
+      id: 'scenario.reset',
+      title: 'Reset release scenario',
+      description: 'Return the mission to its initial blocked state.',
+      category: 'Scenario',
+      aliases: ['reset', 'restart', 'clear'],
+      keys: ['r'],
+      scope: 'global',
+      execute: ({ state }) => resetReleaseScenario(state),
+    },
+    {
+      id: 'help.shortcuts',
+      title: 'Show command-center help',
+      description: 'Open contextual help for the palette and workspace.',
+      category: 'Help',
+      aliases: ['help', 'keys', 'shortcuts'],
+      keys: ['?'],
+      scope: 'global',
+      execute: ({ state }) => openHelp(state),
+    },
+    {
+      id: 'app.exit',
+      title: 'Exit the example',
+      description: 'Restore the terminal and exit cleanly.',
+      category: 'App',
+      aliases: ['quit', 'exit', 'close'],
+      keys: ['q'],
+      scope: 'global',
+      execute: ({ runtime }) => runtime.exit(0),
+    },
+  ]);
+}
+
+function releaseWorkspace(state, theme, width, height) {
+  if (width >= 132) {
+    const available = width - 4;
+    const missionWidth = Math.max(36, Math.floor(available * 0.30));
+    const stateWidth = Math.max(34, Math.floor(available * 0.28));
+    const activityWidth = Math.max(38, available - missionWidth - stateWidth);
+    return Row({ gap: 2, widths: [missionWidth, stateWidth, activityWidth], height },
+      missionPane(state, theme, height),
+      releaseStatePane(state, theme, height),
+      activityPane(state, theme, height),
+    );
+  }
+
+  if (width >= 92) {
+    const left = Math.max(38, Math.floor((width - 2) * 0.43));
+    const right = Math.max(42, width - 2 - left);
+    return Row({ gap: 2, widths: [left, right], height },
+      missionPane(state, theme, height),
+      combinedStatePane(state, theme, height),
+    );
+  }
+
+  return compactMissionPane(state, theme, height);
+}
+
+function missionPane(state, theme, height) {
+  const progress = missionProgress(state);
+  const next = nextMissionStep(state);
+  return WorkspacePane({
+    title: ' MISSION · SHIP TO STAGING ',
+    height,
+    theme,
     children: [
-      Text(`Search: ${state.search.value || '<empty>'}▌`, { wrap: false }),
-      SelectList({
-        title: 'Matches',
-        items,
-        selectedIndex: selected,
-        windowSize: Math.min(WINDOW_SIZE, Math.max(4, height - 8)),
-        emptyText: 'No matching actions.',
-        getLabel: (item) => item[0],
-        getDescription: (item) => `${item[2]} · ${item[1]}`,
+      Text(color(theme, 'textAccent', 'Use the palette as the primary interface. Complete the four release steps in order.')),
+      ProgressBar({ value: progress.percent, total: 100, width: 25, label: `${progress.completed}/${MISSION_STEPS.length}` }),
+      ...MISSION_STEPS.map((step, index) => missionStepLine(state, step, index, theme)),
+      Box({ border: true, borderColor: theme.borderMuted, padding: { left: 1, right: 1 }, title: ' NEXT ACTION ' },
+        next
+          ? Text(color(theme, 'title', `Search “${next.query}” and press Enter.`))
+          : Text(color(theme, 'success', 'Mission complete. The release is on staging.')),
+        Text(color(theme, 'textMuted', 'Press / or Ctrl+P whenever the palette is closed.')),
+      ),
+    ],
+  });
+}
+
+function releaseStatePane(state, theme, height) {
+  const progress = missionProgress(state);
+  return WorkspacePane({
+    title: ' RELEASE STATE ',
+    height,
+    theme,
+    children: [
+      Row({ gap: 1 },
+        Badge({ label: releaseStage(state), tone: stageTone(state), variant: 'filled', theme }),
+        Badge({ label: `v${RELEASE_VERSION}`, tone: 'info', variant: 'outline', theme }),
+      ),
+      KeyValueBlock({
+        title: ' Readiness ',
+        rows: [
+          ['checks', state.release.checks ? 'passed' : 'pending'],
+          ['notes', state.release.notes ? 'ready' : 'missing'],
+          ['approval', state.release.approved ? 'approved' : 'waiting'],
+          ['staging', state.release.deployed ? 'deployed' : 'not deployed'],
+        ],
+      }),
+      MetricBlock({
+        title: ' Completion ',
+        value: `${progress.percent}%`,
+        detail: progress.completed === MISSION_STEPS.length ? 'all required actions complete' : `${MISSION_STEPS.length - progress.completed} required action(s) remain`,
+        status: state.lastActionId ? `last: ${state.lastActionId}` : 'no action executed yet',
       }),
     ],
   });
 }
 
-function detailsPane(state, action, width, height) {
-  if (!action) {
-    return WorkspacePane({
-      title: ` ${state.activeTab === 'details' ? '▶' : ' '} DETAILS `,
-      active: state.activeTab === 'details',
-      height,
-      children: [Panel(' No matches ', Text('No command matches the current query.'), Text('Edit or clear the filter to continue.'))],
-    });
-  }
-  const [id, description, group, shortcut, detail] = action;
-  const lines = renderNode(Column(
-    Panel(' Selected action ',
-      Text(`id       ${id}`, { wrap: false }),
-      Text(`group    ${group}`, { wrap: false }),
-      Text(`shortcut ${shortcut}`, { wrap: false }),
-    ),
-    Panel(' Runtime effect ',
-      Text(fitInline(description, Math.max(20, width - 10)), { wrap: false }),
-      Text(fitInline(detail, Math.max(20, width - 10)), { wrap: false }),
-    ),
-    Panel(' Payload ',
-      Text(`{ id: '${id}', group: '${group}', shortcut: '${shortcut}' }`, { wrap: false }),
-      Text('Enter accepts this action. Esc returns to the palette.', { wrap: false }),
-    ),
-  ), Math.max(20, width - 4));
-  const window = visibleScrollableRows(lines, {
-    scroll: state.paneScroll.details,
-    height: Math.max(3, height - 2),
-    width: Math.max(20, width - 4),
-    footer: lines.length > Math.max(3, height - 3),
-  });
-  state.paneScroll.details = window.scroll;
+function activityPane(state, theme, height) {
+  const limit = state.activityExpanded ? Math.max(4, height - 4) : Math.min(6, Math.max(3, height - 4));
   return WorkspacePane({
-    title: ` ${state.activeTab === 'details' ? '▶' : ' '} DETAILS `,
+    title: ` ACTIVITY ${state.activityExpanded ? '· EXPANDED' : ''} `,
     height,
-    active: state.activeTab === 'details',
-    children: window.rows.map((line) => Text(line, { wrap: false })),
-  });
-}
-
-function acceptedPane(state, width, height) {
-  normalizeAcceptedSelection(state);
-  const contentRows = state.accepted.length
-    ? state.accepted.map((line, index) => `${index === state.acceptedSelection ? '›' : ' '} ${fitInline(line, Math.max(16, width - 8))}`)
-    : ['No accepted actions yet.', 'Go to Palette, select an action and press Enter.'];
-  const window = visibleScrollableRows(contentRows, {
-    scroll: state.paneScroll.accepted,
-    height: Math.max(3, height - 5),
-    width: Math.max(20, width - 4),
-    footer: contentRows.length > Math.max(3, height - 6),
-  });
-  state.paneScroll.accepted = window.scroll;
-  return WorkspacePane({
-    title: ` ${state.activeTab === 'accepted' ? '▶' : ' '} ACCEPTED `,
-    active: state.activeTab === 'accepted',
-    height,
+    theme,
     children: [
-      Text(state.accepted.length ? `${state.accepted.length} action(s) accepted in this local demo.` : 'No accepted actions yet.'),
-      ...window.rows.map((line) => Text(line, { wrap: false })),
+      Timeline({
+        title: ' Recent actions ',
+        events: state.activity,
+        limit,
+        getLine: (event) => `${event.type === 'success' ? '✓' : event.type === 'warning' ? '!' : '·'} ${truncateVisible(event.text, 62)}`,
+      }),
+      Text(color(theme, 'textMuted', 'Palette commands update this feed instead of writing fake “accepted” rows.')),
     ],
   });
 }
 
-function narrowPane(state, items, selected, action, width, height) {
-  if (state.activeTab === 'accepted') return acceptedPane(state, width, height);
-  if (state.activeTab === 'details') return detailsPane(state, action, width, height);
-  return palettePane(state, items, selected, width, height);
+function combinedStatePane(state, theme, height) {
+  const progress = missionProgress(state);
+  const event = state.activity[0];
+  return WorkspacePane({
+    title: ' RELEASE + ACTIVITY ',
+    height,
+    theme,
+    children: [
+      Row({ gap: 1 },
+        Badge({ label: releaseStage(state), tone: stageTone(state), variant: 'filled', theme }),
+        Badge({ label: `${progress.percent}% ready`, tone: progress.percent === 100 ? 'success' : 'warning', variant: 'subtle', theme }),
+      ),
+      KeyValueBlock({
+        title: ' Current state ',
+        rows: [
+          ['checks', state.release.checks ? 'passed' : 'pending'],
+          ['notes', state.release.notes ? 'ready' : 'missing'],
+          ['approval', state.release.approved ? 'approved' : 'waiting'],
+          ['staging', state.release.deployed ? 'deployed' : 'not deployed'],
+        ],
+      }),
+      Box({ border: true, borderColor: theme.borderMuted, padding: { left: 1, right: 1 }, title: ' LATEST ACTIVITY ' },
+        Text(event ? event.text : 'No activity yet.'),
+        Text(color(theme, 'textMuted', `${state.activity.length} event(s) in the local activity feed.`)),
+      ),
+    ],
+  });
 }
 
-function contextHelpHints(state) {
-  if (state.activeTab === 'accepted') {
-    return [
-      ['↑/↓', 'select log row'],
-      ['Enter', 'inspect selected'],
-      ['PgUp/PgDn', 'scroll log'],
-      ['Home/End', 'first/last'],
-      ['Esc', 'back to palette'],
-      ['Tab', 'switch pane'],
-      ['Q', 'exit'],
-    ];
-  }
-  if (state.activeTab === 'details') {
-    return [
-      ['Enter', 'accept selected'],
-      ['PgUp/PgDn', 'scroll details'],
-      ['Esc', 'back to palette'],
-      ['Tab', 'switch pane'],
-      ['Q', 'exit'],
-    ];
-  }
-  return [
-    ['Type', 'filter actions'],
-    ['↑/↓', 'select action'],
-    ['PgUp/PgDn', 'page list'],
-    ['Enter', 'accept action'],
-    ['Esc', 'clear filter'],
-    ['Tab', 'switch pane'],
-  ];
+function compactMissionPane(state, theme, height) {
+  const next = nextMissionStep(state);
+  const progress = missionProgress(state);
+  return WorkspacePane({
+    title: ' RELEASE MISSION ',
+    height,
+    theme,
+    children: [
+      Row({ gap: 1 },
+        Badge({ label: releaseStage(state), tone: stageTone(state), variant: 'filled', theme }),
+        Badge({ label: `${progress.completed}/${MISSION_STEPS.length}`, tone: 'info', variant: 'outline', theme }),
+      ),
+      ProgressBar({ value: progress.percent, total: 100, width: 24, label: 'readiness' }),
+      ...MISSION_STEPS.map((step, index) => missionStepLine(state, step, index, theme)),
+      Text(next ? `Next: / → search “${next.query}” → Enter` : 'Mission complete. Try rollback, theme and reset commands.'),
+      Text(color(theme, 'textMuted', state.activity[0]?.text ?? 'No activity yet.')),
+    ],
+  });
 }
 
-function normalizeSelected(state, size) {
-  if (!size) {
-    state.selectedIndex = 0;
-    return 0;
-  }
-  state.selectedIndex = Math.max(0, Math.min(size - 1, state.selectedIndex));
-  return state.selectedIndex;
+function paletteOverlayNode(state, width, height, theme) {
+  const matches = getCommandPaletteMatches(state.palette);
+  const selected = matches[state.palette.selectedIndex] ?? null;
+  const compact = width < 86 || height < 27;
+  const listHeight = compact ? 5 : 7;
+  state.palette.windowSize = listHeight;
+  if (state.palette.list) state.palette.list.windowSize = listHeight;
+  const categories = categoryCounts(matches).slice(0, compact ? 4 : 6);
+  const query = getPaletteQuery(state.palette);
+  const next = nextMissionStep(state);
+  const listWidth = compact ? Math.max(30, Math.floor((width - 2) * 0.58)) : Math.max(38, Math.floor((width - 2) * 0.57));
+  const detailWidth = Math.max(24, width - 2 - listWidth);
+
+  const search = WorkspaceCommandBar({
+    mode: 'SEARCH ACTIONS',
+    prompt: '›',
+    value: `${query || '<type a command>'}█`,
+    suggestions: categories.map(([category, count]) => `${category.toLowerCase()} ${count}`),
+    hint: 'fuzzy title · description · aliases',
+    theme,
+  });
+  const list = SelectList({
+    title: 'COMMANDS',
+    items: matches,
+    selectedIndex: state.palette.selectedIndex,
+    windowSize: listHeight,
+    emptyText: 'No matching commands.',
+    theme,
+    wrapItems: !compact,
+    rowLines: compact ? 1 : 2,
+    reserveItemLines: !compact,
+    getLabel: (item) => item.title,
+    getDescription: (item) => {
+      const keys = item.keys?.length ? item.keys.join('/') : 'no shortcut';
+      return `${item.category} · ${keys}`;
+    },
+    getDisabled: (item) => item.disabled,
+  });
+  const detail = selectedCommandPane(state, selected, theme, detailWidth, listHeight * (compact ? 1 : 2) + 2);
+
+  return Box({
+    border: true,
+    borderColor: theme.borderActive,
+    padding: { left: 1, right: 1 },
+    title: ` RELEASE COMMAND PALETTE · ${missionProgress(state).completed}/${MISSION_STEPS.length} COMPLETE `,
+  },
+    Text(next
+      ? color(theme, 'textAccent', `Current goal: ${next.label}. Search “${next.query}”.`)
+      : color(theme, 'success', 'Mission complete. Explore rollback, appearance and scenario commands.')),
+    search,
+    Row({ gap: 2, widths: [listWidth, detailWidth] }, list, detail),
+    Text(color(theme, 'textMuted', 'Type to filter · ↑/↓ move · PgUp/PgDn page · Enter execute · Esc clear/close')),
+  );
 }
 
-function normalizeAcceptedSelection(state) {
-  if (!state.accepted.length) {
-    state.acceptedSelection = 0;
+function selectedCommandPane(state, item, theme, width, height) {
+  if (!item) {
+    return WorkspacePane({
+      title: ' COMMAND DETAILS ',
+      height,
+      theme,
+      children: [Text('No command matches the current query.'), Text(color(theme, 'textMuted', 'Press Esc to clear the filter.'))],
+    });
+  }
+  const recommended = nextMissionStep(state)?.id === item.id;
+  const reason = disabledReason(item.id, state);
+  return WorkspacePane({
+    title: ' COMMAND DETAILS ',
+    height,
+    theme,
+    children: [
+      Row({ gap: 1 },
+        Badge({ label: item.category, tone: 'info', variant: 'outline', theme }),
+        recommended ? Badge({ label: 'recommended next', tone: 'success', variant: 'filled', theme }) : null,
+        item.disabled ? Badge({ label: 'disabled', tone: 'warning', variant: 'filled', theme }) : null,
+      ),
+      Text(color(theme, 'title', item.title)),
+      Text(item.description),
+      KeyValueBlock({
+        title: ' Action contract ',
+        rows: [
+          ['id', item.id],
+          ['shortcut', item.keys?.join(' / ') || 'palette only'],
+          ['availability', item.disabled ? 'blocked' : 'ready'],
+        ],
+      }),
+      reason ? Text(color(theme, 'warning', reason)) : Text(color(theme, 'textMuted', 'Enter executes this action against the local release state.')),
+    ],
+  });
+}
+
+function handlePaletteOverlayKey({ key, state, runtime }) {
+  syncPaletteItems(state);
+  const result = handlePaletteStateKey(state.palette, key);
+
+  if (result.type === 'cancel') {
+    state.overlays.pop();
+    state.status = 'Palette closed. Press / or Ctrl+P to reopen it.';
     return;
   }
-  state.acceptedSelection = Math.max(0, Math.min(state.accepted.length - 1, state.acceptedSelection));
-}
-
-function scoreAction(item, terms) {
-  const [id, description, group, shortcut, detail] = item;
-  const fields = [id, description, group, shortcut, detail].map((value) => String(value ?? '').toLowerCase());
-  let score = 0;
-  for (const term of terms) {
-    let best = -Infinity;
-    fields.forEach((field, fieldIndex) => {
-      if (!field) return;
-      if (field === term) best = Math.max(best, 120 - fieldIndex * 8);
-      else if (field.startsWith(term)) best = Math.max(best, 90 - fieldIndex * 8);
-      else if (field.includes(term)) best = Math.max(best, 55 - fieldIndex * 6);
-      else {
-        let cursor = 0;
-        let gaps = 0;
-        for (const char of term) {
-          const found = field.indexOf(char, cursor);
-          if (found < 0) { cursor = -1; break; }
-          gaps += found - cursor;
-          cursor = found + 1;
-        }
-        if (cursor >= 0) best = Math.max(best, 28 - Math.min(20, gaps) - fieldIndex * 4);
-      }
-    });
-    if (!Number.isFinite(best)) return -Infinity;
-    score += best;
+  if (result.type === 'clear') {
+    state.status = 'Palette filter cleared.';
+    return;
   }
-  return score;
+  if (result.type === 'disabled') {
+    const reason = disabledReason(result.item?.id, state) || `${result.item?.title ?? 'This action'} is currently disabled.`;
+    state.overlays.toast(reason, 'warning');
+    state.status = reason;
+    return;
+  }
+  if (result.type !== 'accept' || !result.item) return;
+
+  state.overlays.pop();
+  const execution = state.registry.execute(result.item.id, actionContext(state, runtime));
+  if (execution.type === 'disabled') {
+    const reason = disabledReason(result.item.id, state) || `${result.item.title} is disabled.`;
+    state.overlays.toast(reason, 'warning');
+    state.status = reason;
+    return;
+  }
+  if (execution.type === 'missing') {
+    state.overlays.toast('The selected command is no longer registered.', 'danger');
+    state.status = 'Command registry mismatch.';
+    return;
+  }
+  state.lastActionId = result.item.id;
 }
 
-function groupCounts(items) {
-  const counts = new Map();
-  for (const item of items) counts.set(item[2], (counts.get(item[2]) ?? 0) + 1);
-  return [...counts.entries()].slice(0, 6).map(([group, count]) => `${group.toLowerCase()} ${count}`);
+function refreshPaletteOverlay(state, width, height, theme) {
+  const top = state.overlays.top();
+  if (top?.type !== 'palette') return;
+  const overlayWidth = Math.max(58, Math.min(width - 4, 106));
+  top.width = overlayWidth;
+  top.opaqueRows = true;
+  top.shadow = true;
+  top.node = paletteOverlayNode(state, overlayWidth - 2, height, theme);
 }
+
+function openPalette(state) {
+  if (state.overlays.top()?.type === 'palette') return;
+  if (state.overlays.hasBlocking()) return;
+  syncPaletteItems(state);
+  state.palette.editor.clear();
+  state.palette.selectedIndex = 0;
+  state.overlays.push({ type: 'palette', title: ' Release Command Palette ', blocking: true, opaqueRows: true });
+  const next = nextMissionStep(state);
+  state.status = next
+    ? `Palette open. Search “${next.query}” for the recommended next action.`
+    : 'Palette open. Explore rollback, theme, activity and reset actions.';
+}
+
+function openHelp(state) {
+  const next = nextMissionStep(state);
+  state.overlays.help({
+    title: ' Release Command Center Help ',
+    children: [
+      Text('User path'),
+      Text('1. Press / or Ctrl+P to open the command palette.'),
+      Text('2. Type a goal such as checks, notes, approval or deploy staging.'),
+      Text('3. Review disabled state and command details, then press Enter.'),
+      Text('4. Watch release state and activity update behind the palette.'),
+      Text(''),
+      Text(next ? `Recommended now: ${next.id}` : 'The required staging mission is complete.'),
+      Text('Esc always returns one interaction level.'),
+    ],
+  });
+  state.status = 'Help open. Press Esc to return.';
+}
+
+function syncPaletteItems(state) {
+  const ctx = actionContext(state, { exit() {} });
+  state.palette.items = state.registry.list(ctx).filter((action) => !action.hidden).map((action) => ({
+    id: action.id,
+    title: action.title,
+    description: action.description,
+    category: action.category,
+    aliases: action.aliases,
+    keywords: [...action.aliases, action.category, action.scope].filter(Boolean),
+    keys: action.keys,
+    disabled: state.registry.isDisabled(action, ctx),
+    value: { action },
+  }));
+}
+
+function actionContext(state, runtime) {
+  return { state, runtime, overlays: state.overlays, registry: state.registry };
+}
+
+function createReleaseState() {
+  return { checks: false, notes: false, approved: false, deployed: false };
+}
+
+function resetReleaseScenario(state) {
+  state.release = createReleaseState();
+  state.activity = [createTimelineEvent({ type: 'system_event', actor: 'workspace', text: `Release ${RELEASE_VERSION} reset to its initial blocked state.` })];
+  state.lastActionId = 'scenario.reset';
+  state.activityExpanded = false;
+  state.overlays.toast('Release scenario reset.', 'info');
+  state.status = 'Step 1: open the palette, search “checks”, then press Enter.';
+}
+
+function recordActivity(state, type, actor, text) {
+  state.activity.unshift(createTimelineEvent({ type, actor, text }));
+  state.activity = state.activity.slice(0, 20);
+}
+
+function missionProgress(state) {
+  const completed = [state.release.checks, state.release.notes, state.release.approved, state.release.deployed].filter(Boolean).length;
+  return { completed, percent: Math.round(completed / MISSION_STEPS.length * 100) };
+}
+
+function nextMissionStep(state) {
+  if (!state.release.checks) return MISSION_STEPS[0];
+  if (!state.release.notes) return MISSION_STEPS[1];
+  if (!state.release.approved) return MISSION_STEPS[2];
+  if (!state.release.deployed) return MISSION_STEPS[3];
+  return null;
+}
+
+function releaseStage(state) {
+  if (state.release.deployed) return 'deployed';
+  if (state.release.approved) return 'approved';
+  if (state.release.checks && state.release.notes) return 'ready for approval';
+  return 'blocked';
+}
+
+function stageTone(state) {
+  if (state.release.deployed) return 'success';
+  if (state.release.approved) return 'info';
+  return 'warning';
+}
+
+function missionStepLine(state, step, index, theme) {
+  const complete = [state.release.checks, state.release.notes, state.release.approved, state.release.deployed][index];
+  const current = nextMissionStep(state)?.id === step.id;
+  const marker = complete ? '✓' : current ? '›' : '·';
+  const token = complete ? 'success' : current ? 'textAccent' : 'textMuted';
+  return Text(color(theme, token, `${marker} ${index + 1}. ${step.label}`), { wrap: false });
+}
+
+function disabledReason(id, state) {
+  if (id === 'release.approval.request') {
+    if (state.release.approved) return 'Approval is already recorded.';
+    if (!state.release.checks && !state.release.notes) return 'Run release checks and generate notes first.';
+    if (!state.release.checks) return 'Run release checks first.';
+    if (!state.release.notes) return 'Generate release notes first.';
+  }
+  if (id === 'release.deploy.staging') {
+    if (state.release.deployed) return 'The release is already deployed to staging.';
+    if (!state.release.approved) return 'Request release approval first.';
+  }
+  if (id === 'release.deploy.production') return 'Production actions are intentionally disabled in this safe local example.';
+  if (id === 'release.rollback' && !state.release.deployed) return 'A staging deployment must exist before rollback is available.';
+  return '';
+}
+
+function categoryCounts(items) {
+  const counts = new Map();
+  for (const item of items) counts.set(item.category, (counts.get(item.category) ?? 0) + 1);
+  return [...counts.entries()];
+}
+
+function normalizeState(state) {
+  state.themeName = themes[state.themeName] ? state.themeName : 'ocean';
+  state.release ??= createReleaseState();
+  state.registry ??= createReleaseRegistry();
+  state.palette ??= createPaletteState({ items: [], windowSize: 7, groupByCategory: true });
+  state.overlays ??= createOverlayManager();
+  state.activity ??= [];
+  state.activityExpanded = Boolean(state.activityExpanded);
+  state.status ??= 'Press / to open the release command palette.';
+}
+
+// Compatibility catalog for users that imported the old example data indirectly.
+export const ACTIONS = ACTION_CATALOG;
 
 if (isDirectRun(import.meta.url)) {
   runInteractiveDemo({
-    title: 'Command Palette',
+    title: 'Release Command Center',
     state: createCommandPaletteState(),
     render: createCommandPaletteView,
     onKey: handleCommandPaletteKey,
+    onTick: tickCommandPalette,
+    tickMs: 250,
   });
 }
