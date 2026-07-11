@@ -548,7 +548,7 @@ Parser helpers:
 
 - `parseSlashCommand(line)`
 - `tokenizeCommand(line)`
-- `commandRest(line, commandName)`
+- `commandRest(parsed, fromIndex)`
 
 ## Scroll state and toasts
 

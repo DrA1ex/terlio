@@ -37,13 +37,12 @@ export class OverlayManager {
   hasBlocking() { return Boolean(this.top()); }
 
   tick(delta = 1) {
-    const before = this.toasts.map((toast) => `${toast.id}:${toast.ttl}`).join('|');
     const beforeLength = this.toasts.length;
     this.toasts = this.toasts
       .map((toast) => ({ ...toast, ttl: Math.max(0, Number(toast.ttl ?? 0) - delta) }))
       .filter((toast) => toast.ttl > 0);
-    const after = this.toasts.map((toast) => `${toast.id}:${toast.ttl}`).join('|');
-    return beforeLength !== this.toasts.length || before !== after;
+    // TTL is not rendered, so a redraw is only needed when the visible stack changes.
+    return beforeLength !== this.toasts.length;
   }
 
   handleKey(key, ctx = {}) {

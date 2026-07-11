@@ -50,6 +50,7 @@ export function tokenizeCommand(input = '') {
     current += char;
   }
 
+  if (escaping) current += '\\';
   if (current) tokens.push(current);
   return tokens;
 }

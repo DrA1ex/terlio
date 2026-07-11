@@ -198,3 +198,44 @@ process.stdout.write(color('green', 'ready'));
 ```
 
 `themes` currently contains the built-in theme definitions used by the examples.
+
+## Workspace application lifecycle
+
+For full-screen interactive applications, prefer `createWorkspaceApp()` over wiring raw mode, resize listeners and cleanup manually.
+
+```js
+import { createWorkspaceApp, Text } from 'mock-ai-terminal';
+
+const app = createWorkspaceApp({
+  title: 'Example',
+  state: { count: 0 },
+  render: ({ state, width, height }) => Text(`${state.count} at ${width}x${height}`),
+  onKey: ({ key, state, invalidate }) => {
+    if (key.name === 'up') {
+      state.count += 1;
+      invalidate();
+    }
+  },
+  onExit: (code) => {
+    // Optional: useful for embedders and tests. When omitted, the runtime exits
+    // the Node.js process after restoring the terminal.
+  },
+});
+
+app.start();
+```
+
+The runtime:
+
+- enters and restores the alternate screen and raw input mode;
+- forwards the real terminal viewport size, including very small viewports, so `RequireViewport` can render a correct fallback;
+- traps input in the top blocking overlay;
+- ignores duplicate `start()` calls;
+- redraws on resize and skips identical frames;
+- removes timers and listeners during `stop()` or fatal cleanup.
+
+## Declarative actions and overlays
+
+`createActionRegistry()` keeps key bindings, help text, footer hints and command-palette items derived from the same action definitions. A callback-valued `disabled` property is evaluated against the current context everywhere, including generated help and footer output.
+
+`createOverlayManager()` owns blocking overlays and transient toasts. Its `tick(delta)` method returns `true` only when the visible toast stack changes, so applications do not repaint merely because an invisible TTL value changed.

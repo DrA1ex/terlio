@@ -240,7 +240,7 @@ export function handleInputEditorKey(editor, key, { multiline = false } = {}) {
       editor.deleteWordBack();
       break;
     case 'paste':
-      editor.insert(key.text ?? '');
+      editor.insertPaste(key.text ?? '');
       break;
     case 'enter':
       if (multiline || key.ctrl) editor.insertLineBreak();

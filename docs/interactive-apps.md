@@ -192,7 +192,7 @@ For simple commands, use the built-in command list from `commands.js`:
 ```js
 import { parseCommand, findCommand, getSuggestions, helpText } from 'mock-ai-terminal';
 
-const { name, args } = parseCommand('/theme dark');
+const { name, args } = parseCommand('/blocks "release notes" final');
 const command = findCommand(name);
 const suggestions = getSuggestions('/the');
 ```
@@ -216,13 +216,15 @@ registry.suggestions('/as');
 registry.execute('/assign alex', { state });
 ```
 
+`parseCommand()` is a compatibility facade over the quoted-argument parser, so quoted and escaped arguments are preserved.
+
 For lower-level parsing:
 
 ```js
 import { parseSlashCommand, tokenizeCommand, commandRest } from 'mock-ai-terminal';
 
 parseSlashCommand('/filter status open');
-tokenizeCommand('/tag urgent billing');
+tokenizeCommand('tag "urgent billing"');
 commandRest(parseSlashCommand('/reply template greeting'), 1);
 ```
 

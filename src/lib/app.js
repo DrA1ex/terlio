@@ -1,6 +1,6 @@
 import { ansi } from './ansi/codes.js';
 import { themes } from './ansi/themes.js';
-import { commands as commandList, findCommand, getSuggestions, parseCommand } from './commands.js';
+import { findCommand, getSuggestions, parseCommand } from './commands.js';
 import { InputEditor } from './inputEditor.js';
 import { parseKey } from './keyParser.js';
 import { FocusManager } from './focusManager.js';
@@ -9,54 +9,17 @@ import { createCommandPaletteState, handleCommandPaletteKey } from './commandPal
 import { TerminalRenderer } from './ui/renderer.js';
 import { createProvider } from './providers.js';
 import { SessionStore, applySerializedSkillState, serializeSkillState } from './sessionStore.js';
-import { createSkillState, enabledSkillNames, skills } from './skills.js';
+import { createSkillState, enabledSkillNames } from './skills.js';
 import { appendMessageBlock, appendMessageChunk, completeMessage, createMessage, lastAssistantMessage, lastUserMessage, trimMessages } from './state.js';
-import { StreamCancelled } from './mockModel.js';
 import { createChatScreen } from './chat/components.js';
 import { createOverlayManager } from './overlayHost.js';
+import { createAppPaletteItems } from './app/palette.js';
+import { buildAssistantActionText, errorMessage, isStreamCancellation, streamTextChunks } from './app/assistantActions.js';
+import { formatDebugKey, routeRichTerminalKey } from './app/inputRouter.js';
 
 const SUGGESTION_WINDOW_SIZE = 7;
 
-export function createAppPaletteItems() {
-  const commandItems = commandList.map((command) => ({
-    id: command.name,
-    title: command.description,
-    description: command.usage,
-    category: commandCategory(command.name),
-    keywords: [command.name.replace(/^\//, ''), command.usage, command.description],
-    aliases: commandAliases(command.name),
-    value: { insert: commandInsert(command) },
-  }));
-
-  const themeItems = Object.keys(themes).map((name) => ({
-    id: `theme.${name}`,
-    title: `Theme: ${name}`,
-    description: `Switch visual theme with /theme ${name}`,
-    category: 'Appearance',
-    keywords: ['theme', 'color', name],
-    value: { insert: `/theme ${name}` },
-  }));
-
-  const providerItems = ['mock', 'replay'].map((name) => ({
-    id: `provider.${name}`,
-    title: `Provider: ${name}`,
-    description: `Switch model provider with /provider ${name}`,
-    category: 'Model',
-    keywords: ['provider', 'model', name],
-    value: { insert: `/provider ${name}` },
-  }));
-
-  const skillItems = skills.map((skill) => ({
-    id: `skill.${skill.name}.toggle`,
-    title: `Skill: ${skill.title}`,
-    description: `Enable with /skill on ${skill.name}`,
-    category: 'Skills',
-    keywords: ['skill', skill.name, skill.title, skill.description],
-    value: { insert: `/skill on ${skill.name}` },
-  }));
-
-  return [...commandItems, ...themeItems, ...providerItems, ...skillItems];
-}
+export { createAppPaletteItems };
 
 export class RichTerminalApp {
   constructor({ input = process.stdin, output = process.stdout, onExit = null, sessionStore = new SessionStore() } = {}) {
@@ -124,6 +87,7 @@ export class RichTerminalApp {
   }
 
   start() {
+    if (this.running) return this;
     if (!this.input.isTTY || !this.output.isTTY) {
       throw new Error('This app requires an interactive TTY. Run it directly in a terminal.');
     }
@@ -142,6 +106,7 @@ export class RichTerminalApp {
     }, 250);
     this.tickTimer.unref?.();
     this.render();
+    return this;
   }
 
   stop() {
@@ -256,8 +221,9 @@ export class RichTerminalApp {
     try {
       await command.run(this, args);
     } catch (error) {
-      this.status = `Command failed: ${error.message}`;
-      this.notify('Command failed', 'error', error.message);
+      const message = errorMessage(error);
+      this.status = `Command failed: ${message}`;
+      this.notify('Command failed', 'error', message);
     }
     this.render();
   }
@@ -286,13 +252,16 @@ export class RichTerminalApp {
       completeMessage(assistant, 'complete');
       this.status = 'Ready.';
     } catch (error) {
-      completeMessage(assistant, 'cancelled');
-      if (error instanceof StreamCancelled || this.abortController?.signal.aborted || error.message === 'stream cancelled') {
+      const cancelled = isStreamCancellation(error, this.abortController?.signal);
+      completeMessage(assistant, cancelled ? 'cancelled' : 'error');
+      if (cancelled) {
         appendMessageChunk(assistant, '\n\n[response cancelled]');
         this.status = 'Stream cancelled.';
       } else {
-        appendMessageChunk(assistant, `\n\n[error: ${error.message}]`);
+        const message = errorMessage(error);
+        appendMessageChunk(assistant, `\n\n[error: ${message}]`);
         this.status = 'Streaming failed.';
+        this.notify('Streaming failed', 'error', message);
       }
     } finally {
       this.busy = false;
@@ -321,7 +290,7 @@ export class RichTerminalApp {
       return;
     }
 
-    const text = buildActionText(action, lastAssistant.content);
+    const text = buildAssistantActionText(action, lastAssistant.content);
     this.busy = true;
     this.status = `Action ${action} is streaming. Press Esc to cancel.`;
     this.abortController = new AbortController();
@@ -332,9 +301,12 @@ export class RichTerminalApp {
       completeMessage(assistant, 'complete');
       this.status = 'Ready.';
     } catch (error) {
-      completeMessage(assistant, 'cancelled');
-      appendMessageChunk(assistant, '\n\n[action cancelled]');
-      this.status = 'Action cancelled.';
+      const cancelled = isStreamCancellation(error, this.abortController?.signal);
+      completeMessage(assistant, cancelled ? 'cancelled' : 'error');
+      const message = errorMessage(error);
+      appendMessageChunk(assistant, cancelled ? '\n\n[action cancelled]' : `\n\n[action failed: ${message}]`);
+      this.status = cancelled ? 'Action cancelled.' : 'Action failed.';
+      if (!cancelled) this.notify('Action failed', 'error', message);
     } finally {
       this.busy = false;
       this.abortController = null;
@@ -343,13 +315,13 @@ export class RichTerminalApp {
   }
 
   async streamPlainText(text, message, signal) {
-    for (const chunk of chunkText(text)) {
-      if (signal?.aborted) throw new StreamCancelled();
-      await delay(chunk.includes('\n') ? 60 : /^\s+$/.test(chunk) ? 10 : 24, signal);
-      if (signal?.aborted) throw new StreamCancelled();
-      appendMessageChunk(message, chunk);
-      this.render();
-    }
+    await streamTextChunks(text, {
+      signal,
+      onChunk: (chunk) => {
+        appendMessageChunk(message, chunk);
+        this.render();
+      },
+    });
   }
 
   newSession() {
@@ -417,175 +389,8 @@ export class RichTerminalApp {
 
   onData(data) {
     const key = parseKey(data);
-    this.logDebug('key', printableKey(key));
-
-    if (key.name === 'ctrl-c') {
-      this.requestExit(130);
-      return;
-    }
-
-    if (key.name === 'ctrl-d') {
-      this.requestExit(0);
-      return;
-    }
-
-    if (key.name === 'command-palette') {
-      if (this.modes.is('palette')) {
-        this.modes.pop();
-        this.status = 'Command palette closed.';
-        this.render();
-      } else {
-        this.openCommandPalette();
-      }
-      return;
-    }
-
-    if (this.modes.is('palette')) {
-      this.handleCommandPaletteKey(key);
-      return;
-    }
-
-    if (key.name === 'escape') {
-      if (this.busy && this.abortController) {
-        this.abortController.abort();
-        this.status = 'Cancelling response…';
-      } else if (this.isSuggestionMode()) {
-        this.suggestionsDismissed = true;
-        this.status = 'Command suggestions dismissed. Edit the input to reopen them.';
-      } else if (this.scrollOffset > 0) {
-        this.scrollOffset = 0;
-        this.status = 'Returned to the latest response.';
-      } else {
-        this.resetSuggestionCycle();
-      }
-      this.render();
-      return;
-    }
-
-    if (key.name === 'enter') {
-      if (key.ctrl) {
-        this.mutateInput(() => this.editor.insertLineBreak());
-      } else if (this.shouldAcceptSuggestionBeforeSubmit()) this.acceptCurrentSuggestion();
-      else this.submitInput();
-      return;
-    }
-
-    if (key.name === 'tab') {
-      if (this.isSuggestionMode()) {
-        if (key.shift) this.moveSuggestion(-1);
-        else this.acceptCurrentSuggestion();
-      }
-      return;
-    }
-
-    if (key.name === 'paste') {
-      this.mutateInput(() => {
-        if (typeof this.editor.insertPaste === 'function') this.editor.insertPaste(key.text);
-        else this.editor.insert(key.text);
-      });
-      return;
-    }
-
-    if (key.name === 'backspace') {
-      this.mutateInput(() => this.editor.backspace());
-      return;
-    }
-
-    if (key.name === 'delete') {
-      this.mutateInput(() => this.editor.deleteForward());
-      return;
-    }
-
-    if (key.name === 'home' || (key.cmd && key.name === 'left')) {
-      if (key.cmd) this.editor.home();
-      else this.editor.lineStart();
-      this.render();
-      return;
-    }
-
-    if (key.name === 'end' || (key.cmd && key.name === 'right')) {
-      if (key.cmd) this.editor.end();
-      else this.editor.lineEnd();
-      this.render();
-      return;
-    }
-
-    if (key.name === 'kill-end') {
-      this.mutateInput(() => this.editor.killToEnd());
-      return;
-    }
-
-    if (key.name === 'kill-start') {
-      this.mutateInput(() => this.editor.killToStart());
-      return;
-    }
-
-    if (key.name === 'delete-word-left') {
-      this.mutateInput(() => this.editor.deleteWordBack());
-      return;
-    }
-
-    if (key.name === 'redraw') {
-      this.scrollOffset = 0;
-      this.status = 'Screen redrawn.';
-      this.renderer.reset();
-      this.render();
-      return;
-    }
-
-    if (key.meta && key.name === 'left') {
-      this.editor.moveWord(-1);
-      this.render();
-      return;
-    }
-
-    if (key.meta && key.name === 'right') {
-      this.editor.moveWord(1);
-      this.render();
-      return;
-    }
-
-    if (key.name === 'up') {
-      if (key.ctrl || key.meta) this.scrollTranscript(1);
-      else if (this.isSuggestionMode()) this.moveSuggestion(-1);
-      else if (this.editor.value.includes('\n')) { this.editor.moveVertical(-1); this.render(); }
-      else this.historyUp();
-      return;
-    }
-
-    if (key.name === 'down') {
-      if (key.ctrl || key.meta) this.scrollTranscript(-1);
-      else if (this.isSuggestionMode()) this.moveSuggestion(1);
-      else if (this.editor.value.includes('\n')) { this.editor.moveVertical(1); this.render(); }
-      else this.historyDown();
-      return;
-    }
-
-    if (key.name === 'right') {
-      this.editor.move(1);
-      this.render();
-      return;
-    }
-
-    if (key.name === 'left') {
-      this.editor.move(-1);
-      this.render();
-      return;
-    }
-
-    if (key.name === 'page-up') {
-      this.scrollTranscript(Math.max(3, this.transcriptHeight - 2));
-      return;
-    }
-
-    if (key.name === 'page-down') {
-      this.scrollTranscript(-Math.max(3, this.transcriptHeight - 2));
-      return;
-    }
-
-    if (key.printable) {
-      this.mutateInput(() => this.editor.insert(key.text));
-    }
+    this.logDebug('key', formatDebugKey(key));
+    routeRichTerminalKey(this, key);
   }
 
   openCommandPalette() {
@@ -784,123 +589,6 @@ function shortSessionLabel(id) {
   const raw = String(id ?? 'session');
   const parts = raw.split('_');
   return parts.length > 1 ? `${parts[0].slice(-8)}-${parts.at(-1).slice(-5)}` : raw.slice(-14);
-}
-
-function commandCategory(name) {
-  if (['/help', '/about'].includes(name)) return 'Help';
-  if (['/theme', '/themes'].includes(name)) return 'Appearance';
-  if (['/provider', '/skills', '/skill'].includes(name)) return 'Configuration';
-  if (name === '/session') return 'Sessions';
-  if (['/retry', '/regenerate', '/shorter', '/longer', '/explain', '/apply', '/copy-last', '/blocks'].includes(name)) return 'Assistant';
-  if (['/debug', '/status', '/intents', '/history'].includes(name)) return 'Diagnostics';
-  return 'Workspace';
-}
-
-function commandAliases(name) {
-  return {
-    '/help': ['commands', 'shortcuts'],
-    '/session': ['save', 'open', 'conversation'],
-    '/provider': ['model'],
-    '/theme': ['color', 'appearance'],
-    '/retry': ['again'],
-    '/regenerate': ['redo'],
-    '/clear': ['clean'],
-    '/exit': ['quit'],
-  }[name] ?? [];
-}
-
-function commandInsert(command) {
-  return /[<[\[]/.test(command.usage) ? `${command.name} ` : command.name;
-}
-
-function buildActionText(action, source) {
-  const cleaned = source.replace(/\n\s*\[matched:[\s\S]*?\]$/m, '').trim();
-  if (action === 'shorter') {
-    return `Shortened version:\n\n${firstSentence(cleaned)}\n\nSummary: ${summarize(cleaned, 220)}`;
-  }
-  if (action === 'longer') {
-    return `Expanded version:\n\n${cleaned}\n\nAdditional note: I would separately verify input state, response streaming, command list behavior, and session persistence. These four layers are the most common conflict points in rich terminal applications.`;
-  }
-  if (action === 'explain') {
-    return `Explanation of the last response:\n\n1. Main idea: ${summarize(cleaned, 180)}\n\n2. Why it matters: terminal UX breaks quickly when input state, rendering, and model logic are mixed.\n\n3. What to check next: commands, arrow keys, streaming, cancellation with Esc, and session saving.`;
-  }
-  if (action === 'apply') {
-    return 'Automatic artifact application is not connected yet. In this prototype, `/apply` only records the UX path: once a real provider/tools layer exists, the command can find the last applicable artifact and execute it through a separate safe adapter.';
-  }
-  return cleaned;
-}
-
-function firstSentence(text) {
-  const match = text.match(/^(.{20,240}?[.!?])(?:\s|$)/s);
-  return match ? match[1].trim() : summarize(text, 180);
-}
-
-function summarize(text, limit) {
-  const single = text.replace(/\s+/g, ' ').trim();
-  return single.length > limit ? `${single.slice(0, limit - 1)}…` : single;
-}
-
-function streamingMarker(frame) {
-  const frames = ['·', '•', '●', '•'];
-  return frames[frame % frames.length];
-}
-
-function statusMarker(status) {
-  if (status === 'cancelled') return '×';
-  if (status === 'error') return '!';
-  return ' ';
-}
-
-function roleLabel(role) {
-  if (role === 'user') return 'you';
-  if (role === 'assistant') return 'ai';
-  return role;
-}
-
-function chunkText(text) {
-  const pieces = [];
-  const regex = /(\s+|[^\s]+)/g;
-  let match;
-  while ((match = regex.exec(text)) !== null) pieces.push(match[0]);
-  return pieces;
-}
-
-function delay(ms, signal) {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new StreamCancelled());
-      return;
-    }
-    const timer = setTimeout(() => {
-      signal?.removeEventListener('abort', onAbort);
-      resolve();
-    }, ms);
-    function onAbort() {
-      clearTimeout(timer);
-      signal?.removeEventListener('abort', onAbort);
-      reject(new StreamCancelled());
-    }
-    signal?.addEventListener('abort', onAbort, { once: true });
-  });
-}
-
-function printableKey(key) {
-  if (key && typeof key === 'object') {
-    const flags = [key.shift && 'shift', key.ctrl && 'ctrl', key.meta && 'meta', key.cmd && 'cmd'].filter(Boolean).join('+');
-    const suffix = flags ? ` (${flags})` : '';
-    const sequence = String(key.sequence ?? '')
-      .replace(/\x1b/g, 'ESC')
-      .replace(/\r/g, 'CR')
-      .replace(/\n/g, 'LF')
-      .replace(/\t/g, 'TAB');
-    return `${key.name}${suffix} ${sequence}`.trim();
-  }
-
-  return String(key ?? '')
-    .replace(/\x1b/g, 'ESC')
-    .replace(/\r/g, 'CR')
-    .replace(/\n/g, 'LF')
-    .replace(/\t/g, 'TAB');
 }
 
 function mod(value, length) {

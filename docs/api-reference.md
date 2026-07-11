@@ -516,6 +516,50 @@ Methods:
 - `push(name, data)`, `pop()`, `replace(name, data)`, `reset()`
 - `toJSON()`
 
+## Workspace runtime and actions
+
+### createWorkspaceApp / WorkspaceApp
+
+```js
+createWorkspaceApp({
+  title,
+  state,
+  render,
+  actions,
+  overlays,
+  onKey,
+  tick,
+  tickMs,
+  input,
+  output,
+  onExit,
+})
+```
+
+The runtime owns alternate-screen setup, raw input, resize redraws, overlay focus trapping and terminal cleanup. `render` receives the actual viewport width and height. Calling `start()` more than once is safe. `onExit(code)` is optional; without it, `exit()` restores the terminal and terminates the process.
+
+### ActionRegistry
+
+Exports:
+
+- `createActionRegistry(actions)`
+- `ActionRegistry`
+- `normalizeAction(action)`
+- `keyMatches(spec, key)`
+- `parseKeySpec(spec)`
+
+Generated palette items, help shortcuts and footer hints evaluate dynamic `disabled(ctx)` callbacks against the supplied context.
+
+### OverlayManager / OverlayHost
+
+Exports:
+
+- `createOverlayManager(options)`
+- `OverlayManager`
+- `OverlayHost(props)`
+
+Blocking overlays trap keys until closed. Toast TTL updates do not request redraws until the visible toast stack changes.
+
 ## Command palette
 
 Exports:
@@ -548,7 +592,7 @@ Parser helpers:
 
 - `parseSlashCommand(line)`
 - `tokenizeCommand(line)`
-- `commandRest(line, commandName)`
+- `commandRest(parsed, fromIndex)`
 
 ## Scroll state and toasts
 

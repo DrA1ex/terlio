@@ -92,14 +92,14 @@ export class ActionRegistry {
   toHelpShortcuts(ctx = {}, options = {}) {
     return this.list(ctx, options)
       .filter((action) => action.keys.length)
-      .map((action) => [action.keys.join(' / '), action.disabled ? `${action.title} (disabled)` : action.title]);
+      .map((action) => [action.keys.join(' / '), this.isDisabled(action, ctx) ? `${action.title} (disabled)` : action.title]);
   }
 
   toFooterHints(ctx = {}, { limit = 8, scopes = ['global', 'local'] } = {}) {
     return this.list(ctx, { scopes })
       .filter((action) => action.keys.length && !resolveValue(action.hidden, ctx, false))
       .slice(0, limit)
-      .map((action) => `${action.keys[0]} ${action.disabled ? `${action.title} disabled` : action.title}`);
+      .map((action) => `${action.keys[0]} ${this.isDisabled(action, ctx) ? `${action.title} disabled` : action.title}`);
   }
 }
 
@@ -154,6 +154,7 @@ export function parseKeySpec(spec) {
   }
   if (!parts.some((part) => ['ctrl', 'control'].includes(part))) result.ctrl ??= false;
   if (!parts.some((part) => ['alt', 'option', 'meta'].includes(part))) result.meta ??= false;
+  if (!parts.some((part) => part === 'shift')) result.shift ??= false;
   if (!parts.some((part) => part === 'cmd' || part === 'command')) result.cmd ??= false;
   return result;
 }

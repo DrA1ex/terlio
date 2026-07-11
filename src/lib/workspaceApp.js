@@ -4,15 +4,13 @@ import { renderToFrame, TerminalRenderer } from './ui/renderer.js';
 import { createActionRegistry } from './actionRegistry.js';
 import { createOverlayManager } from './overlayHost.js';
 
-const MIN_COLUMNS = 40;
-const MIN_ROWS = 12;
 
 export function createWorkspaceApp(config = {}) {
   return new WorkspaceApp(config);
 }
 
 export class WorkspaceApp {
-  constructor({ title = 'Workspace App', state = {}, render, actions = [], overlays = null, onKey = null, tick = null, tickMs = 0, input = process.stdin, output = process.stdout } = {}) {
+  constructor({ title = 'Workspace App', state = {}, render, actions = [], overlays = null, onKey = null, tick = null, tickMs = 0, input = process.stdin, output = process.stdout, onExit = null } = {}) {
     if (typeof render !== 'function') throw new Error('createWorkspaceApp requires a render function.');
     this.title = title;
     this.state = state;
@@ -24,6 +22,7 @@ export class WorkspaceApp {
     this.tickMs = Number(tickMs) || 0;
     this.input = input;
     this.output = output;
+    this.onExit = typeof onExit === 'function' ? onExit : null;
     this.renderer = new TerminalRenderer({ output });
     this.running = false;
     this.dirty = true;
@@ -35,6 +34,7 @@ export class WorkspaceApp {
   }
 
   start() {
+    if (this.running) return this;
     if (!this.input.isTTY || !this.output.isTTY) throw new Error(`${this.title} requires an interactive TTY.`);
     this.running = true;
     this.output.write(ansi.altScreen + ansi.hideCursor + ansi.clear + ansi.home);
@@ -45,7 +45,10 @@ export class WorkspaceApp {
     this.output.on('resize', this.boundResize);
     process.once('uncaughtException', this.boundFatal);
     process.once('unhandledRejection', this.boundFatal);
-    if (this.onTick && this.tickMs > 0) this.timer = setInterval(() => { if (this.onTick(this.context()) !== false) this.invalidate(); }, this.tickMs);
+    if (this.onTick && this.tickMs > 0) {
+      this.timer = setInterval(() => { if (this.onTick(this.context()) !== false) this.invalidate(); }, this.tickMs);
+      this.timer.unref?.();
+    }
     this.invalidate();
     return this;
   }
@@ -67,6 +70,10 @@ export class WorkspaceApp {
 
   exit(code = 0) {
     this.stop();
+    if (this.onExit) {
+      this.onExit(code);
+      return;
+    }
     process.exitCode = code;
     setImmediate(() => process.exit(code));
   }
@@ -78,8 +85,8 @@ export class WorkspaceApp {
 
   render() {
     if (!this.running || !this.dirty) return false;
-    const width = Math.max(MIN_COLUMNS, this.output.columns || 90);
-    const height = Math.max(MIN_ROWS, this.output.rows || 28);
+    const width = Math.max(1, Number(this.output.columns) || 90);
+    const height = Math.max(1, Number(this.output.rows) || 28);
     const view = this.renderView({ ...this.context(), width, height });
     const frame = renderToFrame(view, { width, height });
     const snapshot = frame.toString();
@@ -123,5 +130,6 @@ export class WorkspaceApp {
     this.stop();
     console.error(error);
     process.exitCode = 1;
+    this.onExit?.(1, error);
   }
 }
