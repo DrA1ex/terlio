@@ -4,6 +4,9 @@ Terlio.js is a dependency-free declarative terminal UI framework for Node.js. It
 
 Use it for full-screen CLI applications, AI and agent consoles, internal tools, support desks, review workflows, command centers and streaming interfaces that need more structure than sequential `console.log()` output.
 
+<img width="1280" alt="UI" src="https://github.com/user-attachments/assets/674cd5e9-f155-4a40-bbcf-fa2f3a18c84a" />
+
+
 ## Highlights
 
 - Declarative primitives: `Text`, `Box`, `Row`, `Column`, `Panel`, `Grid` and `SplitPane`.
