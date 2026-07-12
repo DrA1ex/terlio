@@ -2,6 +2,11 @@
   "name": "terlio.js",
   "version": "1.0.0",
   "description": "Composable terminal UI for commands, streams, and interactive workflows",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DrA1ex/terlio.git"
+  },
+  "homepage": "https://github.com/DrA1ex/terlio",
   "keywords": [
     "terminal",
     "tui",
