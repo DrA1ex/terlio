@@ -1,6 +1,6 @@
-# Terlio
+# Terlio.js
 
-Terlio is a dependency-free declarative terminal UI framework for Node.js. It combines a fixed-frame renderer, ANSI-aware layout, reusable workspace components, normalized keyboard input, overlays, command palettes, scroll state and structured assistant output in one plain-JavaScript package.
+Terlio.js is a dependency-free declarative terminal UI framework for Node.js. It combines a fixed-frame renderer, ANSI-aware layout, reusable workspace components, normalized keyboard input, overlays, command palettes, scroll state and structured assistant output in one plain-JavaScript package.
 
 Use it for full-screen CLI applications, AI and agent consoles, internal tools, support desks, review workflows, command centers and streaming interfaces that need more structure than sequential `console.log()` output.
 
@@ -18,19 +18,19 @@ Use it for full-screen CLI applications, AI and agent consoles, internal tools, 
 ## Install
 
 ```bash
-npm install terlio
+npm install terlio.js
 ```
 
-Terlio requires Node.js 18 or newer and uses ES modules.
+Terlio.js requires Node.js 18 or newer and uses ES modules.
 
 ## First render
 
 ```js
-import { Box, Row, Text, renderToString } from 'terlio';
+import { Box, Row, Text, renderToString } from 'terlio.js';
 
 const screen = Box(
   { border: true, padding: 1, title: ' Status ' },
-  Text('Terlio is ready.'),
+  Text('Terlio.js is ready.'),
   Row({ gap: 2 }, Text('tests: passed'), Text('provider: mock')),
 );
 
@@ -42,12 +42,12 @@ console.log(renderToString(screen, { width: 48, height: 8 }));
 The npm package includes all examples and a small launcher. They remain available after installation from the registry:
 
 ```bash
-npx terlio list
-npx terlio demo:chat
-npx terlio demo:support-desk
-npx terlio example:palette
-npx terlio example:themes
-npx terlio example:components
+npx terlio.js list
+npx terlio.js demo:chat
+npx terlio.js demo:support-desk
+npx terlio.js example:palette
+npx terlio.js example:themes
+npx terlio.js example:components
 ```
 
 Interactive examples require a real TTY. `example:components` is a one-shot stdout example and can be used in CI or redirected to a file.
@@ -55,9 +55,9 @@ Interactive examples require a real TTY. `example:components` is a one-shot stdo
 The launcher accepts short names too:
 
 ```bash
-npx terlio chat
-npx terlio palette
-npx terlio components
+npx terlio.js chat
+npx terlio.js palette
+npx terlio.js components
 ```
 
 ## Repository development
@@ -70,7 +70,9 @@ npm run test:coverage
 npm run test:package
 ```
 
-`npm run test:package` creates the actual npm tarball, installs it into a clean temporary consumer project, imports `terlio`, lists the packaged examples and runs the one-shot component example.
+`npm run test:package` creates the actual npm tarball, installs it into a clean temporary consumer project, imports `terlio.js`, lists the packaged examples and runs the one-shot component example.
+
+`npm run test:coverage` runs the black-box suite through the public API and enforces at least 80% line, branch, and function coverage for `src/lib`.
 
 Repository-only npm aliases are also available:
 
@@ -98,7 +100,7 @@ import {
   WorkspacePane,
   WorkspaceShell,
   createWorkspaceApp,
-} from 'terlio';
+} from 'terlio.js';
 
 const state = { count: 0 };
 
@@ -141,17 +143,20 @@ app.start();
 The public API is exported from the package root:
 
 ```js
-import { TerminalRenderer, WorkspaceShell, parseKey } from 'terlio';
+import { TerminalRenderer, WorkspaceShell, parseKey } from 'terlio.js';
 ```
 
 Examples can also be imported explicitly for inspection or testing:
 
 ```js
-import { createComponentsShowcaseView } from 'terlio/examples/components-showcase';
+import { createComponentsShowcaseView } from 'terlio.js/examples/components-showcase';
 ```
 
-Use the `terlio` CLI rather than importing an interactive example when the goal is to run it.
+Use the `terlio.js` CLI rather than importing an interactive example when the goal is to run it.
 
+## Project status
+
+Terlio.js 1.0 provides a stable initial public API. Public exports are covered by tests.
 
 ## License
 
