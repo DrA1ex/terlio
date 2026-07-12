@@ -32,7 +32,7 @@ A responsive chat workspace with slash completion, command palette, multiline an
 npx terlio.js demo:support-desk
 ```
 
-A product-style support application with queue navigation, ticket details, reply editor, templates, SLA blocks, timeline, focus zones, modals, commands, toasts and theme switching.
+An inbox-first support workflow with stable ticket selection, bracket-switched tabs, pane-local scrolling, reply and note composers, SLA details, activity history, overlays, and slash commands that return to the previous pane unless they navigate elsewhere. Use `Esc` to return to Inbox and `Ctrl+Q` to quit.
 
 ### Code Review — `demo:code-review`
 

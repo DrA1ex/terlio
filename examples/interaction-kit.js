@@ -250,7 +250,7 @@ function createInteractionActions(state) {
     { id: 'help.open', title: 'Open Help', description: 'Show global and local shortcuts', keys: ['?'], scope: 'global', category: 'Help', execute: ({ state }) => openHelp(state) },
     { id: 'palette.open', title: 'Open Command Palette', description: 'Search global actions and showcases', keys: ['/'], scope: 'global', category: 'Commanding', execute: ({ state }) => openPalette(state) },
     { id: 'showcase.reset', title: 'Reset Current Demo', description: 'Reset local state for selected showcase', keys: ['r'], scope: 'global', category: 'Utility', disabled: ({ state }) => activeEntry(state).id === 'text-editor-input' && state.focus.current() === 'preview', execute: ({ state }) => resetCurrentShowcase(state) },
-    { id: 'app.quit', title: 'Quit', description: 'Exit and restore terminal', keys: ['q'], scope: 'global', category: 'Application', execute: ({ exit }) => exit?.(0) },
+    { id: 'app.quit', title: 'Quit', description: 'Exit and restore terminal', keys: ['ctrl+q'], scope: 'global', category: 'Application', execute: ({ exit }) => exit?.(0) },
     ...SHOWCASES.map((entry, index) => ({ id: `showcase.${entry.id}`, title: `Jump to ${entry.title}`, description: entry.summary, keys: [], scope: 'global', category: 'Showcases', aliases: [entry.category, ...entry.components], execute: ({ state }) => { selectShowcase(state, index); state.focus.focus('preview'); state.overlays.toast(`Jumped to ${entry.title}.`, 'success', 4); } })),
     ...THEME_NAMES.map((name) => ({ id: `theme.${name}`, title: `Theme: ${name}`, description: `Apply ${name}`, keys: [], scope: 'global', category: 'Theme', disabled: ({ state }) => state.themeName === name, execute: ({ state }) => setTheme(state, name) })),
   ]);

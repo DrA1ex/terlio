@@ -1,30 +1,28 @@
 import { themes } from '../../src/lib/index.js';
 
-export const SUPPORT_THEME_NAMES = ['support-ocean', 'support-dark', 'support-paper', 'support-contrast', 'support-slate'];
+const SUPPORT_SEMANTIC_TOKENS = {
+  risk: 'error',
+  paused: 'accent',
+  solved: 'ok',
+  customer: 'user',
+  internal: 'system',
+  agent: 'assistant',
+  selectedTicket: 'selected',
+};
 
-export function getSupportTheme(name = 'support-ocean') {
-  const key = SUPPORT_THEME_NAMES.includes(name) ? name : 'support-ocean';
+// Support Desk inherits the library theme catalog verbatim. Only genuinely
+// custom themes should use a `support-` prefix in the future.
+export const SUPPORT_THEME_NAMES = Object.keys(themes);
+
+export const SUPPORT_THEMES = Object.fromEntries(
+  SUPPORT_THEME_NAMES.map((name) => [name, semanticTheme(name, themes[name])]),
+);
+
+export function getSupportTheme(name = 'ocean') {
+  const key = SUPPORT_THEME_NAMES.includes(name) ? name : 'ocean';
   return SUPPORT_THEMES[key];
 }
 
-export const SUPPORT_THEMES = {
-  'support-ocean': semanticTheme('support-ocean', themes.ocean, {
-    risk: 'error', paused: 'accent', solved: 'ok', customer: 'user', internal: 'system', agent: 'assistant', selectedTicket: 'selected',
-  }),
-  'support-dark': semanticTheme('support-dark', themes.dark, {
-    risk: 'error', paused: 'accent', solved: 'ok', customer: 'user', internal: 'system', agent: 'assistant', selectedTicket: 'selected',
-  }),
-  'support-paper': semanticTheme('support-paper', themes.paper, {
-    risk: 'error', paused: 'accent', solved: 'ok', customer: 'user', internal: 'system', agent: 'assistant', selectedTicket: 'selected',
-  }),
-  'support-contrast': semanticTheme('support-contrast', themes.mono, {
-    risk: 'error', paused: 'accent', solved: 'ok', customer: 'user', internal: 'system', agent: 'assistant', selectedTicket: 'selected',
-  }),
-  'support-slate': semanticTheme('support-slate', themes.slate, {
-    risk: 'error', paused: 'accent', solved: 'ok', customer: 'user', internal: 'system', agent: 'assistant', selectedTicket: 'selected',
-  }),
-};
-
-function semanticTheme(name, base, support) {
-  return { ...base, name, support };
+function semanticTheme(name, base) {
+  return { ...base, name, support: { ...SUPPORT_SEMANTIC_TOKENS } };
 }

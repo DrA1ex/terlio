@@ -61,10 +61,9 @@ function wideLayout({ state, width, height, theme }) {
   const columns = responsiveColumns(width, 'wide');
   const header = appHeader({ state, width, theme });
   const tabs = tabsBar({ state, theme });
-  const command = commandArea({ state, theme });
-  const activity = activityStrip({ state, theme });
+  const command = commandArea({ state, theme, width });
   const footer = footerBar({ state, theme });
-  const mainHeight = fixedMainHeight({ width, height, fixed: [header, tabs, command, activity, footer] });
+  const mainHeight = fixedMainHeight({ width, height, fixed: [header, tabs, command, footer] });
   const main = Box({ border: false, height: mainHeight },
     Row({ gap: 2, widths: [columns.left, columns.middle, columns.right] },
       inboxPane({ state, theme, width: columns.left, height: mainHeight }),
@@ -72,30 +71,29 @@ function wideLayout({ state, width, height, theme }) {
       contextRail({ state, theme, width: columns.right, height: mainHeight }),
     ),
   );
-  return Column({ height }, header, tabs, { ...main, props: { ...main.props, grow: true } }, command, activity, footer);
+  return Column({ height }, header, tabs, { ...main, props: { ...main.props, grow: true } }, command, footer);
 }
 
 function mediumLayout({ state, width, height, theme }) {
   const columns = responsiveColumns(width, 'medium');
   const header = appHeader({ state, width, theme, compact: true });
   const tabs = tabsBar({ state, theme });
-  const command = commandArea({ state, theme });
-  const activity = activityStrip({ state, theme, compact: true });
+  const command = commandArea({ state, theme, width });
   const footer = footerBar({ state, theme, compact: true });
-  const mainHeight = fixedMainHeight({ width, height, fixed: [header, tabs, command, activity, footer] });
+  const mainHeight = fixedMainHeight({ width, height, fixed: [header, tabs, command, footer] });
   const main = Box({ border: false, height: mainHeight },
     Row({ gap: 2, widths: [columns.left, columns.middle] },
       inboxPane({ state, theme, width: columns.left, height: mainHeight, compact: true }),
       activeWorkArea({ state, theme, mode: 'medium', width: columns.middle, height: mainHeight }),
     ),
   );
-  return Column({ height }, header, tabs, { ...main, props: { ...main.props, grow: true } }, command, activity, footer);
+  return Column({ height }, header, tabs, { ...main, props: { ...main.props, grow: true } }, command, footer);
 }
 
 function narrowLayout({ state, width, height, theme }) {
   const header = appHeader({ state, width, theme, compact: true });
   const tabs = tabsBar({ state, theme, compact: true });
-  const command = commandArea({ state, theme, compact: true });
+  const command = commandArea({ state, theme, width, compact: true });
   const footer = footerBar({ state, theme, compact: true });
   const mainHeight = fixedMainHeight({ width, height, fixed: [header, tabs, command, footer] });
   const main = Box({ border: false, height: mainHeight },
@@ -114,18 +112,21 @@ export function getSupportScrollMax({ state, key, width = 118, height = 34 } = {
   const mode = getResponsiveMode(width);
   const header = appHeader({ state, width, theme, compact: mode !== 'wide' });
   const tabs = tabsBar({ state, theme, compact: mode === 'narrow' });
-  const command = commandArea({ state, theme, compact: mode === 'narrow' });
-  const activity = mode === 'narrow' ? null : activityStrip({ state, theme, compact: mode !== 'wide' });
+  const command = commandArea({ state, theme, width, compact: mode === 'narrow' });
   const footer = footerBar({ state, theme, compact: mode !== 'wide' });
-  const fixed = activity ? [header, tabs, command, activity, footer] : [header, tabs, command, footer];
+  const fixed = [header, tabs, command, footer];
   const mainHeight = fixedMainHeight({ width, height, fixed });
   const columns = responsiveColumns(width, mode === 'wide' ? 'wide' : mode === 'medium' ? 'medium' : 'narrow');
   const workWidth = mode === 'wide' ? columns.middle : mode === 'medium' ? columns.middle : width;
 
   if (key === 'ticketThread') {
-    const events = collectThreadEvents(getSelectedTicket(state));
-    const limit = Math.max(2, Math.min(mode === 'wide' ? 5 : 4, Math.floor(Math.max(4, mainHeight - 12) / 4)));
-    return Math.max(0, events.length - limit);
+    return ticketThreadMetrics({
+      state,
+      ticket: getSelectedTicket(state),
+      theme,
+      width: workWidth,
+      height: mainHeight,
+    }).maxScroll;
   }
 
   if (key === 'reply') {
@@ -165,7 +166,7 @@ function appHeader({ state, width, theme, compact = false }) {
   const modeLabel = modeStatus(state) || (state.commandActive ? 'command' : 'browse');
   const secondary = compact
     ? `Mode ${color(theme, 'accent', modeLabel)} · Selected ${color(theme, 'accent', selected.id)} ${truncateVisible(selected.subject, Math.max(22, width - 46))}`
-    : `Mode ${color(theme, 'accent', modeLabel)}   │   Shortcuts: / Command   Tab Focus   [/] Tabs   Ctrl+P Palette   ? Help   q Quit   │   Selected ${color(theme, 'accent', selected.id)} ${truncateVisible(selected.subject, 38)}`;
+    : `Mode ${color(theme, 'accent', modeLabel)}   │   Shortcuts: [/] Tabs   Tab Pane   / Command   Ctrl+P Actions   Esc Inbox   Ctrl+Q Quit   │   Selected ${color(theme, 'accent', selected.id)} ${truncateVisible(selected.subject, 38)}`;
 
   return pane({ title: ' support-desk — Support Triage Desk ', theme },
     Text(main, { wrap: false }),
@@ -177,68 +178,115 @@ function tabsBar({ state, theme, compact = false }) {
   const parts = SUPPORT_TABS.map((tab) => {
     const active = tab.id === state.activeTab;
     const label = active ? `[${tab.label}]` : ` ${tab.label} `;
-    return active ? color(theme, state.focus === 'tabs' ? 'selected' : 'accent', label) : color(theme, 'muted', label);
+    return active ? color(theme, 'accent', label) : color(theme, 'muted', label);
   });
-  const help = compact ? '[/] tabs · /goto <tab>' : '[/] tabs · / command · Tab focus · Enter acts in focused pane';
-  return pane({ title: state.focus === 'tabs' ? ' TABS FOCUSED ' : '', theme, active: state.focus === 'tabs' },
+  const help = compact ? '[/] switch tabs' : '[/] switch tabs · tabs are never focus targets';
+  return pane({ title: ' WORKSPACE ', theme },
     Text(`${parts.join('   ')}${compact ? '' : `       ${color(theme, 'muted', help)}`}`, { wrap: false }),
   );
 }
 
 function inboxPane({ state, theme, width, height = 36, compact = false }) {
   const visible = getVisibleTickets(state);
-  const windowSize = compact ? 10 : Math.max(8, Math.min(12, height - 20));
+  const windowSize = Math.max(4, Math.min(compact ? 14 : 18, height - 7));
   const slice = takeVisible(visible, state.selectedIndex, windowSize);
-  const inner = Math.max(32, width - 4);
+  const inner = Math.max(24, width - 4);
   const rows = slice.items.map((ticket, offset) => ticketRow({ ticket, selected: slice.start + offset === slice.selected, theme, width: inner }));
+  const view = `Queue ${state.filter.queue} · Priority ${state.filter.priority} · Status ${state.filter.status} · Sort ${state.sort}`;
 
-  return pane({ title: `${state.focus === 'inbox' ? '▶' : ' '} INBOX ${spinner(state.frame)} Live `, theme, active: state.focus === 'inbox' },
-    Text(inboxControlsLine(state, theme, inner), { wrap: false }),
-    Text(controlOptionsLine(state, theme, inner), { wrap: false }),
-    ...inboxHelpLines(state, theme, inner).map((line) => Text(line, { wrap: false })),
-    Text(filterLine(state, theme, inner), { wrap: false }),
-    Text(quickFilterLine(state, theme, inner), { wrap: false }),
-    Text(searchLine(state, theme, inner), { wrap: false }),
+  return pane({ title: `${state.focus === 'inbox' ? '▶' : ' '} INBOX ${spinner(state.frame)} Live `, theme, active: state.focus === 'inbox', height },
+    Text(color(theme, 'muted', truncateVisible(view, inner)), { wrap: false }),
     Text(color(theme, 'muted', ticketTableHeader(inner)), { wrap: false }),
     ...rows.map((row) => Text(row, { wrap: false })),
-    Text(color(theme, 'muted', truncateVisible(`${slice.start + 1}-${slice.start + slice.items.length} of ${visible.length}     Updated ${clockTime()}`, inner)), { wrap: false }),
+    Text(color(theme, 'muted', truncateVisible(`${slice.start + 1}-${slice.start + slice.items.length} of ${visible.length} · selected ${getSelectedTicket(state).id}`, inner)), { wrap: false }),
   );
 }
 
 function activeWorkArea({ state, theme, mode, width, height }) {
   const ticket = getSelectedTicket(state);
-  if (state.activeTab === 'inbox') return inboxFocusView({ state, ticket, theme, width, mode });
-  if (state.activeTab === 'reply') return replyView({ state, ticket, theme, width, mode });
-  if (state.activeTab === 'customer') return customerFocusView({ ticket, theme, width, mode });
-  if (state.activeTab === 'activity') return activityFocusView({ state, ticket, theme, width, mode });
+  if (state.activeTab === 'inbox') {
+    return mode === 'narrow'
+      ? inboxPane({ state, theme, width, height, compact: true })
+      : inboxFocusView({ state, ticket, theme, width, mode, height });
+  }
+  if (state.activeTab === 'reply') return replyView({ state, ticket, theme, width, mode, height });
+  if (state.activeTab === 'customer') return customerFocusView({ state, ticket, theme, width, height });
+  if (state.activeTab === 'activity') return activityFocusView({ state, ticket, theme, width, mode, height });
   return ticketView({ state, ticket, theme, mode, width, height });
 }
 
-function inboxFocusView({ state, ticket, theme, width, mode }) {
-  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} QUEUE OVERVIEW `, theme, active: state.focus === 'work' },
+function inboxFocusView({ state, ticket, theme, width, mode, height = 24 }) {
+  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} QUEUE OVERVIEW `, theme, active: state.focus === 'work', height },
     Text(`Visible ${color(theme, 'accent', getVisibleTickets(state).length)} / ${state.tickets.length} tickets`, { wrap: false }),
     Text(`Queue ${tag(state.filter.queue, theme, 'accent')}  Status ${tag(state.filter.status, theme, 'muted')}  Priority ${tag(state.filter.priority, theme, 'muted')}`, { wrap: false }),
-    Text(color(theme, 'muted', 'Use ↑/↓ to move, Enter to open, /search or /filter to narrow the queue.'), { wrap: false }),
+    Text(color(theme, 'muted', 'Queue preview. Tab returns to the Inbox list; [/] switches workspace tabs.'), { wrap: false }),
     divider(theme, width - 4),
     ...ticketSnapshotLines({ ticket, theme, width, mode }),
   );
 }
 
 function ticketView({ state, ticket, theme, mode, width, height = 24 }) {
-  const inner = Math.max(48, width - 4);
-  const threadLimit = Math.max(2, Math.min(mode === 'wide' ? 5 : 4, Math.floor(Math.max(4, height - 12) / 4))); 
-  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} TICKET ${ticket.id} `, theme, active: state.focus === 'work' },
-    Text(`${color(theme, 'title', truncateVisible(ticket.subject, Math.max(18, inner - 36)))}  ${queueBadge(ticket.queue, theme)}  ${color(theme, 'muted', `Created ${relativeAge(ticket)} · Updated ${clockTime()}`)}`, { wrap: false }),
+  const metrics = ticketThreadMetrics({ state, ticket, theme, width, height, mode });
+  const window = visibleWindowLines(metrics.lines, {
+    height: metrics.viewportHeight,
+    scroll: state.scroll?.ticketThread || 0,
+    tail: true,
+  });
+  const rangeStart = metrics.lines.length ? window.start + 1 : 0;
+  const rangeEnd = metrics.lines.length ? Math.min(metrics.lines.length, window.start + metrics.viewportHeight) : 0;
+  const threadTitle = ` THREAD ${rangeStart}-${rangeEnd} of ${metrics.lines.length} · ↑ older · ↓ newer `;
+  const threadPane = Box({
+    border: true,
+    borderColor: theme?.border,
+    padding: 0,
+    title: threadTitle,
+    height: metrics.threadHeight,
+  }, Lines(window.lines));
+
+  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} TICKET ${ticket.id} `, theme, active: state.focus === 'work', height },
+    ...metrics.headerNodes,
+    threadPane,
+    ...metrics.footerNodes,
+  );
+}
+
+function ticketThreadMetrics({ state, ticket, theme, width, height = 24 }) {
+  const inner = Math.max(24, width - 4);
+  const headerNodes = ticketHeaderNodes({ state, ticket, theme, width: inner });
+  const footerNodes = ticketFooterNodes({ state, theme, width: inner });
+  const headerHeight = renderNode(Column(...headerNodes), inner).length;
+  const footerHeight = renderNode(Column(...footerNodes), inner).length;
+  const innerHeight = Math.max(1, height - 2);
+  const threadHeight = Math.max(3, innerHeight - headerHeight - footerHeight);
+  const viewportHeight = Math.max(1, threadHeight - 2);
+  const contentWidth = Math.max(20, inner - 2);
+  const threadNodes = threadRows({ ticket, theme, width: contentWidth, limit: Number.MAX_SAFE_INTEGER });
+  const lines = renderNode(Column(...threadNodes), contentWidth);
+  return {
+    headerNodes,
+    footerNodes,
+    lines,
+    threadHeight,
+    viewportHeight,
+    maxScroll: Math.max(0, lines.length - viewportHeight),
+  };
+}
+
+function ticketHeaderNodes({ state, ticket, theme, width }) {
+  return [
+    Text(`${color(theme, 'title', truncateVisible(ticket.subject, Math.max(18, width - 36)))}  ${queueBadge(ticket.queue, theme)}  ${color(theme, 'muted', `Created ${relativeAge(ticket)} · Updated ${clockTime()}`)}`, { wrap: false }),
     Text(`Status ${statusBadge(ticket.status, theme)}  Priority ${priorityBadge(ticket.priority, theme)}  Assignee ${color(theme, 'accent', ticket.assignee || 'unassigned')}  Customer ${color(theme, 'accent', ticket.customer.contact)}`, { wrap: false }),
     Text(`Tags ${ticket.tags.map((item) => tag(item, theme, 'muted')).join(' ')}  ${color(theme, 'muted', '+ Add tag')}`, { wrap: false }),
-    state.lastWorkflowAction ? Text(`${color(theme, 'ok', 'Last action')} ${truncateVisible(state.lastWorkflowAction, Math.max(18, inner - 12))}`, { wrap: false }) : null,
-    ...wrapTextLines(ticket.summary, inner).slice(0, 2).map((line) => Text(color(theme, 'subtle', line), { wrap: false })),
-    divider(theme, inner),
-    Text(color(theme, 'muted', `THREAD — ↑/↓ scroll · PgUp/PgDn page · Enter reply`), { wrap: false }),
-    ...scrollingThreadRows({ ticket, theme, width: inner, limit: threadLimit, scroll: state.scroll?.ticketThread || 0 }),
-    divider(theme, inner),
-    quickReplyStripLine({ state, theme, width: inner }),
-  );
+    state.lastWorkflowAction ? Text(`${color(theme, 'ok', 'Last action')} ${truncateVisible(state.lastWorkflowAction, Math.max(18, width - 12))}`, { wrap: false }) : null,
+    ...wrapTextLines(ticket.summary, width).slice(0, 2).map((line) => Text(color(theme, 'subtle', line), { wrap: false })),
+  ].filter(Boolean);
+}
+
+function ticketFooterNodes({ state, theme, width }) {
+  return [
+    divider(theme, width),
+    quickReplyStripLine({ state, theme, width }),
+  ];
 }
 
 function replyView({ state, ticket, theme, mode, width, height = 24 }) {
@@ -249,7 +297,7 @@ function replyView({ state, ticket, theme, mode, width, height = 24 }) {
   const editorHeight = Math.max(5, Math.min(mode === 'wide' ? 10 : 8, height - 16));
   const previewHeight = Math.max(2, Math.min(5, height - editorHeight - 14));
 
-  return pane({ title: `${state.focus === 'work' || state.focus === 'composer' ? '▶' : ' '} REPLY TO ${ticket.id} `, theme, active: state.focus === 'work' || state.focus === 'composer' },
+  return pane({ title: `${state.focus === 'work' || state.focus === 'composer' ? '▶' : ' '} REPLY TO ${ticket.id} `, theme, active: state.focus === 'work' || state.focus === 'composer', height },
     Text(`${color(theme, 'title', truncateVisible(ticket.subject, Math.max(20, inner - 34)))}  ${color(theme, 'ok', '●')} Autosaved ${clockTime()}  Tone ${tag('Empathetic ▾', theme, 'accent')}`, { wrap: false }),
     Text(`Template  ${templateNames.map((name) => tag(name, theme, state.composerTemplate === name ? 'ok' : 'muted')).join(' ')}`, { wrap: false }),
     divider(theme, inner),
@@ -268,10 +316,17 @@ function replyView({ state, ticket, theme, mode, width, height = 24 }) {
   );
 }
 
-function customerFocusView({ ticket, theme, width }) {
-  return pane({ title: ' CUSTOMER PROFILE ', theme, active: false },
-    customerContent({ ticket, theme, width }),
-  );
+function customerFocusView({ state, ticket, theme, width, height = 24 }) {
+  const content = customerContent({ ticket, theme, width });
+  return scrollRenderedNode({
+    node: content,
+    width,
+    height,
+    scroll: state.scroll?.customer || 0,
+    theme,
+    active: state.focus === 'work',
+    title: ' CUSTOMER PROFILE ',
+  });
 }
 
 function customerContent({ ticket, theme, width }) {
@@ -290,7 +345,7 @@ function customerContent({ ticket, theme, width }) {
   );
 }
 
-function activityFocusView({ state, ticket, theme, width, mode }) {
+function activityFocusView({ state, ticket, theme, width, mode, height = 24 }) {
   const inner = Math.max(48, width - 4);
   const allEvents = buildActivityEvents(state, ticket);
   const pageSize = mode === 'wide' ? 7 : 6;
@@ -298,7 +353,7 @@ function activityFocusView({ state, ticket, theme, width, mode }) {
   const page = clamp(state.activityPage || 0, 0, maxPage);
   const start = page * pageSize;
   const events = allEvents.slice(start, start + pageSize);
-  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} ACTIVITY TIMELINE ${spinner(state.frame)} Live `, theme, active: state.focus === 'work' },
+  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} ACTIVITY TIMELINE ${spinner(state.frame)} Live `, theme, active: state.focus === 'work', height },
     Text(`Time [Last 24h]  Queues [All]  Types [All]  Agents [All]  Search ${state.filter.text || '<none>'}`, { wrap: false }),
     Text(metricLine({ state, theme }), { wrap: false }),
     divider(theme, inner),
@@ -409,7 +464,7 @@ function macroCard({ theme }) {
 
 function actionsCard({ theme }) {
   return pane({ title: ' ACTIONS ', theme },
-    Text(`${color(theme, 'accent', 'Assign (a)')}  ${color(theme, 'accent', 'Close (c)')}  ${color(theme, 'accent', 'Escalate (e)')}`, { wrap: false }),
+    Text(`${color(theme, 'accent', '/assign')}  ${color(theme, 'accent', '/close')}  ${color(theme, 'accent', '/escalate')}`, { wrap: false }),
     Text(color(theme, 'muted', 'More: /reply /note /tag /snooze /merge'), { wrap: false }),
   );
 }
@@ -443,33 +498,55 @@ function busyAgentsCard({ theme }) {
   );
 }
 
-function commandArea({ state, theme, compact = false }) {
-  const toast = state.toasts.toast ? state.toasts.current() : null;
-  const commandNode = state.commandActive
+function commandArea({ state, theme, width, compact = false }) {
+  return state.commandActive
     ? activeCommandArea({ state, theme, compact })
-    : idleCommandArea({ state, theme, compact });
-  return Column(
-    toast ? pane({ title: ` ${toast.level} `, theme }, Text(`${toastIcon(toast.level)} ${toast.message}`, { wrap: false })) : null,
-    commandNode,
+    : contextControlsArea({ state, theme, width, compact });
+}
+
+function contextControlsArea({ state, theme, width, compact = false }) {
+  const toast = state.toasts.toast ? state.toasts.current() : null;
+  const contentWidth = Math.max(38, (Number(width) || Number(state.viewport?.width) || 106) - 6);
+  const global = compact
+    ? '[/] tabs · Tab pane · / command · Esc inbox · Ctrl+Q quit'
+    : '[/] tabs · Tab/Shift+Tab pane · / command · Ctrl+P actions · ? help · Esc inbox · Ctrl+Q quit';
+  const context = contextHintLine(state, theme, contentWidth);
+  const notice = toast
+    ? `${toastIcon(toast.level)} ${toast.message}`
+    : `Selected ${getSelectedTicket(state).id} · Focus ${state.focus} · Tab ${state.activeTab}`;
+  return pane({ title: ' CONTROLS ', theme },
+    Text(color(theme, 'muted', truncateVisible(global, contentWidth)), { wrap: false }),
+    Text(context, { wrap: false }),
+    Text(color(theme, toast ? toastToken(toast.level) : 'subtle', truncateVisible(notice, contentWidth)), { wrap: false }),
   );
 }
 
-function idleCommandArea({ state, theme }) {
-  const focus = state.focus === 'command' ? color(theme, 'selected', 'COMMAND') : 'COMMAND';
-  return pane({ title: ` ${focus} `, theme, active: state.focus === 'command' },
-    Text(`${color(theme, 'accent', '›')} ${color(theme, 'muted', 'press / to start a slash command')}`, { wrap: false }),
-    Text(color(theme, 'muted', 'Useful: /reply · /note · /assign me · /status pending · /filter queue billing · /sort sla · /activity'), { wrap: false }),
-  );
+function contextHintLine(state, theme, width) {
+  if (state.focus === 'inbox' || state.activeTab === 'inbox') {
+    const divider = ' │ ';
+    const available = Math.max(16, width - visibleLength(divider));
+    const controlsWidth = Math.floor(available / 2);
+    const optionsWidth = available - controlsWidth;
+    const controls = inboxControlsLine(state, theme, controlsWidth);
+    const options = controlOptionsLine(state, theme, optionsWidth);
+    return `${fitInlineRegion(controls, controlsWidth)}${color(theme, 'muted', divider)}${fitInlineRegion(options, optionsWidth)}`;
+  }
+  if (state.focus === 'rail') return color(theme, 'muted', truncateVisible('Context: ↑/↓ scroll · PgUp/PgDn page · Tab returns to work', width));
+  if (state.activeTab === 'ticket') return color(theme, 'muted', truncateVisible('Ticket: ↑/↓ scroll thread · PgUp/PgDn page · Ctrl+R reply · Ctrl+N note · Esc inbox', width));
+  if (state.activeTab === 'reply') return color(theme, 'muted', truncateVisible('Reply preview: ↑/↓ scroll · Ctrl+R edit · Ctrl+N note · Esc inbox', width));
+  if (state.activeTab === 'customer') return color(theme, 'muted', truncateVisible('Customer: ↑/↓ scroll · PgUp/PgDn page · Esc inbox', width));
+  if (state.activeTab === 'activity') return color(theme, 'muted', truncateVisible('Activity: ↑/↓ select · PgUp/PgDn page · Esc inbox', width));
+  return color(theme, 'muted', truncateVisible('Use [/] to switch tabs or / to run a command.', width));
 }
 
 function activeCommandArea({ state, theme, compact = false }) {
   const suggestions = slashSuggestionRows(state, theme, compact ? 4 : 6);
   const parts = state.input.getParts?.() ?? { before: state.input.value, current: ' ', after: '' };
   const inputLine = `${parts.before}${color(theme, 'selected', parts.current || ' ')}${parts.after}`;
-  return pane({ title: ' COMMAND MODE — slash suggestions ', theme, active: true },
+  return pane({ title: ' COMMAND — returns to the previous pane after non-navigation actions ', theme, active: true },
     Text(inputLine, { wrap: false }),
     ...suggestions.map((line) => Text(line, { wrap: false })),
-    Text(color(theme, 'muted', '↑/↓ choose · Tab insert · Enter execute/apply · Esc cancel'), { wrap: false }),
+    Text(color(theme, 'muted', '↑/↓ choose · Tab complete · Enter execute · Esc cancel and return to Inbox'), { wrap: false }),
   );
 }
 
@@ -485,11 +562,8 @@ function slashSuggestionRows(state, theme, limit) {
   });
 }
 
-function activityStrip({ state, theme, compact = false }) {
-  const events = buildActivityEvents(state, getSelectedTicket(state)).slice(0, compact ? 3 : 5);
-  return pane({ title: ` ACTIVITY FEED ${spinner(state.frame)} Live `, theme },
-    Text(events.map((event) => `${formatTimelineTime(event.time)} ${color(theme, 'accent', event.related || event.ticketId || '')} ${truncateVisible(event.text, compact ? 22 : 30)}`).join('  │  '), { wrap: false }),
-  );
+function toastToken(level) {
+  return { info: 'accent', success: 'ok', warning: 'system', error: 'error' }[level] || 'accent';
 }
 
 function toastIcon(level) {
@@ -541,19 +615,19 @@ function supportHelpModal({ theme, width }) {
     '/filter queue billing  filter inbox visually and by command',
     '/sort sla           sort queue by SLA',
     '/activity next      open activity timeline / paginate',
-    '/theme support-paper  switch theme',
+    '/theme paper  switch theme',
   ];
   return Modal({
     title: ' Support Desk Help ',
     children: [
       Text(color(theme, 'title', 'Navigation'), { wrap: false }),
-      Text('Tab / Shift+Tab       move between visible focus zones', { wrap: false }),
-      Text('[/]                   switch product tabs without leaving current focus', { wrap: false }),
-      Text('↑/↓ / Enter           operate the focused pane', { wrap: false }),
-      Text('Esc                   close modal or clear command input', { wrap: false }),
+      Text('Tab / Shift+Tab       move between visible panes (never tabs or commands)', { wrap: false }),
+      Text('[/]                   switch product tabs and focus their main pane', { wrap: false }),
+      Text('↑/↓ / PgUp/PgDn       navigate or scroll the focused pane', { wrap: false }),
+      Text('Esc                   cancel the current action or return to Inbox', { wrap: false }),
       Text('', { wrap: false }),
       Text(color(theme, 'title', 'Inbox controls'), { wrap: false }),
-      Text('When Inbox is focused: ←/→ selects Tickets / Queue / Priority / Status / Sort, Enter cycles value.', { wrap: false }),
+      Text('Inbox: ↑/↓ always selects tickets. ←/→ selects a control; Enter applies it and returns control to Tickets.', { wrap: false }),
       Text('', { wrap: false }),
       Text(color(theme, 'title', 'Slash commands'), { wrap: false }),
       ...commands.map((line) => Text(truncateVisible(line, Math.max(40, width - 10)), { wrap: false })),
@@ -618,8 +692,8 @@ function threadItemLines({ item, index, theme, width }) {
 function quickReplyStripLine({ state, theme, width }) {
   const placeholder = state.modes.current() === 'reply'
     ? state.composer.value.replaceAll('\n', ' ')
-    : 'Reply · Note · Customer Visible    Use /reply or /note to open composer';
-  const actions = 'Actions: /reply  /note  /assign  /status  /close  /escalate';
+    : 'No editor open · Ctrl+R reply · Ctrl+N note · / for all actions';
+  const actions = 'Actions: Ctrl+R Reply · Ctrl+N Note · /assign · /status · /close · /escalate';
   return Text(`${truncateVisible(placeholder, Math.max(18, width - 2))}\n${color(theme, 'muted', truncateVisible(actions, Math.max(18, width - 2)))}`, { wrap: false });
 }
 
@@ -680,51 +754,66 @@ function inboxControlsLine(state, theme, width) {
     ['status', `Status:${state.filter.status}`],
     ['sort', `Sort:${state.sort}`],
   ];
-  const rendered = items.map(([id, label]) => id === control ? color(theme, 'selected', ` ${label} `) : color(theme, 'muted', ` ${label} `));
-  return truncateVisible(`Controls: ${rendered.join(' ')}  ${color(theme, 'muted', '←/→ choose · Enter cycle · ↑/↓ tickets')}`, width);
-}
-
-
-
-function inboxHelpLines(state, theme, width) {
-  const control = state.inboxControl || 'tickets';
-  const primary = control === 'tickets'
-    ? 'Keys: ↑/↓ select ticket · Enter open · PgUp/PgDn jump'
-    : `Keys: ←/→ choose control · Enter/↑/↓ change ${control}`;
-  const secondary = 'Scroll: focused panes use ↑/↓ or PgUp/PgDn; composer preview uses PgUp/PgDn or Ctrl/Alt+↑/↓';
-  return [
-    color(theme, 'muted', truncateVisible(primary, width)),
-    color(theme, 'muted', truncateVisible(secondary, width)),
-  ];
+  const selectedIndex = Math.max(0, items.findIndex(([id]) => id === control));
+  const rendered = items.map(([id, label]) => id === control ? color(theme, 'selected', `[${label}]`) : color(theme, 'muted', label));
+  return inlineWindow(rendered, selectedIndex, width, 'Inbox: ');
 }
 
 function controlOptionsLine(state, theme, width) {
   const control = state.inboxControl || 'tickets';
   const options = {
-    tickets: ['↑/↓ select', 'Enter open', 'PgUp/PgDn jump'],
+    tickets: ['↑/↓ select', 'Enter open', 'PgUp/PgDn jump', 'Home/End edge'],
     queue: ['all', 'billing', 'product', 'auth', 'platform'],
     priority: ['all', 'urgent', 'high', 'medium', 'low'],
     status: ['all', 'open', 'pending', 'snoozed', 'solved', 'closed'],
     sort: ['updated', 'sla', 'priority', 'status', 'queue'],
   }[control] || [];
   const current = control === 'sort' ? state.sort : state.filter[control];
-  const rendered = options.map((item) => String(item).toLowerCase() === String(current).toLowerCase() ? tag(item, theme, 'selected') : color(theme, 'muted', item));
-  return truncateVisible(`Options: ${rendered.join('  ')}`, width);
+  const selectedIndex = control === 'tickets' ? 0 : Math.max(0, options.findIndex((item) => String(item).toLowerCase() === String(current).toLowerCase()));
+  const rendered = options.map((item, index) => index === selectedIndex ? color(theme, 'selected', `[${item}]`) : color(theme, 'muted', item));
+  return inlineWindow(rendered, selectedIndex, width, 'Options: ');
 }
 
-function filterLine(state, theme, width) {
-  const chips = ['all', 'billing', 'platform', 'auth', 'product']
-    .map((id) => id === state.filter.queue ? tag(id === 'all' ? 'All' : titleCase(id), theme, 'accent') : color(theme, 'muted', id === 'all' ? 'All' : titleCase(id)))
-    .join('  ');
-  return truncateVisible(`Filters: ${chips}`, width);
+function inlineWindow(items, selectedIndex, width, prefix = '') {
+  const safeWidth = Math.max(8, Number(width) || 8);
+  if (!items.length) return fitInlineRegion(prefix, safeWidth);
+
+  let start = clamp(selectedIndex, 0, items.length - 1);
+  let end = start;
+  const fits = (nextStart, nextEnd) => inlineWindowWidth(items, nextStart, nextEnd, prefix) <= safeWidth;
+
+  // Grow around the active item only while the complete window, including the
+  // scroll indicators, still fits. This keeps the selected value readable
+  // when labels change length instead of clipping it to preserve a neighbour.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    if (start > 0 && fits(start - 1, end)) {
+      start -= 1;
+      changed = true;
+    }
+    if (end < items.length - 1 && fits(start, end + 1)) {
+      end += 1;
+      changed = true;
+    }
+  }
+
+  const left = start > 0 ? '‹ ' : '';
+  const right = end < items.length - 1 ? ' ›' : '';
+  const body = items.slice(start, end + 1).join(' · ');
+  return fitInlineRegion(`${prefix}${left}${body}${right}`, safeWidth);
 }
 
-function quickFilterLine(state, theme, width) {
-  return truncateVisible(`Quick: ${tag('High', theme, state.filter.priority === 'high' ? 'selected' : 'error')}  ${tag('Unassigned', theme, 'system')}  ${tag('SLA Risk', theme, 'error')}`, width);
+function inlineWindowWidth(items, start, end, prefix) {
+  const body = items.slice(start, end + 1).join(' · ');
+  const left = start > 0 ? '‹ ' : '';
+  const right = end < items.length - 1 ? ' ›' : '';
+  return visibleLength(`${prefix}${left}${body}${right}`);
 }
 
-function searchLine(state, theme, width) {
-  return truncateVisible(`${color(theme, 'muted', 'Search:')} ${state.filter.text ? color(theme, 'accent', state.filter.text) : color(theme, 'muted', '<none>')}    Sort: ${color(theme, 'accent', titleCase(state.sort || 'updated'))}`, width);
+function fitInlineRegion(value, width) {
+  const safeWidth = Math.max(0, Number(width) || 0);
+  return padEndVisible(truncateVisible(value, safeWidth), safeWidth);
 }
 
 function activityHeader(width) {
@@ -801,8 +890,8 @@ function modeStatus(state) {
   return '';
 }
 
-function pane({ title = '', theme, padding = { left: 1, right: 1 }, active = false } = {}, ...children) {
-  return Box({ border: true, borderColor: active ? theme?.accent : theme?.border, padding, title }, ...children);
+function pane({ title = '', theme, padding = { left: 1, right: 1 }, active = false, ...boxProps } = {}, ...children) {
+  return Box({ ...boxProps, border: true, borderColor: active ? theme?.accent : theme?.border, padding, title }, ...children);
 }
 
 function divider(theme, width) {

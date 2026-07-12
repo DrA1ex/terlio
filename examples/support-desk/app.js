@@ -13,9 +13,7 @@ import { createSupportTickets, createInitialTimeline } from './data.js';
 import { createSupportDeskView, getSupportScrollMax } from './views.js';
 import { createSupportPaletteItems, createSupportCommandRegistry, executeSupportCommand, getSupportSlashSuggestions } from './commands.js';
 import {
-  addTag,
   applyConfirm,
-  assignTicket,
   cancelComposer,
   cancelConfirm,
   getSelectedTicket,
@@ -26,9 +24,6 @@ import {
   selectTicketByDelta,
   setFilter,
   setSort,
-  setTicketPriority,
-  setTicketStatus,
-  startEditField,
   startNote,
   startReply,
   submitComposer,
@@ -36,13 +31,24 @@ import {
   tickSupportDesk,
 } from './reducers.js';
 
+const SUPPORT_TABS = ['inbox', 'ticket', 'reply', 'customer', 'activity'];
+const INBOX_CONTROLS = ['tickets', 'queue', 'priority', 'status', 'sort'];
+const INBOX_VALUES = {
+  queue: ['all', 'billing', 'product', 'auth', 'platform'],
+  priority: ['all', 'urgent', 'high', 'medium', 'low'],
+  status: ['all', 'open', 'pending', 'snoozed', 'solved', 'closed'],
+  sort: ['updated', 'sla', 'priority', 'status', 'queue'],
+};
+
 export function createSupportDeskState() {
   const registry = createSupportCommandRegistry();
+  const tickets = createSupportTickets();
   const state = {
     agent: 'Alex',
-    tickets: createSupportTickets(),
+    tickets,
     selectedIndex: 0,
-    activeTab: 'ticket',
+    selectedTicketId: tickets[0]?.id ?? '',
+    activeTab: 'inbox',
     focus: 'inbox',
     inboxControl: 'tickets',
     sort: 'updated',
@@ -50,6 +56,8 @@ export function createSupportDeskState() {
     input: new InputEditor(''),
     commandActive: false,
     commandSuggestionIndex: 0,
+    commandReturn: null,
+    paletteReturn: null,
     composer: new InputEditor(''),
     reply: null,
     fieldEditor: new InputEditor(''),
@@ -61,7 +69,11 @@ export function createSupportDeskState() {
     pendingConfirm: null,
     palette: createCommandPaletteState({ items: createSupportPaletteItems() }),
     registry,
-    toasts: createToastManager({ level: 'info', message: 'Support desk ready. Press / for commands, Ctrl+P for palette, Tab to switch focus zones.', ttl: 7 }),
+    toasts: createToastManager({
+      level: 'info',
+      message: 'Use ↑/↓ for tickets, [/] for tabs, / for commands, and Esc to return to Inbox.',
+      ttl: 3,
+    }),
     actionLog: [],
     lastWorkflowAction: '',
     globalTimeline: createInitialTimeline(),
@@ -71,7 +83,7 @@ export function createSupportDeskState() {
     liveSequence: 0,
     viewport: { width: 118, height: 34 },
     scroll: { ticketThread: 0, reply: 0, rail: 0, customer: 0 },
-    themeName: 'support-ocean',
+    themeName: 'ocean',
     frame: 0,
     pipeline: { status: 'idle', progress: 0, label: '' },
   };
@@ -85,12 +97,7 @@ export { getVisibleTickets } from './reducers.js';
 export { SUPPORT_COMMANDS } from './commands.js';
 
 export function handleSupportDeskKey({ key, state, runtime }) {
-  if (runtime?.output) {
-    state.viewport = {
-      width: Number(runtime.output.columns) || state.viewport?.width || 118,
-      height: Number(runtime.output.rows) || state.viewport?.height || 34,
-    };
-  }
+  updateViewport(state, runtime);
   if (key.name === 'redraw') return;
 
   if (state.commandActive) return handleSlashCommandKey(key, state);
@@ -102,36 +109,23 @@ export function handleSupportDeskKey({ key, state, runtime }) {
   if (mode === 'reply' || mode === 'note') return handleComposerKey(key, state);
   if (mode === 'edit') return handleEditKey(key, state);
 
-  if (key.name === 'command-palette') {
-    openPalette(state);
-    return;
-  }
-  if (key.printable && key.text === '/') {
-    activateSlashCommand(state);
-    return;
-  }
-  if (key.name === 'escape') {
-    state.toasts.show('Nothing to cancel. Press / for commands or Ctrl+P for palette.', 'info');
-    return;
-  }
-  if (key.name === '?') {
-    state.modes.push('help');
-    return;
-  }
-  if (key.printable && key.text === 'q') return runtime?.exit?.(0);
+  if (key.name === 'command-palette') return openPalette(state);
+  if (key.printable && key.text === '/') return activateSlashCommand(state);
+  if (key.name === 'escape') return returnToInbox(state, 'Returned to Inbox.');
+  if (key.name === '?' || (key.printable && key.text === '?')) return state.modes.push('help');
+  if (key.ctrl && (key.name === 'q' || key.text === 'q')) return runtime?.exit?.(0);
 
-  if (key.name === 'tab') return cycleFocus(state, key.shift ? -1 : 1, runtime);
   if (key.printable && (key.text === ']' || key.text === '[')) return switchTab(state, key.text === ']' ? 1 : -1);
+  if (key.ctrl && (key.name === 'r' || key.text === 'r')) return startReply(state, suggestedTemplate(getSelectedTicket(state)));
+  if (key.ctrl && (key.name === 'n' || key.text === 'n')) return startNote(state);
+  if (key.name === 'tab') return cycleFocus(state, key.shift ? -1 : 1, runtime);
 
-  if (state.focus === 'tabs') return handleTabsFocusKey(key, state);
-  if (state.focus === 'activity' || (state.activeTab === 'activity' && andFocusWork(state))) return handleActivityFocusKey(key, state);
   if (state.focus === 'rail') return handleRailFocusKey(key, state);
   if (state.focus === 'inbox') return handleInboxFocusKey(key, state);
   if (state.focus === 'work') return handleWorkFocusKey(key, state);
 
-  // Printable keys are intentionally ignored in browse mode. This avoids
-  // accidental workflow jumps while the user is just trying to type. Press /
-  // to explicitly enter slash-command mode.
+  // Printable keys are intentionally ignored in browse mode. Slash opens the
+  // command surface without stealing the current pane selection.
 }
 
 export function runSupportDeskDemo() {
@@ -141,12 +135,7 @@ export function runSupportDeskDemo() {
     render: createSupportDeskView,
     onKey: handleSupportDeskKey,
     onTick: ({ state, runtime }) => {
-      if (runtime?.output) {
-        state.viewport = {
-          width: Number(runtime.output.columns) || state.viewport?.width || 118,
-          height: Number(runtime.output.rows) || state.viewport?.height || 34,
-        };
-      }
+      updateViewport(state, runtime);
       tickSupportDesk(state);
       clampAllScrolls(state);
     },
@@ -154,36 +143,46 @@ export function runSupportDeskDemo() {
   });
 }
 
+function updateViewport(state, runtime) {
+  if (!runtime?.output) return;
+  state.viewport = {
+    width: Number(runtime.output.columns) || state.viewport?.width || 118,
+    height: Number(runtime.output.rows) || state.viewport?.height || 34,
+  };
+}
+
 function openPalette(state) {
-  state.reply = state.composer;
+  state.paletteReturn = captureLocation(state);
   state.palette = createCommandPaletteState({ items: createSupportPaletteItems(state) });
   state.modes.push('palette');
-  state.toasts.show('Command palette opened. Esc closes it.', 'info');
 }
 
 function handlePaletteKey(key, state) {
   const result = handleCommandPaletteKey(state.palette, key);
-  if (key.name === 'escape') {
-    state.modes.pop();
-    state.toasts.show('Command palette closed.', 'info');
-    return;
+  if (key.name === 'escape' || result?.type === 'cancel') {
+    if (state.modes.current() === 'palette') state.modes.pop();
+    state.paletteReturn = null;
+    return returnToInbox(state, 'Palette closed. Returned to Inbox.');
   }
-  if (result?.type === 'accept' && result.item) {
-    const selected = result.item.value ?? result.item;
-    state.input.set(selected.command ?? selected.value ?? '');
-    state.commandActive = true;
-    state.focus = 'command';
-    state.modes.pop();
-    state.toasts.show(`Inserted ${state.input.value}. Press Enter to execute.`, 'success');
-  }
+  if (result?.type !== 'accept' || !result.item) return;
+
+  const selected = result.item.value ?? result.item;
+  const command = selected.command ?? selected.value ?? '';
+  const origin = state.paletteReturn ?? captureLocation(state);
+  if (state.modes.current() === 'palette') state.modes.pop();
+  state.paletteReturn = null;
+  executeCommandWithReturn(state, command, origin);
 }
 
 function handleHelpKey(key, state) {
-  if (key.name === 'escape' || key.name === 'enter' || key.name === '?') state.modes.pop();
+  if (key.name === 'escape' || key.name === 'enter' || key.name === '?' || key.text === '?') state.modes.pop();
 }
 
 function handleConfirmKey(key, state) {
-  if (key.name === 'escape') return cancelConfirm(state);
+  if (key.name === 'escape') {
+    cancelConfirm(state);
+    return returnToInbox(state, 'Action cancelled. Returned to Inbox.');
+  }
   if (key.name === 'left' || key.name === 'right' || key.name === 'tab') {
     state.confirmSelected = state.confirmSelected === 'confirm' ? 'cancel' : 'confirm';
     return;
@@ -195,10 +194,11 @@ function handleConfirmKey(key, state) {
 }
 
 function handleComposerKey(key, state) {
-  if (key.name === 'escape') return cancelComposer(state);
-  if (isPanelScrollKey(key)) {
-    return scrollState(state, 'reply', panelScrollDelta(key));
+  if (key.name === 'escape') {
+    cancelComposer(state);
+    return returnToInbox(state, 'Composer cancelled. Returned to Inbox.');
   }
+  if (isPanelScrollKey(key)) return scrollState(state, 'reply', panelScrollDelta(key));
   if (key.name === 'enter' && (key.shift || key.ctrl)) {
     state.composer.insertLineBreak();
     state.scroll.reply = clampScroll(state, 'reply', Number(state.scroll?.reply) || 0);
@@ -208,38 +208,35 @@ function handleComposerKey(key, state) {
   editInput(state.composer, key, { multiline: true });
 }
 
-
 function handleEditKey(key, state) {
   if (key.name === 'escape') {
     state.fieldEditor.clear();
     state.editField = '';
-    state.modes.pop();
-    state.toasts.show('Edit cancelled.', 'info');
-    return;
+    if (state.modes.current() === 'edit') state.modes.pop();
+    return returnToInbox(state, 'Edit cancelled. Returned to Inbox.');
   }
   if (key.name === 'enter') return submitFieldEdit(state);
   editInput(state.fieldEditor, key);
 }
 
 function activateSlashCommand(state) {
+  state.commandReturn = captureLocation(state);
   state.commandActive = true;
-  state.focus = 'command';
   state.input.set('/');
   state.commandSuggestionIndex = 0;
 }
 
-function deactivateSlashCommand(state, { clear = true, focusCommand = false } = {}) {
+function deactivateSlashCommand(state, { clear = true } = {}) {
   state.commandActive = false;
   if (clear) state.input.clear();
   state.commandSuggestionIndex = 0;
-  if (focusCommand || state.focus === 'command') state.focus = 'command';
 }
 
 function handleSlashCommandKey(key, state) {
   if (key.name === 'escape') {
-    deactivateSlashCommand(state, { focusCommand: true });
-    state.toasts.show('Command cleared. Press / to start again.', 'info');
-    return;
+    deactivateSlashCommand(state);
+    state.commandReturn = null;
+    return returnToInbox(state, 'Command cancelled. Returned to Inbox.');
   }
 
   const suggestions = getSlashSuggestions(state);
@@ -253,14 +250,27 @@ function handleSlashCommandKey(key, state) {
     if (!raw || raw === '/') return applySelectedCommandSuggestion(state);
     if (/\s$/.test(rawInput) && suggestions[state.commandSuggestionIndex]?.kind === 'argument') return applySelectedCommandSuggestion(state);
     if (shouldApplySuggestionInsteadOfExecuting(state, raw, suggestions)) return applySelectedCommandSuggestion(state);
-    executeSupportCommand(state, raw);
+
+    const origin = state.commandReturn ?? captureLocation(state);
     deactivateSlashCommand(state);
+    state.commandReturn = null;
+    executeCommandWithReturn(state, raw, origin);
     return;
   }
 
   editInput(state.input, key);
   if (!state.input.value.startsWith('/')) state.input.set(`/${state.input.value.replace(/^\/+/, '')}`);
   state.commandSuggestionIndex = 0;
+}
+
+function executeCommandWithReturn(state, raw, origin) {
+  if (!raw) return;
+  const before = captureLocation(state);
+  const result = executeSupportCommand(state, raw);
+  const after = captureLocation(state);
+  const commandNavigated = locationChanged(before, after) || state.modes.current() !== 'browse';
+  if (!commandNavigated && origin) restoreLocation(state, origin);
+  return result;
 }
 
 function shouldApplySuggestionInsteadOfExecuting(state, raw, suggestions) {
@@ -285,33 +295,39 @@ function applySelectedCommandSuggestion(state) {
   const item = suggestions[state.commandSuggestionIndex] ?? suggestions[0];
   if (!item) return;
   state.input.set(item.insert);
-  state.toasts.show(`Inserted ${item.insert}. Add arguments or press Enter.`, 'info');
 }
 
 export function getSlashSuggestions(state) {
   return getSupportSlashSuggestions(state, state.input.value || '/');
 }
 
-
 function handleInboxFocusKey(key, state) {
   if (key.name === 'left') return cycleInboxControl(state, -1);
   if (key.name === 'right') return cycleInboxControl(state, 1);
-  if (key.name === 'up') return state.inboxControl === 'tickets' ? selectTicketByDelta(state, -1) : cycleInboxControlValue(state, -1);
-  if (key.name === 'down') return state.inboxControl === 'tickets' ? selectTicketByDelta(state, 1) : cycleInboxControlValue(state, 1);
+
+  // Arrow ownership is contextual: when Tickets is selected they navigate the
+  // queue; when a filter/sort control is selected they change that control's
+  // value. Page and boundary keys always remain queue navigation shortcuts.
+  if (key.name === 'up') {
+    return state.inboxControl === 'tickets'
+      ? selectTicketByDelta(state, -1)
+      : cycleInboxControlValue(state, -1);
+  }
+  if (key.name === 'down') {
+    return state.inboxControl === 'tickets'
+      ? selectTicketByDelta(state, 1)
+      : cycleInboxControlValue(state, 1);
+  }
   if (key.name === 'page-up') return selectTicketByDelta(state, -5);
   if (key.name === 'page-down') return selectTicketByDelta(state, 5);
-  if (key.name === 'enter') return state.inboxControl === 'tickets' ? openTicket(state, getSelectedTicket(state).id) : cycleInboxControlValue(state, 1);
-}
-
-function handleTabsFocusKey(key, state) {
-  if (key.name === 'left' || key.name === 'up') return switchTab(state, -1);
-  if (key.name === 'right' || key.name === 'down') return switchTab(state, 1);
+  if (key.name === 'home') return selectTicketBoundary(state, 'first');
+  if (key.name === 'end') return selectTicketBoundary(state, 'last');
   if (key.name === 'enter') {
-    state.focus = 'work';
-    if (state.activeTab === 'reply') startReply(state, suggestedTemplate(getSelectedTicket(state)));
+    if (state.inboxControl === 'tickets') return openTicket(state, getSelectedTicket(state).id);
+    state.inboxControl = 'tickets';
+    state.toasts.show('Filter selection complete. Ticket navigation restored.', 'info', 2);
   }
 }
-
 
 function handleActivityFocusKey(key, state) {
   if (key.name === 'up') return selectActivityByDelta(state, -1);
@@ -323,18 +339,22 @@ function handleActivityFocusKey(key, state) {
 function handleWorkFocusKey(key, state) {
   if (state.activeTab === 'activity') return handleActivityFocusKey(key, state);
   if (state.activeTab === 'ticket') {
-    if (key.name === 'up') return scrollState(state, 'ticketThread', -1);
-    if (key.name === 'down') return scrollState(state, 'ticketThread', 1);
-    if (key.name === 'page-up') return scrollState(state, 'ticketThread', -5);
-    if (key.name === 'page-down') return scrollState(state, 'ticketThread', 5);
-    if (key.name === 'enter') return startReply(state, suggestedTemplate(getSelectedTicket(state)));
+    // Thread scroll is tail-relative: 0 is the newest message, so moving up
+    // increases the offset and moving down returns toward the latest message.
+    if (key.name === 'up') return scrollState(state, 'ticketThread', 1);
+    if (key.name === 'down') return scrollState(state, 'ticketThread', -1);
+    if (key.name === 'page-up') return scrollState(state, 'ticketThread', 5);
+    if (key.name === 'page-down') return scrollState(state, 'ticketThread', -5);
+    if (key.name === 'home') return scrollState(state, 'ticketThread', getScrollMax(state, 'ticketThread'));
+    if (key.name === 'end') return scrollState(state, 'ticketThread', -getScrollMax(state, 'ticketThread'));
+    return;
   }
   if (state.activeTab === 'reply') {
     if (key.name === 'up') return scrollState(state, 'reply', -1);
     if (key.name === 'down') return scrollState(state, 'reply', 1);
     if (key.name === 'page-up') return scrollState(state, 'reply', -5);
     if (key.name === 'page-down') return scrollState(state, 'reply', 5);
-    if (key.name === 'enter') return startReply(state, suggestedTemplate(getSelectedTicket(state)));
+    return;
   }
   if (state.activeTab === 'customer') {
     if (key.name === 'up') return scrollState(state, 'customer', -1);
@@ -389,20 +409,17 @@ function panelScrollDelta(key) {
   return 0;
 }
 
-
-function andFocusWork(state) {
-  return state.focus === 'work';
-}
-
 function cycleFocus(state, delta, runtime) {
-  const mode = runtime?.output?.columns ? currentViewportMode(runtime.output.columns) : 'medium';
-  const zones = mode === 'wide'
-    ? ['tabs', 'inbox', 'work', 'rail', 'command']
-    : mode === 'medium'
-      ? ['tabs', 'inbox', 'work', 'command']
-      : ['tabs', 'work', 'command'];
+  const mode = runtime?.output?.columns ? currentViewportMode(runtime.output.columns) : currentViewportMode(state.viewport?.width || 118);
+  const zones = state.activeTab === 'inbox'
+    ? mode === 'wide' ? ['inbox', 'rail'] : ['inbox']
+    : mode === 'wide'
+      ? ['inbox', 'work', 'rail']
+      : mode === 'medium'
+        ? ['inbox', 'work']
+        : ['work'];
   const current = Math.max(0, zones.indexOf(state.focus));
-  state.focus = zones[((current + delta) % zones.length + zones.length) % zones.length];
+  state.focus = zones[mod(current + delta, zones.length)];
 }
 
 function currentViewportMode(width) {
@@ -412,10 +429,15 @@ function currentViewportMode(width) {
 }
 
 function switchTab(state, delta) {
-  const tabs = ['inbox', 'ticket', 'reply', 'customer', 'activity'];
-  const current = Math.max(0, tabs.indexOf(state.activeTab));
-  state.activeTab = tabs[((current + delta) % tabs.length + tabs.length) % tabs.length];
-  state.toasts.show(`Tab: ${state.activeTab}.`, 'info');
+  const current = Math.max(0, SUPPORT_TABS.indexOf(state.activeTab));
+  state.activeTab = SUPPORT_TABS[mod(current + delta, SUPPORT_TABS.length)];
+  state.focus = state.activeTab === 'inbox' ? 'inbox' : 'work';
+  if (state.activeTab === 'customer') state.scroll.customer = 0;
+  if (state.activeTab === 'activity') {
+    state.activitySelectedIndex = 0;
+    state.activityPage = 0;
+  }
+  state.toasts.show(`Tab: ${state.activeTab}.`, 'info', 2);
 }
 
 function suggestedTemplate(ticket) {
@@ -426,19 +448,9 @@ function suggestedTemplate(ticket) {
   return '';
 }
 
-
-const INBOX_CONTROLS = ['tickets', 'queue', 'priority', 'status', 'sort'];
-const INBOX_VALUES = {
-  queue: ['all', 'billing', 'product', 'auth', 'platform'],
-  priority: ['all', 'urgent', 'high', 'medium', 'low'],
-  status: ['all', 'open', 'pending', 'snoozed', 'closed', 'solved'],
-  sort: ['updated', 'sla', 'priority', 'status', 'queue'],
-};
-
 function cycleInboxControl(state, delta) {
   const current = Math.max(0, INBOX_CONTROLS.indexOf(state.inboxControl || 'tickets'));
   state.inboxControl = INBOX_CONTROLS[mod(current + delta, INBOX_CONTROLS.length)];
-  state.toasts.show(`Inbox control: ${state.inboxControl}.`, 'info');
 }
 
 function cycleInboxControlValue(state, delta) {
@@ -453,7 +465,48 @@ function cycleInboxControlValue(state, delta) {
   state.focus = 'inbox';
 }
 
+function selectTicketBoundary(state, edge) {
+  const visible = getVisibleTickets(state);
+  if (!visible.length) return;
+  const index = edge === 'last' ? visible.length - 1 : 0;
+  state.selectedIndex = index;
+  state.selectedTicketId = visible[index].id;
+}
+
+function returnToInbox(state, message = '') {
+  state.activeTab = 'inbox';
+  state.focus = 'inbox';
+  state.inboxControl = 'tickets';
+  state.commandReturn = null;
+  state.paletteReturn = null;
+  if (message) state.toasts.show(message, 'info', 2);
+}
+
+function captureLocation(state) {
+  return {
+    activeTab: state.activeTab,
+    focus: state.focus,
+    selectedTicketId: state.selectedTicketId,
+    selectedIndex: state.selectedIndex,
+  };
+}
+
+function restoreLocation(state, location) {
+  if (!location) return;
+  state.activeTab = location.activeTab;
+  state.focus = location.focus;
+  state.selectedTicketId = location.selectedTicketId;
+  state.selectedIndex = location.selectedIndex;
+}
+
+function locationChanged(before, after) {
+  return before.activeTab !== after.activeTab
+    || before.focus !== after.focus
+    || before.selectedTicketId !== after.selectedTicketId;
+}
+
 function mod(value, size) {
+  if (!size) return 0;
   return ((value % size) + size) % size;
 }
 

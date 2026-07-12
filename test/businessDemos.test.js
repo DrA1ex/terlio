@@ -25,6 +25,7 @@ test('business demo scripts expose chat, support desk and code review', () => {
 
 test('support desk renders ticket queue, SLA and timeline', () => {
   const state = createSupportDeskState();
+  executeSupportCommand(state, '/ticket TCK-1042');
   const output = renderToString(createSupportDeskView({ state, width: 200, height: 42 }), { width: 200, height: 42 });
   assert.match(output, /Support Triage Desk/);
   assert.match(output, /INBOX/);

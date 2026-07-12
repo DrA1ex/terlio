@@ -32,33 +32,51 @@ export function getVisibleTickets(state) {
 
 export function getSelectedTicket(state) {
   const visible = getVisibleTickets(state);
-  if (!visible.length) return state.tickets[0];
+  const anchored = state.tickets.find((ticket) => ticket.id === state.selectedTicketId);
+  const visibleIndex = visible.findIndex((ticket) => ticket.id === state.selectedTicketId);
+
+  if (visibleIndex >= 0) {
+    state.selectedIndex = visibleIndex;
+    return visible[visibleIndex];
+  }
+
+  // Detail workflows stay anchored to the ticket that the user opened even
+  // when a status/filter change removes it from the current inbox view.
+  if (anchored && state.activeTab !== 'inbox') return anchored;
+  if (!visible.length) return anchored ?? state.tickets[0];
+
   const index = clamp(state.selectedIndex, 0, visible.length - 1);
+  state.selectedIndex = index;
+  state.selectedTicketId = visible[index].id;
   return visible[index];
 }
 
 export function selectTicketByDelta(state, delta) {
   const visible = getVisibleTickets(state);
   if (!visible.length) return null;
-  state.selectedIndex = mod(state.selectedIndex + delta, visible.length);
+  const anchoredIndex = visible.findIndex((ticket) => ticket.id === state.selectedTicketId);
+  const current = anchoredIndex >= 0 ? anchoredIndex : clamp(state.selectedIndex, 0, visible.length - 1);
+  const next = clamp(current + delta, 0, visible.length - 1);
+  state.selectedIndex = next;
+  state.selectedTicketId = visible[next].id;
   state.focus = 'inbox';
-  return getSelectedTicket(state);
+  return visible[next];
 }
 
 export function openTicket(state, id) {
   const normalized = String(id ?? '').toLowerCase();
-  const index = state.tickets.findIndex((ticket) => ticket.id.toLowerCase() === normalized);
-  if (index < 0) {
+  const ticket = state.tickets.find((item) => item.id.toLowerCase() === normalized);
+  if (!ticket) {
     state.toasts.show(`Ticket ${id} not found.`, 'error');
     return { ok: false, reason: 'not-found' };
   }
-  const ticket = state.tickets[index];
-  resetFilters(state);
+
+  state.selectedTicketId = ticket.id;
+  const visibleIndex = getVisibleTickets(state).findIndex((item) => item.id === ticket.id);
+  if (visibleIndex >= 0) state.selectedIndex = visibleIndex;
   state.activeTab = 'ticket';
   state.focus = 'work';
-  pushTicketEvent(state, ticket, 'system_event', `opened ${ticket.id}`, state.agent);
-  const visibleIndex = getVisibleTickets(state).findIndex((item) => item.id === ticket.id);
-  state.selectedIndex = Math.max(0, visibleIndex);
+  state.scroll.ticketThread = 0;
   state.toasts.show(`Opened ${ticket.id}.`, 'success');
   return { ok: true, ticket };
 }
@@ -70,20 +88,22 @@ export function setSort(state, sort = 'updated') {
     state.toasts.show(`Unknown sort: ${sort}`, 'error');
     return { ok: false, reason: 'bad-sort' };
   }
+  const previousId = getSelectedTicket(state)?.id;
   state.sort = next;
-  state.selectedIndex = 0;
   state.activeTab = 'inbox';
   state.focus = 'inbox';
+  keepVisibleSelection(state, previousId);
   state.lastWorkflowAction = `Queue sorted by ${next}`;
   state.toasts.show(`Sorted by ${next}.`, 'info');
   return { ok: true };
 }
 
 export function setFilter(state, patch = {}) {
+  const previousId = getSelectedTicket(state)?.id;
   state.filter = { ...state.filter, ...patch };
-  state.selectedIndex = 0;
   state.activeTab = 'inbox';
   state.focus = 'inbox';
+  keepVisibleSelection(state, previousId);
   const parts = [];
   if (state.filter.text) parts.push(`text=${state.filter.text}`);
   if (state.filter.queue !== 'all') parts.push(`queue=${state.filter.queue}`);
@@ -94,13 +114,15 @@ export function setFilter(state, patch = {}) {
 }
 
 export function resetFilters(state) {
+  const previousId = getSelectedTicket(state)?.id;
   state.filter = { text: '', queue: 'all', priority: 'all', status: 'all' };
-  state.selectedIndex = 0;
+  keepVisibleSelection(state, previousId);
   state.lastWorkflowAction = 'Filters cleared';
 }
 
 export function assignTicket(state, assignee = 'me') {
   const ticket = getSelectedTicket(state);
+  state.selectedTicketId = ticket.id;
   const next = assignee === 'me' ? state.agent : normalizeTitle(assignee);
   const previous = ticket.assignee || 'unassigned';
   ticket.assignee = next;
@@ -114,6 +136,7 @@ export function assignTicket(state, assignee = 'me') {
 
 export function setTicketStatus(state, status) {
   const ticket = getSelectedTicket(state);
+  state.selectedTicketId = ticket.id;
   const next = normalizeStatus(status);
   if (!next) {
     state.toasts.show(`Unknown status: ${status}`, 'error');
@@ -131,6 +154,7 @@ export function setTicketStatus(state, status) {
 
 export function setTicketPriority(state, priority) {
   const ticket = getSelectedTicket(state);
+  state.selectedTicketId = ticket.id;
   const next = normalizePriority(priority);
   if (!next) {
     state.toasts.show(`Unknown priority: ${priority}`, 'error');
@@ -148,6 +172,7 @@ export function setTicketPriority(state, priority) {
 
 export function addTag(state, tag) {
   const ticket = getSelectedTicket(state);
+  state.selectedTicketId = ticket.id;
   const normalized = String(tag ?? '').trim().toLowerCase();
   if (!normalized) return { ok: false, reason: 'empty-tag' };
   if (!ticket.tags.includes(normalized)) ticket.tags.push(normalized);
@@ -161,6 +186,7 @@ export function addTag(state, tag) {
 
 export function removeTag(state, tag) {
   const ticket = getSelectedTicket(state);
+  state.selectedTicketId = ticket.id;
   const normalized = String(tag ?? '').trim().toLowerCase();
   ticket.tags = ticket.tags.filter((item) => item !== normalized);
   state.activeTab = 'ticket';
@@ -173,6 +199,7 @@ export function removeTag(state, tag) {
 
 export function startReply(state, templateName = '') {
   const ticket = getSelectedTicket(state);
+  state.selectedTicketId = ticket.id;
   const text = templateName ? renderTemplate(templateName, ticket) : '';
   state.composer.set(text);
   state.composerMode = 'reply';
@@ -198,6 +225,7 @@ export function startNote(state, initial = '') {
 export function submitComposer(state) {
   const text = state.composer.value.trim();
   const ticket = getSelectedTicket(state);
+  state.selectedTicketId = ticket.id;
   if (!text) {
     state.toasts.show('Composer is empty.', 'warning');
     return { ok: false, reason: 'empty' };
@@ -238,6 +266,7 @@ export function cancelComposer(state) {
 
 export function startEditField(state, field) {
   const ticket = getSelectedTicket(state);
+  state.selectedTicketId = ticket.id;
   const value = field === 'subject' ? ticket.subject : String(ticket.customFields[field] ?? '');
   state.fieldEditor.set(value);
   state.editField = field;
@@ -248,6 +277,7 @@ export function startEditField(state, field) {
 
 export function submitFieldEdit(state) {
   const ticket = getSelectedTicket(state);
+  state.selectedTicketId = ticket.id;
   const field = state.editField;
   const value = state.fieldEditor.value.trim();
   if (!field) return { ok: false, reason: 'missing-field' };
@@ -271,6 +301,7 @@ export function requestConfirm(state, action, message, payload = {}) {
 export function applyConfirm(state) {
   const pending = state.pendingConfirm;
   const ticket = getSelectedTicket(state);
+  state.selectedTicketId = ticket.id;
   if (!pending) return { ok: false, reason: 'no-confirm' };
 
   if (pending.action === 'close') {
@@ -309,6 +340,7 @@ export function cancelConfirm(state) {
 
 export function reopenTicket(state) {
   const ticket = getSelectedTicket(state);
+  state.selectedTicketId = ticket.id;
   const previous = ticket.status;
   ticket.status = 'open';
   pushTicketEvent(state, ticket, 'field_change', `status changed ${previous} → open`, state.agent);
@@ -327,6 +359,7 @@ export function switchTheme(state, themeName) {
 
 export function refreshSla(state, minutes = -5) {
   const ticket = getSelectedTicket(state);
+  state.selectedTicketId = ticket.id;
   ticket.slaMinutes = Math.max(0, ticket.slaMinutes + minutes);
   if (ticket.status === 'pending' || ticket.status === 'snoozed') ticket.slaStatus = 'paused';
   else ticket.slaStatus = ticket.slaMinutes <= 15 ? 'at risk' : ticket.slaMinutes <= 60 ? 'watch' : 'healthy';
@@ -349,19 +382,19 @@ export function selectActivityByDelta(state, delta) {
     return null;
   }
   state.activitySelectedIndex = clamp(state.activitySelectedIndex + delta, 0, events.length - 1);
-  const pageSize = 7;
+  const pageSize = activityPageSize(state);
   state.activityPage = Math.floor(state.activitySelectedIndex / pageSize);
-  state.focus = 'activity';
+  state.focus = 'work';
   return events[state.activitySelectedIndex];
 }
 
 export function moveActivityPage(state, delta) {
   const events = getActivityEvents(state);
-  const pageSize = 7;
+  const pageSize = activityPageSize(state);
   const maxPage = Math.max(0, Math.ceil(events.length / pageSize) - 1);
   state.activityPage = clamp((state.activityPage || 0) + delta, 0, maxPage);
   state.activitySelectedIndex = clamp(state.activityPage * pageSize, 0, Math.max(0, events.length - 1));
-  state.focus = 'activity';
+  state.focus = 'work';
   state.toasts.show(`Activity page ${state.activityPage + 1}/${maxPage + 1}.`, 'info');
   return events[state.activitySelectedIndex] ?? null;
 }
@@ -386,6 +419,23 @@ export function tickSupportDesk(state) {
 function injectLiveSupportEvent(state) {
   const sequence = Number(state.liveSequence || 0);
   state.liveSequence = sequence + 1;
+
+  // Live data may extend the queue and activity stream, but it must not steal
+  // the user's current location or selection. Preserve every interactive value
+  // that could otherwise shift when a new record is inserted at the front.
+  const selectedTicketId = state.selectedTicketId;
+  const selectedActivityId = getActivityEvents(state)[state.activitySelectedIndex]?.id ?? '';
+  const preserved = {
+    activeTab: state.activeTab,
+    focus: state.focus,
+    inboxControl: state.inboxControl,
+    filter: { ...state.filter },
+    sort: state.sort,
+    scroll: { ...state.scroll },
+    activityPage: state.activityPage,
+    activitySelectedIndex: state.activitySelectedIndex,
+    highlightedEventId: state.highlightedEventId,
+  };
   const templates = [
     { queue: 'Billing', priority: 'High', subject: 'Refund confirmation not received', tag: 'refund', customer: 'Lina Torres', account: 'Helio Works' },
     { queue: 'Auth', priority: 'Medium', subject: 'MFA code delayed for admin users', tag: 'mfa', customer: 'Owen Park', account: 'Northstar Studio' },
@@ -418,10 +468,32 @@ function injectLiveSupportEvent(state) {
   const event = createTimelineEvent({ type: 'customer_message', actor: item.customer, text: `new ticket ${id}: ${item.subject}` });
   event.related = id;
   state.globalTimeline.unshift(event);
-  state.highlightedEventId = event.id;
-  if (state.sort === 'updated' && state.filter.queue === 'all' && state.filter.status === 'all' && state.filter.priority === 'all' && !state.filter.text) {
-    state.selectedIndex = Math.min(state.selectedIndex + 1, state.tickets.length - 1);
+
+  state.activeTab = preserved.activeTab;
+  state.focus = preserved.focus;
+  state.inboxControl = preserved.inboxControl;
+  state.filter = preserved.filter;
+  state.sort = preserved.sort;
+  state.scroll = preserved.scroll;
+  state.highlightedEventId = preserved.highlightedEventId;
+  keepVisibleSelection(state, selectedTicketId);
+
+  if (selectedActivityId) {
+    const nextEvents = getActivityEvents(state);
+    const nextIndex = nextEvents.findIndex((candidate) => candidate.id === selectedActivityId);
+    if (nextIndex >= 0) {
+      state.activitySelectedIndex = nextIndex;
+      state.activityPage = Math.floor(nextIndex / activityPageSize(state));
+    } else {
+      state.activitySelectedIndex = preserved.activitySelectedIndex;
+      state.activityPage = preserved.activityPage;
+    }
+  } else {
+    state.activitySelectedIndex = preserved.activitySelectedIndex;
+    state.activityPage = preserved.activityPage;
   }
+
+  state.toasts.show(`New ${item.queue} ticket ${id}: ${item.subject}`, item.priority === 'High' ? 'warning' : 'info', 3);
 }
 
 export function pushTicketEvent(state, ticket, type, text, actor = 'system') {
@@ -430,6 +502,22 @@ export function pushTicketEvent(state, ticket, type, text, actor = 'system') {
   state.globalTimeline.unshift(event);
   state.highlightedEventId = event.id;
   return event;
+}
+
+function keepVisibleSelection(state, preferredId = '') {
+  const visible = getVisibleTickets(state);
+  if (!visible.length) {
+    state.selectedIndex = 0;
+    return null;
+  }
+  const index = visible.findIndex((ticket) => ticket.id === preferredId);
+  state.selectedIndex = index >= 0 ? index : clamp(state.selectedIndex, 0, visible.length - 1);
+  state.selectedTicketId = visible[state.selectedIndex].id;
+  return visible[state.selectedIndex];
+}
+
+function activityPageSize(state) {
+  return Number(state.viewport?.width) >= 160 ? 7 : 6;
 }
 
 function sortTickets(tickets, sort) {

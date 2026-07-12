@@ -55,7 +55,7 @@ const ACTION_CATALOG = [
   ['theme.next', 'Cycle workspace theme', 'Appearance', 'T', 'Apply the next semantic theme to the whole workspace.', ['theme', 'color', 'appearance']],
   ['scenario.reset', 'Reset release scenario', 'Scenario', 'R', 'Return the mission to its initial blocked state.', ['reset', 'restart', 'clear']],
   ['help.shortcuts', 'Show command-center help', 'Help', '?', 'Open contextual help for the palette and workspace.', ['help', 'keys', 'shortcuts']],
-  ['app.exit', 'Exit the example', 'App', 'Q', 'Restore the terminal and exit cleanly.', ['quit', 'exit', 'close']],
+  ['app.exit', 'Exit the example', 'App', 'Ctrl+Q', 'Restore the terminal and exit cleanly.', ['quit', 'exit', 'close']],
 ];
 
 const COMMAND_OPERATION_META = {
@@ -460,7 +460,7 @@ function createReleaseRegistry() {
       description: 'Restore the terminal and exit cleanly.',
       category: 'App',
       aliases: ['quit', 'exit', 'close'],
-      keys: ['q'],
+      keys: ['ctrl+q'],
       scope: 'global',
       execute: ({ runtime }) => runtime.exit(0),
     },

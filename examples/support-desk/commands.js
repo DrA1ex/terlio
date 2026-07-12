@@ -18,6 +18,7 @@ import {
   startNote,
   startReply,
   switchTheme,
+  getSelectedTicket,
 } from './reducers.js';
 
 export const SUPPORT_COMMANDS = [
@@ -41,10 +42,10 @@ export const SUPPORT_COMMANDS = [
   command('customer', 'customer', 'Navigation', 'Switch to customer tab.', ({ state }) => { state.activeTab = 'customer'; state.focus = 'work'; state.toasts.show('Customer profile selected.', 'info'); return { ok: true, action: 'customer' }; }, [], ['/customer']),
   command('timeline', 'timeline', 'Navigation', 'Switch to timeline tab.', ({ state }) => { state.activeTab = 'activity'; state.focus = 'work'; state.toasts.show('Activity timeline selected.', 'info'); return { ok: true, action: 'timeline' }; }, [], ['/timeline']),
   command('goto', 'goto <inbox|ticket|reply|customer|activity>', 'Navigation', 'Switch primary product tab.', ({ state, parsed }) => { const tab = String(parsed.args[0] ?? '').toLowerCase(); if (!['inbox','ticket','reply','customer','activity'].includes(tab)) { state.toasts.show(`Unknown tab: ${tab}`, 'error'); return { ok: false, reason: 'bad-tab' }; } state.activeTab = tab; state.focus = tab === 'inbox' ? 'inbox' : 'work'; state.toasts.show(`Opened ${tab} tab.`, 'info'); return { ok: true, action: 'goto' }; }, ['go'], ['/goto reply']),
-  command('theme', 'theme <name>', 'Appearance', `Switch support theme: ${SUPPORT_THEME_NAMES.join(', ')}.`, ({ state, parsed }) => switchTheme(state, parsed.args[0]), [], ['/theme support-paper']),
+  command('theme', 'theme <name>', 'Appearance', `Switch support theme: ${SUPPORT_THEME_NAMES.join(', ')}.`, ({ state, parsed }) => switchTheme(state, parsed.args[0]), [], ['/theme paper']),
   command('activity', 'activity <next|prev>', 'Navigation', 'Switch to Activity tab or move its pagination.', ({ state, parsed }) => { state.activeTab = 'activity'; const dir = String(parsed.args[0] || '').toLowerCase(); if (dir === 'next') state.activityPage = (state.activityPage || 0) + 1; if (dir === 'prev') state.activityPage = Math.max(0, (state.activityPage || 0) - 1); state.focus = 'work'; state.toasts.show('Activity tab selected.', 'info'); return { ok: true, action: 'activity' }; }, [], ['/activity']),
   command('send', 'send', 'Composer', 'Send the currently open reply or note composer.', ({ state }) => { state.toasts.show('Open /reply or /note, edit the draft, then press Enter to send.', 'info'); return { ok: true, action: 'send-hint' }; }, [], ['/send']),
-  command('templates', 'templates', 'Composer', `Show templates: ${Object.keys(SUPPORT_TEMPLATES).join(', ')}.`, ({ state }) => { state.activeTab = 'reply'; state.toasts.show(`Templates: ${Object.keys(SUPPORT_TEMPLATES).join(', ')}`, 'info'); return { ok: true, action: 'templates' }; }, [], ['/templates']),
+  command('templates', 'templates', 'Composer', `Show templates: ${Object.keys(SUPPORT_TEMPLATES).join(', ')}.`, ({ state }) => { state.activeTab = 'reply'; state.focus = 'work'; state.toasts.show(`Templates: ${Object.keys(SUPPORT_TEMPLATES).join(', ')}`, 'info'); return { ok: true, action: 'templates' }; }, [], ['/templates']),
   command('help', 'help', 'Help', 'Open help overlay.', ({ state }) => { state.modes.push('help'); return { ok: true, action: 'help' }; }, ['?'], ['/help']),
 ];
 
@@ -53,7 +54,7 @@ export function createSupportCommandRegistry() {
 }
 
 export function createSupportPaletteItems(state) {
-  const ticket = state?.tickets ? state.tickets[state.selectedIndex] : null;
+  const ticket = state?.tickets ? getSelectedTicket(state) : null;
   const templateItems = Object.entries(SUPPORT_TEMPLATES).map(([name, template]) => ({
     title: `Reply with template: ${template.title}`,
     description: `Insert ${name} reply template`,
@@ -120,7 +121,7 @@ export function getSupportSlashSuggestions(state, raw = '/') {
   }
 
   if (commandName === 'tag' || commandName === 'untag') {
-    const ticket = state?.tickets ? state.tickets[state.selectedIndex] : null;
+    const ticket = state?.tickets ? getSelectedTicket(state) : null;
     const values = commandName === 'untag' ? (ticket?.tags || []) : ['billing', 'regression', 'refund', 'safari', 'api', 'vip', 'escalated'];
     return optionSuggestions(commandName, values, currentArg, (value) => `/${commandName} ${value}`);
   }

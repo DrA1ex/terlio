@@ -66,6 +66,17 @@ export function parseKey(data) {
 
   if (NAMED.has(sequence)) return key({ sequence, ...NAMED.get(sequence) });
 
+  // Normalize the remaining ASCII control-letter sequences (Ctrl+A..Ctrl+Z).
+  // Named editor/runtime bindings above keep their semantic names, while
+  // application shortcuts such as Ctrl+N, Ctrl+Q and Ctrl+R receive the
+  // corresponding lower-case letter consistently across terminals.
+  if (sequence.length === 1) {
+    const code = sequence.charCodeAt(0);
+    if (code >= 1 && code <= 26) {
+      return key({ sequence, name: String.fromCharCode(96 + code), ctrl: true });
+    }
+  }
+
   const csi = /^\x1b\[1;(\d+)([A-DHF])$/.exec(sequence);
   if (csi) {
     const modifier = Number(csi[1]);
