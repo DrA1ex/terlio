@@ -151,9 +151,6 @@ import { createComponentsShowcaseView } from 'terlio/examples/components-showcas
 
 Use the `terlio` CLI rather than importing an interactive example when the goal is to run it.
 
-## Project status
-
-Terlio is currently pre-1.0. Public exports are covered by tests, but minor releases may still refine APIs before the first stable version. Breaking changes are documented in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
