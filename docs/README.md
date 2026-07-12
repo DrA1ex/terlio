@@ -1,6 +1,6 @@
-# Terlio documentation
+# Terlio.js documentation
 
-Terlio is a dependency-free declarative terminal UI framework for Node.js.
+Terlio.js is a dependency-free declarative terminal UI framework for Node.js.
 
 Start here:
 
@@ -13,10 +13,10 @@ Start here:
 - [Examples](examples.md) — runnable examples and their user paths.
 - [Publishing](publishing.md) — npm package verification, GitHub releases and trusted publishing.
 
-All package examples use imports from `terlio`:
+All package examples use imports from `terlio.js`:
 
 ```js
-import { Box, Text, renderToString } from 'terlio';
+import { Box, Text, renderToString } from 'terlio.js';
 ```
 
 Inside this repository the same public API is re-exported from `src/index.js` and defined in `src/lib/index.js`.

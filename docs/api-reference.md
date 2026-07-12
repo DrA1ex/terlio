@@ -3,7 +3,7 @@
 All public exports are re-exported from the package entrypoint:
 
 ```js
-import * as terminal from 'terlio';
+import * as terminal from 'terlio.js';
 ```
 
 When developing inside this repository, import from `src/lib/index.js`.

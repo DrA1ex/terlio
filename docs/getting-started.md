@@ -1,6 +1,6 @@
 # Getting started
 
-Terlio is a dependency-free declarative terminal UI framework for Node.js. It provides a fixed-frame renderer, layout primitives and interaction helpers for full-screen terminal applications.
+Terlio.js is a dependency-free declarative terminal UI framework for Node.js. It provides a fixed-frame renderer, layout primitives and interaction helpers for full-screen terminal applications.
 
 ## Requirements
 
@@ -11,22 +11,22 @@ Terlio is a dependency-free declarative terminal UI framework for Node.js. It pr
 ## Install from npm
 
 ```bash
-npm install terlio
+npm install terlio.js
 ```
 
 List the examples included in the installed package:
 
 ```bash
-npx terlio list
+npx terlio.js list
 ```
 
 Run a product demo or focused example:
 
 ```bash
-npx terlio demo:chat
-npx terlio demo:support-desk
-npx terlio example:palette
-npx terlio example:components
+npx terlio.js demo:chat
+npx terlio.js demo:support-desk
+npx terlio.js example:palette
+npx terlio.js example:components
 ```
 
 Interactive examples require a real terminal. `example:components` writes a deterministic Component Composition Snapshot to stdout and does not require raw input.
@@ -40,14 +40,14 @@ npm test
 npm run test:package
 ```
 
-The repository keeps `npm run demo:*` and `npm run example:*` aliases for development. End users should prefer `npx terlio <id>` because npm does not expose dependency scripts to consuming projects.
+The repository keeps `npm run demo:*` and `npm run example:*` aliases for development. End users should prefer `npx terlio.js <id>` because npm does not expose dependency scripts to consuming projects.
 
 ## First static render
 
 Use `renderToString()` for tests, snapshots and non-interactive output:
 
 ```js
-import { Box, Row, Text, renderToString } from 'terlio';
+import { Box, Row, Text, renderToString } from 'terlio.js';
 
 const view = Box(
   { border: true, padding: 1, title: ' Status ' },
@@ -65,7 +65,7 @@ The result is a fixed-size frame. Lines are padded or clipped to the requested w
 `TerminalRenderer` retains the previous frame and writes only changed rows:
 
 ```js
-import { Box, Text, TerminalRenderer } from 'terlio';
+import { Box, Text, TerminalRenderer } from 'terlio.js';
 
 const renderer = new TerminalRenderer({ output: process.stdout });
 
@@ -90,7 +90,7 @@ import {
   WorkspacePane,
   WorkspaceShell,
   createWorkspaceApp,
-} from 'terlio';
+} from 'terlio.js';
 
 const state = { selected: 0 };
 const items = ['Inbox', 'Assigned', 'Closed'];
@@ -147,8 +147,8 @@ Use `RichTerminalApp` when you want the included reference chat application with
 
 ## Local data
 
-The built-in session store uses `~/.terlio` by default. Set `TERLIO_HOME` to place session data elsewhere:
+The built-in session store uses `~/.terlio.js` by default. Set `TERLIO_JS_HOME` to place session data elsewhere:
 
 ```bash
-TERLIO_HOME=/tmp/terlio npx terlio demo:chat
+TERLIO_JS_HOME=/tmp/terlio.js npx terlio.js demo:chat
 ```

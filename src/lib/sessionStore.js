@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { packageHomeDirectoryName, packageHomeEnv } from './packageMetadata.js';
 import { normalizeMessages } from './state.js';
 
 const SESSION_DIR_NAME = 'sessions';
@@ -103,8 +104,8 @@ export function applySerializedSkillState(skillState, serialized = {}) {
 }
 
 function defaultRootDir() {
-  if (process.env.TERLIO_HOME) return process.env.TERLIO_HOME;
-  return path.join(os.homedir(), '.terlio');
+  if (process.env[packageHomeEnv]) return process.env[packageHomeEnv];
+  return path.join(os.homedir(), packageHomeDirectoryName);
 }
 
 function sanitizeId(id) {

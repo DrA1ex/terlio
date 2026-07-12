@@ -11,6 +11,7 @@ import { renderNode } from '../ui/layout/index.js';
 import { fit } from '../ui/layout/utils.js';
 import { renderTextEditorLines } from '../ui/components/editor.js';
 import { normalizeBlocks } from '../blocks.js';
+import { packageDisplayName } from '../packageMetadata.js';
 
 export const DEFAULT_SUGGESTION_WINDOW_SIZE = 6;
 export const CHAT_MIN_COLUMNS = 56;
@@ -31,7 +32,7 @@ export function createChatScreen(props = {}) {
         height: rows,
         minWidth: CHAT_MIN_COLUMNS,
         minHeight: CHAT_MIN_ROWS,
-        title: 'Terlio',
+        title: packageDisplayName,
         message: 'The chat workspace needs a slightly larger terminal.',
         theme,
       }),
@@ -168,7 +169,7 @@ export function Header({
     border: true,
     borderColor: theme.borderActive ?? theme.accent ?? theme.border,
     padding: { left: 1, right: 1 },
-    title: ' Terlio ',
+    title: ` ${packageDisplayName} `,
     height: compact ? 3 : 4,
   },
   Text(rowOne, { wrap: false }),
@@ -549,7 +550,7 @@ function renderWelcomeLines({ columns, height = 10, theme }) {
   const compact = columns < 72 || height < 9;
   const items = compact
     ? [
-        color(theme, 'title', 'Welcome to Terlio'),
+        color(theme, 'title', `Welcome to ${packageDisplayName}`),
         color(theme, 'text', 'A local, dependency-free AI chat workspace.'),
         '',
         color(theme, 'textMuted', 'Type a message and press Enter.'),
@@ -557,7 +558,7 @@ function renderWelcomeLines({ columns, height = 10, theme }) {
         color(theme, 'textMuted', 'Ctrl+J adds a line · PgUp/PgDn reads history.'),
       ]
     : [
-        color(theme, 'title', 'Welcome to Terlio'),
+        color(theme, 'title', `Welcome to ${packageDisplayName}`),
         color(theme, 'text', 'A local, dependency-free chat workspace for testing rich terminal interaction.'),
         '',
         color(theme, 'textAccent', 'Start here'),

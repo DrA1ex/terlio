@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { appendMessageChunk, createMessage, InputEditor, stripAnsi } from '../src/lib/index.js';
 import { RichTerminalApp } from '../src/lib/app.js';
+import { packageDisplayName } from '../src/lib/packageMetadata.js';
 
 function fakeOutput(columns = 100, rows = 30) {
   return {
@@ -101,7 +102,7 @@ test('compact chat header preserves the session title and empty state starts at 
   app.render();
   const frame = stripAnsi(app.renderer.previousFrame.toString());
   assert.match(frame, /Renderer resize review/);
-  assert.match(frame, /Welcome to Terlio/);
+  assert.match(frame, new RegExp(`Welcome to ${packageDisplayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
   assert.match(frame, /Type a message and press Enter/);
 });
 

@@ -3,6 +3,7 @@ import { buildMockBlocks, replyRules } from '../mockModel.js';
 import { listProviders } from '../providers.js';
 import { enabledSkillNames, formatSkillList, getSkill, skills } from '../skills.js';
 import { lastAssistantMessage } from '../state.js';
+import { packageDisplayName } from '../packageMetadata.js';
 
 export const commands = [
   {
@@ -327,9 +328,9 @@ export const commands = [
   {
     name: '/about',
     usage: '/about',
-    description: 'Describe the Terlio reference chat application.',
+    description: `Describe the ${packageDisplayName} reference chat application.`,
     run(app) {
-      app.addSystemMessage('Terlio is a dependency-free declarative terminal UI framework for Node.js. This reference chat application demonstrates the renderer, input editor, sessions, providers, response actions, overlays, skills, themes, regex intents and structured streaming contract.');
+      app.addSystemMessage(`${packageDisplayName} is a dependency-free declarative terminal UI framework for Node.js. This reference chat application demonstrates the renderer, input editor, sessions, providers, response actions, overlays, skills, themes, regex intents and structured streaming contract.`);
     },
   },
   {

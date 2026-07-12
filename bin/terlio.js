@@ -1,17 +1,21 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXAMPLES, findExample } from '../examples/catalog.js';
 import { formatExampleCatalog } from '../examples/index.js';
+import {
+  packageBinName,
+  packageDisplayName,
+  packageNpxCommand,
+  packageVersion,
+} from '../src/lib/packageMetadata.js';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const packageJson = JSON.parse(readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
 const args = process.argv.slice(2);
 
 function printHelp() {
-  console.log(`Terlio ${packageJson.version}\n\nUsage:\n  terlio list\n  terlio <demo:chat|example:palette|name> [-- example args]\n  terlio run <id> [-- example args]\n\nExamples:\n  npx terlio demo:chat\n  npx terlio example:palette\n  npx terlio components\n\nInteractive examples require a real TTY.\n`);
+  console.log(`${packageDisplayName} ${packageVersion}\n\nUsage:\n  ${packageBinName} list\n  ${packageBinName} <demo:chat|example:palette|name> [-- example args]\n  ${packageBinName} run <id> [-- example args]\n\nExamples:\n  ${packageNpxCommand} demo:chat\n  ${packageNpxCommand} example:palette\n  ${packageNpxCommand} components\n\nInteractive examples require a real TTY.\n`);
 }
 
 function resolveRequest(argv) {
@@ -31,17 +35,17 @@ if (request.type === 'help') {
   process.exit(0);
 }
 if (request.type === 'version') {
-  console.log(packageJson.version);
+  console.log(packageVersion);
   process.exit(0);
 }
 if (request.type === 'list') {
-  console.log(formatExampleCatalog({ command: 'npx terlio' }));
+  console.log(formatExampleCatalog());
   process.exit(0);
 }
 
 const example = findExample(request.id);
 if (!example) {
-  console.error(`Unknown Terlio example: ${request.id || '<missing>'}`);
+  console.error(`Unknown ${packageDisplayName} example: ${request.id || '<missing>'}`);
   console.error(`Available ids: ${EXAMPLES.map((item) => item.id).join(', ')}`);
   process.exit(1);
 }

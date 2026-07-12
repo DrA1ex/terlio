@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { packageDisplayName, packageNpxCommand } from '../src/lib/packageMetadata.js';
 import { EXAMPLE_GROUPS } from './catalog.js';
 
-export function formatExampleCatalog({ command = 'npx terlio' } = {}) {
+export function formatExampleCatalog({ command = packageNpxCommand } = {}) {
   const lines = [
-    'Terlio examples',
+    `${packageDisplayName} examples`,
     '',
-    'Run an installed example with `npx terlio <id>`.',
+    `Run an installed example with \`${command} <id>\`.`,
     '',
   ];
 
@@ -28,4 +29,4 @@ function isDirectRun(metaUrl) {
   return Boolean(process.argv[1]) && path.resolve(fileURLToPath(metaUrl)) === path.resolve(process.argv[1]);
 }
 
-if (isDirectRun(import.meta.url)) console.log(formatExampleCatalog({ command: 'npx terlio' }));
+if (isDirectRun(import.meta.url)) console.log(formatExampleCatalog());

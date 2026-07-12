@@ -7,6 +7,7 @@ import { createCommandPaletteState, createCommandPaletteView, getFilteredActions
 import { createStreamingWorkbenchState, createStreamingWorkbenchView, handleStreamingWorkbenchKey } from '../examples/streaming-workbench.js';
 import { createComponentsShowcaseView, createDiffShowcase, renderComponentsShowcase } from '../examples/components-showcase.js';
 import { createInteractionKitState, createInteractionKitView, handleInteractionKitKey } from '../examples/interaction-kit.js';
+import { packageDisplayName } from '../src/lib/packageMetadata.js';
 
 test('package exposes runnable example scripts', async () => {
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
@@ -313,7 +314,7 @@ test('components snapshot renders a cohesive one-shot report without a TTY', () 
 test('interaction kit launches the product-grade showcase shell and overlays', () => {
   const state = createInteractionKitState();
   const output = renderToString(createInteractionKitView({ state, width: 132, height: 35 }), { width: 132, height: 35 });
-  assert.match(output, /Terlio Component Studio/);
+  assert.match(output, new RegExp(`${packageDisplayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} Component Studio`));
   assert.match(output, /Interactive component and capability showcase/);
   assert.match(output, /SHOWCASES/);
   assert.match(output, /PREVIEW · Welcome \/ Tour Map/);

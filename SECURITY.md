@@ -8,4 +8,4 @@ Until the first stable release, security fixes are applied to the latest publish
 
 Do not open a public issue for a suspected vulnerability. Use GitHub's private vulnerability reporting feature for the repository. Include reproduction steps, affected versions and the expected impact.
 
-Terlio does not execute user-entered shell commands by default. Example actions that resemble deployment, copy or apply operations are simulations unless explicitly documented otherwise.
+Terlio.js does not execute user-entered shell commands by default. Example actions that resemble deployment, copy or apply operations are simulations unless explicitly documented otherwise.

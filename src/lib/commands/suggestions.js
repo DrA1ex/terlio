@@ -1,6 +1,7 @@
 import { themes } from '../ansi/themes.js';
 import { listProviders } from '../providers.js';
 import { skills } from '../skills.js';
+import { packageHomeDirectoryName } from '../packageMetadata.js';
 import { commands } from './catalog.js';
 
 export function getSuggestions(input, app = null) {
@@ -126,7 +127,7 @@ export function getSuggestions(input, app = null) {
 
 function sessionActionDescription(action) {
   if (action === 'new') return 'Start a new session.';
-  if (action === 'save') return 'Save the current session in ~/.terlio/sessions.';
+  if (action === 'save') return `Save the current session in ~/${packageHomeDirectoryName}/sessions.`;
   if (action === 'list') return 'Show saved sessions.';
   if (action === 'open') return 'Open a saved session.';
   if (action === 'delete') return 'Delete a saved session.';

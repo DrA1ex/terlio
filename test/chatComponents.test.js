@@ -11,6 +11,7 @@ import {
   themes,
 } from '../src/lib/index.js';
 import { RichTerminalApp } from '../src/lib/app.js';
+import { packageDisplayName } from '../src/lib/packageMetadata.js';
 
 function plain(node, options = { width: 80, height: 20 }) {
   return stripAnsi(renderToString(node, options));
@@ -39,7 +40,7 @@ test('ChatScreen renders the main shell from reusable components', () => {
   });
 
   const output = plain(node, { width: 100, height: 18 });
-  assert.match(output, /Terlio/);
+  assert.match(output, new RegExp(packageDisplayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.match(output, /mock · dark/);
   assert.match(output, /skills code, writer/);
   // Compact height prioritizes the latest turn; older turns remain available through transcript scrolling.
@@ -147,7 +148,7 @@ test('RichTerminalApp.render delegates to component ChatScreen and TerminalRende
   app.render();
 
   const frame = stripAnsi(app.renderer.previousFrame.toString());
-  assert.match(frame, /Terlio/);
+  assert.match(frame, new RegExp(packageDisplayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.match(frame, /hello from app/);
   assert.match(frame, /COMMANDS/);
   assert.match(frame, /\/help/);

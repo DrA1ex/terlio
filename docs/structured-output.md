@@ -17,7 +17,7 @@ import {
   visibleConversationMessages,
   lastUserMessage,
   lastAssistantMessage,
-} from 'terlio';
+} from 'terlio.js';
 ```
 
 Create a message:
@@ -56,7 +56,7 @@ import {
   blockToText,
   blocksToText,
   ensureTextBlock,
-} from 'terlio';
+} from 'terlio.js';
 ```
 
 Supported block types:
@@ -95,7 +95,7 @@ const text = blocksToText(blocks);
 `createChatScreen()` creates the full chat UI tree used by `RichTerminalApp`.
 
 ```js
-import { createChatScreen, renderToString } from 'terlio';
+import { createChatScreen, renderToString } from 'terlio.js';
 
 const screen = createChatScreen({
   messages,
@@ -135,7 +135,7 @@ These are useful when you want the default transcript rendering but not the full
 Providers implement the streaming interface used by `RichTerminalApp`.
 
 ```js
-import { createProvider, listProviders } from 'terlio';
+import { createProvider, listProviders } from 'terlio.js';
 
 const provider = createProvider('mock');
 console.log(listProviders());
@@ -157,7 +157,7 @@ import {
   streamMockReply,
   streamMockBlocks,
   StreamCancelled,
-} from 'terlio';
+} from 'terlio.js';
 ```
 
 Build an immediate mock reply:
@@ -195,7 +195,7 @@ If streaming is aborted, helpers throw `StreamCancelled`.
 Skill helpers are used by the mock AI chat app to alter responses.
 
 ```js
-import { createSkillState, enabledSkillNames, formatSkillList, getSkill, skills } from 'terlio';
+import { createSkillState, enabledSkillNames, formatSkillList, getSkill, skills } from 'terlio.js';
 
 const state = createSkillState();
 const names = enabledSkillNames(state);
@@ -204,7 +204,7 @@ const names = enabledSkillNames(state);
 Session persistence helpers:
 
 ```js
-import { serializeSkillState, applySerializedSkillState } from 'terlio';
+import { serializeSkillState, applySerializedSkillState } from 'terlio.js';
 
 const saved = serializeSkillState(skillState);
 const restored = createSkillState();
@@ -216,7 +216,7 @@ applySerializedSkillState(restored, saved);
 You can render blocks directly without using the full chat screen:
 
 ```js
-import { renderBlocksLines, Box, Text } from 'terlio';
+import { renderBlocksLines, Box, Text } from 'terlio.js';
 
 const lines = renderBlocksLines(blocks, { width: 80 });
 const node = Box({ border: true, title: ' Assistant ' }, ...lines.map((line) => Text(line, { wrap: false })));

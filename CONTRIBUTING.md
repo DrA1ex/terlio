@@ -1,6 +1,6 @@
-# Contributing to Terlio
+# Contributing to Terlio.js
 
-Thank you for improving Terlio. Keep changes focused, dependency-free unless there is a compelling reason, and consistent with the existing declarative UI architecture.
+Thank you for improving Terlio.js. Keep changes focused, dependency-free unless there is a compelling reason, and consistent with the existing declarative UI architecture.
 
 ## Development
 
@@ -17,7 +17,7 @@ npm run test:package
 
 - Add regression tests for behavior changes.
 - Check interactive examples in a real TTY when changing input, focus, scrolling, overlays or resize behavior.
-- Update user-facing documentation and `CHANGELOG.md` when public behavior changes.
+- Update user-facing documentation and release notes when public behavior changes.
 - Do not commit `node_modules`, generated tarballs, coverage output, credentials or local session data.
 
 ## Public API
