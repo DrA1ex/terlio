@@ -1,7 +1,7 @@
 {
   "name": "terlio",
-  "version": "0.1.0",
-  "description": "Dependency-free declarative terminal UI framework for Node.js.",
+  "version": "1.0.0",
+  "description": "Composable terminal UI for commands, streams, and interactive workflows",
   "keywords": [
     "terminal",
     "tui",
