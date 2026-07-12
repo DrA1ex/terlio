@@ -14,7 +14,7 @@ import {
   renderToFrame,
   renderToString,
   TerminalRenderer,
-} from 'mock-ai-terminal';
+} from 'terlio';
 ```
 
 ## Nodes
@@ -187,7 +187,7 @@ Most apps do not need to call these directly; use `TerminalRenderer` instead.
 The library includes small ANSI helpers:
 
 ```js
-import { ansi, themes, color, stripAnsi, visibleLength, truncateVisible, padEndVisible } from 'mock-ai-terminal';
+import { ansi, themes, color, stripAnsi, visibleLength, truncateVisible, padEndVisible } from 'terlio';
 ```
 
 Typical usage:
@@ -204,7 +204,7 @@ process.stdout.write(color('green', 'ready'));
 For full-screen interactive applications, prefer `createWorkspaceApp()` over wiring raw mode, resize listeners and cleanup manually.
 
 ```js
-import { createWorkspaceApp, Text } from 'mock-ai-terminal';
+import { createWorkspaceApp, Text } from 'terlio';
 
 const app = createWorkspaceApp({
   title: 'Example',

@@ -1,103 +1,85 @@
-# Mock AI Terminal
+# Terlio
 
-Dependency-free rich terminal UI primitives for Node.js. The package provides a small declarative UI runtime, reusable terminal components, input/key handling helpers, command palette state, workspace layout primitives, structured assistant blocks, and complete example applications.
+Terlio is a dependency-free declarative terminal UI framework for Node.js. It combines a fixed-frame renderer, ANSI-aware layout, reusable workspace components, normalized keyboard input, overlays, command palettes, scroll state and structured assistant output in one plain-JavaScript package.
 
-The project is intentionally plain JavaScript and uses only Node.js built-ins. It is useful for prototypes, internal tools, AI-agent consoles, support desks, command centers, structured streaming demos, and other terminal interfaces that need more than line-by-line `console.log()` output.
+Use it for full-screen CLI applications, AI and agent consoles, internal tools, support desks, review workflows, command centers and streaming interfaces that need more structure than sequential `console.log()` output.
 
-## What is included
+## Highlights
 
-- A declarative terminal UI layer: `Text`, `Box`, `Row`, `Column`, `Panel`, `renderToString()`, `TerminalRenderer`.
-- Stable virtual frames and ANSI diff rendering for efficient terminal updates.
-- Reusable UI components: lists, modals, toasts, progress bars, scroll panes, text editors, tabs, command bars, property rows, live blocks, and workspace shells.
-- Interaction helpers: `InputEditor`, `parseKey()`, `FocusManager`, `ModeManager`, command palette state and renderer, slash command parsing, scroll state, and toast state.
-- Chat and AI-console primitives: structured message blocks, transcript rendering, provider interface, session store, skills, and a mock streaming provider.
-- Runnable examples that show both small components and full product-style terminal applications.
+- Declarative primitives: `Text`, `Box`, `Row`, `Column`, `Panel`, `Grid` and `SplitPane`.
+- Product-level composition: `WorkspaceShell`, `WorkspacePane`, `WorkspaceFooter`, `Docked` and `RequireViewport`.
+- Efficient rendering through fixed virtual frames and row-level ANSI patches.
+- Stateful interaction helpers for lists, scrolling, focus, modes, text editing and command palettes.
+- Blocking modals and confirmations plus non-blocking toast overlays.
+- Unicode-aware measurement and clipping for emoji, CJK and styled ANSI text.
+- Structured response blocks for text, code, diffs, commands, warnings and tool results.
+- No runtime dependencies; Node.js built-ins only.
 
-## Requirements
-
-- Node.js 18 or newer.
-- A real TTY for interactive examples.
-- No runtime dependencies.
-
-## Quick start
-
-Install dependencies if you are working from this repository:
+## Install
 
 ```bash
-npm install
+npm install terlio
 ```
 
-Render a small static UI:
+Terlio requires Node.js 18 or newer and uses ES modules.
+
+## First render
 
 ```js
-import { Box, Row, Text, renderToString } from 'mock-ai-terminal';
+import { Box, Row, Text, renderToString } from 'terlio';
 
-const screen = Box({ border: true, padding: 1, title: ' Demo ' },
-  Text('Hello from a terminal UI.'),
-  Row({ gap: 2 }, Text('status: ready'), Text('provider: mock')),
+const screen = Box(
+  { border: true, padding: 1, title: ' Status ' },
+  Text('Terlio is ready.'),
+  Row({ gap: 2 }, Text('tests: passed'), Text('provider: mock')),
 );
 
 console.log(renderToString(screen, { width: 48, height: 8 }));
 ```
 
-Run the main chat demo:
+## Run packaged examples
+
+The npm package includes all examples and a small launcher. They remain available after installation from the registry:
 
 ```bash
-npm start
+npx terlio list
+npx terlio demo:chat
+npx terlio demo:support-desk
+npx terlio example:palette
+npx terlio example:themes
+npx terlio example:components
 ```
 
-Run the support desk demo:
+Interactive examples require a real TTY. `example:components` is a one-shot stdout example and can be used in CI or redirected to a file.
+
+The launcher accepts short names too:
 
 ```bash
-npm run demo:support-desk
+npx terlio chat
+npx terlio palette
+npx terlio components
 ```
 
-Run checks and tests:
+## Repository development
 
 ```bash
+npm ci
 npm run check
 npm test
+npm run test:package
 ```
 
-## Documentation
+`npm run test:package` creates the actual npm tarball, installs it into a clean temporary consumer project, imports `terlio`, lists the packaged examples and runs the one-shot component example.
 
-The detailed documentation lives in [`docs/`](docs/):
-
-- [`docs/getting-started.md`](docs/getting-started.md) — installation, import patterns, first render, and first interactive app.
-- [`docs/ui-runtime.md`](docs/ui-runtime.md) — declarative nodes, layout props, virtual frames, and terminal rendering.
-- [`docs/components.md`](docs/components.md) — reusable UI components and workspace primitives.
-- [`docs/interactive-apps.md`](docs/interactive-apps.md) — keys, input editing, focus, modes, command palette, scrolling, toasts, and sessions.
-- [`docs/structured-output.md`](docs/structured-output.md) — structured assistant blocks, chat screens, providers, and streaming.
-- [`docs/api-reference.md`](docs/api-reference.md) — public exports grouped by module area.
-- [`docs/examples.md`](docs/examples.md) — runnable examples and what each one demonstrates.
-
-## Examples
-
-List all available examples:
-
-```bash
-npm run examples
-```
-
-Demos:
+Repository-only npm aliases are also available:
 
 ```bash
 npm run demo:chat
 npm run demo:support-desk
 npm run demo:code-review
-```
-
-Product-style examples:
-
-```bash
 npm run example:editor
 npm run example:palette
 npm run example:stream
-```
-
-UI mechanics examples:
-
-```bash
 npm run example:kit
 npm run example:keys
 npm run example:themes
@@ -105,102 +87,74 @@ npm run example:blocks
 npm run example:components
 ```
 
-Interactive examples require a real terminal. `example:components` renders a complete Component Composition Snapshot to normal stdout and is useful as a deterministic smoke test or CI artifact.
+## Interactive app runtime
 
-`demo:chat` is the primary chat reference: it includes responsive conversation/composer sizing, slash completion, a searchable command palette, multiline and bracketed-paste editing, structured blocks, streaming-aware scroll anchoring, and a compact viewport fallback below `56×18`.
-
-`example:palette` is a guided Release Command Center. It opens with a concise mission briefing, then uses `/` or `Ctrl+P` to search actions and complete checks → notes → approval → staging deploy. Accepted commands close the palette, run a short spinner/progress activity, mutate the workspace, and finish with a popup recommending the next useful action.
-
-`demo:code-review` is the reviewed pull-request workflow. `example:agent-stream` was removed because its useful streaming mechanics are already covered more clearly by `example:stream`. The remaining examples have also been audited for responsive sizing, local keyboard ownership, scrolling, compact fallbacks, and clean timer/terminal teardown.
-
-`example:themes` is a staged Theme Studio: browse a candidate without changing the shell, compare it with the active theme, then press `Enter` to apply it to the entire workspace. The token inspector shows the semantic contract behind the visual change.
-
-## Library usage
-
-The package entrypoint exports the public API from `src/lib/index.js`:
+For product-style applications, `createWorkspaceApp()` owns terminal lifecycle, raw input, resize handling, cleanup and invalidation:
 
 ```js
 import {
-  TerminalRenderer,
-  WorkspaceShell,
-  WorkspacePane,
-  WorkspaceCommandBar,
-  WorkspaceFooter,
   Text,
-  Row,
-} from 'mock-ai-terminal';
-```
-
-For local development inside this repository you can import directly:
-
-```js
-import { renderToString } from './src/lib/index.js';
-```
-
-A typical application keeps its own state, converts that state into a UI tree, renders it through `TerminalRenderer`, and updates state from normalized key events:
-
-```js
-import {
-  TerminalRenderer,
-  WorkspaceShell,
   WorkspacePane,
-  WorkspaceFooter,
-  Text,
-  parseKey,
-} from 'mock-ai-terminal';
+  WorkspaceShell,
+  createWorkspaceApp,
+} from 'terlio';
 
-const renderer = new TerminalRenderer({ output: process.stdout });
-let count = 0;
+const state = { count: 0 };
 
-function view() {
-  return WorkspaceShell({
+const app = createWorkspaceApp({
+  title: 'Counter',
+  state,
+  render: ({ width, height }) => WorkspaceShell({
     title: 'Counter',
-    subtitle: 'Minimal interactive app',
-    stats: [{ label: 'count', value: count }],
-    main: WorkspacePane({ title: ' Main ', active: true, children: [Text(`Count: ${count}`)] }),
-    footer: WorkspaceFooter({ left: ['↑/↓ change', 'Ctrl+C exit'] }),
-    height: process.stdout.rows,
-  });
-}
-
-function render() {
-  renderer.renderNode(view(), {
-    width: process.stdout.columns,
-    height: process.stdout.rows,
-  });
-}
-
-process.stdin.setRawMode(true);
-process.stdin.setEncoding('utf8');
-process.stdin.resume();
-process.stdin.on('data', (chunk) => {
-  const key = parseKey(chunk);
-  if (key.name === 'ctrl-c') process.exit(0);
-  if (key.name === 'up') count += 1;
-  if (key.name === 'down') count -= 1;
-  render();
+    subtitle: 'Press ↑ or ↓',
+    main: WorkspacePane({
+      title: ' Value ',
+      active: true,
+      children: [Text(`Count: ${state.count}`)],
+    }),
+    height,
+  }),
+  onKey: ({ key, invalidate }) => {
+    if (key.name === 'up') state.count += 1;
+    if (key.name === 'down') state.count -= 1;
+    invalidate();
+  },
 });
 
-render();
+app.start();
 ```
 
-## Project structure
+## Documentation
 
-```text
-src/
-  index.js              package re-export
-  lib/
-    index.js            public library entrypoint
-    app.js              full mock AI terminal app
-    ui/                 declarative UI runtime and components
-    chat/               chat screen and transcript components
-    commands/           slash command parser and registry
-    *.js                input, keys, modes, focus, providers, state
-examples/               runnable demos and product examples
-test/                   node:test test suite
-docs/                   documentation
+- [Getting started](docs/getting-started.md)
+- [UI runtime and layout](docs/ui-runtime.md)
+- [Components](docs/components.md)
+- [Interactive applications](docs/interactive-apps.md)
+- [Structured output and providers](docs/structured-output.md)
+- [API reference](docs/api-reference.md)
+- [Examples](docs/examples.md)
+- [Publishing and releases](docs/publishing.md)
+
+## Package exports
+
+The public API is exported from the package root:
+
+```js
+import { TerminalRenderer, WorkspaceShell, parseKey } from 'terlio';
 ```
 
-## Versioning note
+Examples can also be imported explicitly for inspection or testing:
 
-This is an early JavaScript library. The public entrypoint is `src/lib/index.js`, but API names may still evolve as the examples and product-level primitives mature.
+```js
+import { createComponentsShowcaseView } from 'terlio/examples/components-showcase';
+```
+
+Use the `terlio` CLI rather than importing an interactive example when the goal is to run it.
+
+## Project status
+
+Terlio is currently pre-1.0. Public exports are covered by tests, but minor releases may still refine APIs before the first stable version. Breaking changes are documented in [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+[MIT](LICENSE)

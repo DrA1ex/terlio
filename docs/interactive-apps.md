@@ -7,7 +7,7 @@ This page covers the interaction helpers used by the examples: key parsing, inpu
 Use `parseKey(data)` to normalize raw TTY chunks into semantic key objects.
 
 ```js
-import { parseKey } from 'mock-ai-terminal';
+import { parseKey } from 'terlio';
 
 process.stdin.on('data', (chunk) => {
   const key = parseKey(chunk);
@@ -48,7 +48,7 @@ The parser recognizes common modified arrow and enter escape sequences, includin
 `InputEditor` owns a string value and a cursor measured in Unicode code points.
 
 ```js
-import { InputEditor } from 'mock-ai-terminal';
+import { InputEditor } from 'terlio';
 
 const editor = new InputEditor();
 editor.insert('hello');
@@ -144,7 +144,7 @@ import {
   getCommandPaletteMatches,
   handleCommandPaletteKey,
   renderCommandPalette,
-} from 'mock-ai-terminal';
+} from 'terlio';
 
 const palette = createCommandPaletteState({
   items: [
@@ -190,7 +190,7 @@ Palette items are normalized to:
 For simple commands, use the built-in command list from `commands.js`:
 
 ```js
-import { parseCommand, findCommand, getSuggestions, helpText } from 'mock-ai-terminal';
+import { parseCommand, findCommand, getSuggestions, helpText } from 'terlio';
 
 const { name, args } = parseCommand('/blocks "release notes" final');
 const command = findCommand(name);
@@ -200,7 +200,7 @@ const suggestions = getSuggestions('/the');
 For product-specific command systems, use the registry helpers:
 
 ```js
-import { createCommandRegistry } from 'mock-ai-terminal';
+import { createCommandRegistry } from 'terlio';
 
 const registry = createCommandRegistry([
   {
@@ -221,7 +221,7 @@ registry.execute('/assign alex', { state });
 For lower-level parsing:
 
 ```js
-import { parseSlashCommand, tokenizeCommand, commandRest } from 'mock-ai-terminal';
+import { parseSlashCommand, tokenizeCommand, commandRest } from 'terlio';
 
 parseSlashCommand('/filter status open');
 tokenizeCommand('tag "urgent billing"');
@@ -233,7 +233,7 @@ commandRest(parseSlashCommand('/reply template greeting'), 1);
 Use scroll helpers to keep offsets clamped and consistent.
 
 ```js
-import { scrollBy, scrollPage, clampScrollOffset, normalizeScrollMap } from 'mock-ai-terminal';
+import { scrollBy, scrollPage, clampScrollOffset, normalizeScrollMap } from 'terlio';
 
 const maxScroll = Math.max(0, totalLines - visibleLines);
 scroll = scrollBy(scroll, 1, maxScroll);
@@ -261,7 +261,7 @@ Use `toasts.current()` with the `Toast` component, or `toasts.clear()` to remove
 `SessionStore` persists session snapshots as JSON files.
 
 ```js
-import { SessionStore } from 'mock-ai-terminal';
+import { SessionStore } from 'terlio';
 
 const store = new SessionStore();
 const id = store.createId();
@@ -291,7 +291,7 @@ const store = new SessionStore({ rootDir: './tmp/sessions' });
 `RichTerminalApp` is the built-in mock AI chat application. It wires together input, rendering, command palette, sessions, skills, providers, transcript rendering, and streaming.
 
 ```js
-import { RichTerminalApp } from 'mock-ai-terminal';
+import { RichTerminalApp } from 'terlio';
 
 const app = new RichTerminalApp({
   input: process.stdin,

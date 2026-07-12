@@ -101,7 +101,7 @@ test('compact chat header preserves the session title and empty state starts at 
   app.render();
   const frame = stripAnsi(app.renderer.previousFrame.toString());
   assert.match(frame, /Renderer resize review/);
-  assert.match(frame, /Welcome to Mock AI Terminal/);
+  assert.match(frame, /Welcome to Terlio/);
   assert.match(frame, /Type a message and press Enter/);
 });
 

@@ -1,140 +1,124 @@
 # Examples
 
-The repository includes runnable examples that exercise different layers of the library. Use them as implementation references and smoke tests.
-
-List all examples:
+Terlio ships every example in the npm package. Use the bundled launcher after installing from the registry:
 
 ```bash
-npm run examples
+npx terlio list
 ```
 
-`npm run examples` prints the examples in grouped blocks so demos, product-style examples, and focused UI mechanics references are easier to scan.
+The same ids work with local, global and `npx` installations:
+
+```bash
+npx terlio demo:chat
+npx terlio example:palette
+npx terlio components
+```
+
+Inside the source repository, equivalent `npm run demo:*` and `npm run example:*` aliases are available for development.
 
 ## Demos
 
-These examples share the current UI/UX standard: a stable workspace shell, header stats, navigation tabs, responsive main panes, contextual local help, visible mode state, explicit keyboard routing, scroll helpers, and testable pure render functions.
-
-### AI chat workspace
+### Chat workspace — `demo:chat`
 
 ```bash
-npm run demo:chat
+npx terlio demo:chat
 ```
 
-The main mock AI terminal. It now opens as a responsive, ocean-themed chat workspace with a top-aligned onboarding state, a bounded conversation viewport, stable slash-command completion, a full-width searchable command palette, multiline/bracketed-paste input, session-derived titles, three-second toast feedback, and scroll anchoring that preserves the reader’s position while a response streams. Use `Ctrl+J` for a newline, `Tab` to accept a command suggestion, `Shift+Tab` to move backward, `PgUp/PgDn` to read the transcript, `Ctrl+P` for the palette, and `Esc` to dismiss the current interaction level. Terminals below `56×18` receive a clean resize fallback instead of a broken frame.
+A responsive chat workspace with slash completion, command palette, multiline and bracketed-paste input, sessions, skills, semantic themes, structured blocks, streaming-aware scroll anchoring and a compact viewport fallback.
 
-### Support Triage Desk
+### Support Triage Desk — `demo:support-desk`
 
 ```bash
-npm run demo:support-desk
+npx terlio demo:support-desk
 ```
 
-A product-style support desk application. Demonstrates a responsive workspace shell, queue/list navigation, ticket details, reply editor, templates, SLA/live blocks, timeline, focus zones, modal overlays, command bar, slash commands, toasts, and theme switching.
+A product-style support application with queue navigation, ticket details, reply editor, templates, SLA blocks, timeline, focus zones, modals, commands, toasts and theme switching.
 
-Implementation entrypoints:
-
-```text
-examples/support-desk.js
-examples/support-desk/
-  app.js
-  commands.js
-  data.js
-  index.js
-  reducers.js
-  templates.js
-  themes.js
-  views.js
-```
-
-### AI Code Review Terminal
+### Code Review — `demo:code-review`
 
 ```bash
-npm run demo:code-review
+npx terlio demo:code-review
 ```
 
-A responsive pull-request review workspace. It opens with a keyboard-driven PR picker, keeps General details read-only, pages through commits and diffs, and presents full-width review-thread cards with a sticky latest-comment position. Use `N` for a new comment, `R` to reply to the selected author, `Ctrl+J` for a newline, and `J` to jump to a live-comment toast. Confirmation is focus-trapped, transient feedback is rendered as an overlay, and all panes preserve their scroll position through terminal resizes.
+A pull-request review workflow with keyboard-driven PR selection, commits, diffs, full-width review threads, reply composition, live comments, confirmations and stable scroll positions through resize.
 
 ## Product-style examples
 
-### Editor Lab
+### Editor Lab — `example:editor`
 
 ```bash
-npm run example:editor
+npx terlio example:editor
 ```
 
-A responsive InputEditor workspace with a live multiline draft, visible cursor metrics, editable saved drafts, an explicit `+ Add another` slot, Home/End/Delete history controls, PgUp/PgDn-scrollable diagnostics, adaptive local help, and a compact viewport fallback.
+A multiline editor workspace with cursor diagnostics, editable saved drafts, history navigation, local key ownership, adaptive help and compact fallback.
 
-### Command Palette
+### Release Command Center — `example:palette`
 
 ```bash
-npm run example:palette
+npx terlio example:palette
 ```
 
-A guided **Release Command Center** built around one concrete user path: run checks, generate notes, request approval, and confirm a staging deployment. It starts with a mission briefing that explains the goal and interaction model. The searchable palette uses fuzzy title/description/alias matching, categories, shortcuts, dynamic disabled states, action details and confirmations. Accepting a command closes the palette, displays a short spinner/progress activity, applies the real workspace mutation, and then opens a contextual popup with the recommended next action. Press `Enter` in that popup to reopen the palette, or `/` / `Ctrl+P` at any time when no blocking overlay is active.
+A guided release workflow. Start with a mission briefing, open the fuzzy command palette, run checks, generate notes, request approval and confirm a staging deployment. Commands close the palette, show activity progress, mutate the workspace and finish with contextual next-step guidance.
 
-### Streaming Workbench
+### Streaming Workbench — `example:stream`
 
 ```bash
-npm run example:stream
+npx terlio example:stream
 ```
 
-A responsive streaming workspace with a multiline prompt editor, compact template controls, sticky transcript autoscroll that preserves scrollback, line/page navigation, runtime progress and cancellation, reusable-template creation, compact viewport fallback, and explicit timer cleanup on exit.
+A streaming workspace with multiline prompt editing, templates, sticky transcript autoscroll, scrollback preservation, runtime progress, cancellation and timer cleanup.
 
-## UI mechanics examples
+## UI mechanics
 
-These examples are intentionally narrower than product demos. Each one focuses on a specific library mechanism or visual regression surface.
-
-### Interaction Kit
+### Component Studio — `example:kit`
 
 ```bash
-npm run example:kit
+npx terlio example:kit
 ```
 
-An interactive component catalog for the library. It provides a searchable catalog, live preview pane, inspector pane, local help, and samples for core render nodes, workspace shell pieces, selection lists, display helpers, feedback overlays, progress blocks, editors, scroll panes, command palette, timeline blocks, responsive columns, and theme tokens.
+An interactive catalog covering layout, workspace composition, lists, command palettes, editor mechanics, overlays, scrolling, progress, timelines, semantic themes, focus and frame diffs.
 
-### Key Inspector
+### Key Inspector — `example:keys`
 
 ```bash
-npm run example:keys
+npx terlio example:keys
 ```
 
-A responsive terminal compatibility desk showing raw escape sequences, normalized key objects, recent actions, and the actual editor result. It includes multiline editing, bracketed paste, vertical/word movement diagnostics, and a compact fallback.
+Shows raw escape sequences, normalized keys and actual editor mutations. Useful for checking Alt/Option behavior, Shift+Tab, bracketed paste and terminal compatibility.
 
-### Theme Studio
+### Theme Studio — `example:themes`
 
 ```bash
-npm run example:themes
+npx terlio example:themes
 ```
 
-A product-style Theme Studio. Selecting a theme stages a candidate preview; `Enter` applies it to the complete workspace, `C` compares the active and candidate themes, and the token inspector explains the semantic contract used by components. The layout is responsive and falls back cleanly on small terminals.
+Stage a candidate theme, compare it with the active theme and apply it to the complete workspace. The inspector explains the semantic tokens used by components.
 
-### Structured Response Explorer
+### Structured Response Explorer — `example:blocks`
 
 ```bash
-npm run example:blocks
+npx terlio example:blocks
 ```
 
-A scenario-driven explorer for structured assistant output. The left response map shows the ordered blocks that make up one answer, the main pane renders the complete response, and a docked inspector explains the selected block's payload, purpose, and safe actions. Use `Enter` to isolate a block, `[` / `]` to switch scenarios, and `C`, `A`, or `R` to simulate copy, diff-apply, and command-run workflows without touching files or starting processes.
+Explore complete structured responses, inspect individual block payloads and simulate safe copy, diff-apply and command-run actions without touching the filesystem or starting processes.
 
-### Component Composition Snapshot
+### Component Composition Snapshot — `example:components`
 
 ```bash
-npm run example:components
+npx terlio example:components
 ```
 
-A non-interactive, CI-friendly Component Composition Snapshot. It tells one cohesive release-readiness story: a composition map explains the path from shell to patch, a product surface demonstrates semantic status and progress components, and previous/next virtual frames make the row-level patch contract concrete.
+A non-interactive, redirect-safe snapshot showing how product layout, semantic state, feedback components, virtual frames and row-level patches compose. This is also used by the npm distribution smoke test.
 
-## Removed duplicate examples
+## CLI forms
 
-The previous `example:chat`, `example:composer`, `example:command-center`, `example:sessions`, and duplicate `example:agent-stream` scripts were removed from the examples list. Their useful mechanics are covered by `demo:chat`, `example:editor`, `example:palette`, `example:stream`, and `example:kit`.
-
-## Running examples directly
-
-Most examples are executable Node.js scripts:
+The launcher accepts full ids, short names and split category/name syntax:
 
 ```bash
-node examples/components-showcase.js
-node examples/interaction-kit.js
-node examples/support-desk.js
+npx terlio example:palette
+npx terlio palette
+npx terlio example palette
+npx terlio run demo:chat
 ```
 
-Interactive examples require a real TTY because they use raw mode and terminal escape sequences.
+Interactive examples require a real TTY because they use raw input and alternate-screen rendering. `example:components` does not.

@@ -12,7 +12,7 @@ export function buildAssistantActionText(action, source) {
     return `Explanation of the last response:\n\n1. Main idea: ${summarize(cleaned, 180)}\n\n2. Why it matters: terminal UX breaks quickly when input state, rendering, and model logic are mixed.\n\n3. What to check next: commands, arrow keys, streaming, cancellation with Esc, and session saving.`;
   }
   if (action === 'apply') {
-    return 'Automatic artifact application is not connected yet. In this prototype, `/apply` only records the UX path: once a real provider/tools layer exists, the command can find the last applicable artifact and execute it through a separate safe adapter.';
+    return 'Automatic artifact application is not connected yet. In this reference application, `/apply` only records the UX path: once a real provider/tools layer exists, the command can find the last applicable artifact and execute it through a separate safe adapter.';
   }
   return cleaned;
 }

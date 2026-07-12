@@ -1,61 +1,71 @@
 # Getting started
 
-Mock AI Terminal is a dependency-free rich terminal UI library for Node.js. It gives you a declarative UI tree, a renderer that updates only changed terminal lines, and a set of interaction primitives for building full-screen terminal applications.
+Terlio is a dependency-free declarative terminal UI framework for Node.js. It provides a fixed-frame renderer, layout primitives and interaction helpers for full-screen terminal applications.
 
 ## Requirements
 
 - Node.js 18 or newer.
 - ES modules.
-- A real TTY for interactive apps and examples.
+- A real TTY for interactive applications and examples.
 
-## Install or run locally
-
-Inside this repository:
+## Install from npm
 
 ```bash
-npm install
-npm test
+npm install terlio
+```
+
+List the examples included in the installed package:
+
+```bash
+npx terlio list
+```
+
+Run a product demo or focused example:
+
+```bash
+npx terlio demo:chat
+npx terlio demo:support-desk
+npx terlio example:palette
+npx terlio example:components
+```
+
+Interactive examples require a real terminal. `example:components` writes a deterministic Component Composition Snapshot to stdout and does not require raw input.
+
+## Work from the repository
+
+```bash
+npm ci
 npm run check
+npm test
+npm run test:package
 ```
 
-Run the default demo:
-
-```bash
-npm start
-```
-
-Run a specific example:
-
-```bash
-npm run example:components
-npm run demo:support-desk
-```
-
-`example:components` is the non-interactive reference: it prints a deterministic Component Composition Snapshot that demonstrates how product layout, semantic state, feedback components, virtual frames, and row-level patches fit together.
+The repository keeps `npm run demo:*` and `npm run example:*` aliases for development. End users should prefer `npx terlio <id>` because npm does not expose dependency scripts to consuming projects.
 
 ## First static render
 
-Use `renderToString()` when you want to render a UI tree to text. This is useful for tests, snapshots, demos, and non-interactive output.
+Use `renderToString()` for tests, snapshots and non-interactive output:
 
 ```js
-import { Box, Row, Text, renderToString } from 'mock-ai-terminal';
+import { Box, Row, Text, renderToString } from 'terlio';
 
-const view = Box({ border: true, padding: 1, title: ' Status ' },
+const view = Box(
+  { border: true, padding: 1, title: ' Status ' },
   Text('Build finished.'),
-  Row({ gap: 2 }, Text('tests: passed'), Text('coverage: ok')),
+  Row({ gap: 2 }, Text('tests: passed'), Text('package: ready')),
 );
 
 console.log(renderToString(view, { width: 50, height: 8 }));
 ```
 
-`renderToString()` always produces a fixed-size frame. Lines are padded or clipped to the requested width and height, which makes output stable in tests.
+The result is a fixed-size frame. Lines are padded or clipped to the requested width and height, which keeps snapshots stable.
 
 ## First terminal renderer
 
-Use `TerminalRenderer` when you want to update an interactive terminal screen. It stores the previous frame and writes an ANSI patch for the difference between the old and new frame.
+`TerminalRenderer` retains the previous frame and writes only changed rows:
 
 ```js
-import { Box, Text, TerminalRenderer } from 'mock-ai-terminal';
+import { Box, Text, TerminalRenderer } from 'terlio';
 
 const renderer = new TerminalRenderer({ output: process.stdout });
 
@@ -67,110 +77,78 @@ renderer.renderNode(view('Ready'), {
   width: process.stdout.columns || 80,
   height: process.stdout.rows || 24,
 });
-
-setTimeout(() => {
-  renderer.renderNode(view('Updated'), {
-    width: process.stdout.columns || 80,
-    height: process.stdout.rows || 24,
-  });
-}, 500);
 ```
 
-## First interactive app
+## First managed workspace
 
-A basic interactive app usually has four pieces:
-
-1. State.
-2. A `view()` function that converts state into a UI tree.
-3. A `render()` function that sends the tree to `TerminalRenderer`.
-4. A key handler that calls `parseKey()` and updates state.
+Prefer `createWorkspaceApp()` over wiring raw mode and cleanup by hand:
 
 ```js
 import {
-  TerminalRenderer,
-  WorkspaceShell,
-  WorkspacePane,
-  WorkspaceFooter,
   Text,
-  parseKey,
-  ansi,
-} from 'mock-ai-terminal';
+  WorkspaceFooter,
+  WorkspacePane,
+  WorkspaceShell,
+  createWorkspaceApp,
+} from 'terlio';
 
-const input = process.stdin;
-const output = process.stdout;
-const renderer = new TerminalRenderer({ output });
-
-let selected = 0;
+const state = { selected: 0 };
 const items = ['Inbox', 'Assigned', 'Closed'];
 
-function view() {
-  return WorkspaceShell({
+const app = createWorkspaceApp({
+  title: 'Mini App',
+  state,
+  render: ({ height }) => WorkspaceShell({
     title: 'Mini App',
     subtitle: 'Use arrows to move',
     main: WorkspacePane({
       title: ' Queues ',
       active: true,
-      children: items.map((item, index) => Text(`${index === selected ? '›' : ' '} ${item}`)),
+      children: items.map((item, index) => Text(`${index === state.selected ? '›' : ' '} ${item}`)),
     }),
     footer: WorkspaceFooter({ left: ['↑/↓ move', 'Ctrl+C exit'] }),
-    height: output.rows || 24,
-  });
-}
-
-function render() {
-  renderer.renderNode(view(), {
-    width: output.columns || 80,
-    height: output.rows || 24,
-  });
-}
-
-function cleanup() {
-  input.setRawMode(false);
-  output.write(ansi.showCursor + ansi.normalScreen + ansi.reset + '\n');
-}
-
-output.write(ansi.altScreen + ansi.hideCursor + ansi.clear + ansi.home);
-input.setRawMode(true);
-input.setEncoding('utf8');
-input.resume();
-input.on('data', (chunk) => {
-  const key = parseKey(chunk);
-  if (key.name === 'ctrl-c') {
-    cleanup();
-    process.exit(0);
-  }
-  if (key.name === 'up') selected = Math.max(0, selected - 1);
-  if (key.name === 'down') selected = Math.min(items.length - 1, selected + 1);
-  render();
+    height,
+  }),
+  onKey: ({ key, invalidate }) => {
+    if (key.name === 'up') state.selected = Math.max(0, state.selected - 1);
+    if (key.name === 'down') state.selected = Math.min(items.length - 1, state.selected + 1);
+    invalidate();
+  },
 });
-output.on('resize', render);
 
-render();
+app.start();
 ```
 
-For a larger application shell, inspect `examples/support-desk/` and `examples/interaction-kit.js`.
+The runtime restores the terminal on `Ctrl+C`, `Ctrl+D`, normal stop and unexpected errors, and recalculates layout after resize.
 
-## Choosing the right layer
+## Choose the right layer
 
-Use the low-level UI runtime when you need exact control over layout and rendering:
+Use low-level primitives when you need exact composition:
 
 ```js
 Box({ border: true }, Row({ gap: 2 }, Text('A'), Text('B')))
 ```
 
-Use component helpers when you need common terminal UI patterns:
+Use stateful helpers and components for common interaction patterns:
 
 ```js
 SelectList({ items, selectedIndex })
-CommandBar({ value, suggestions })
 ScrollPane({ lines, scroll, height })
-resolveScrollKeyOffset({ keyName, scroll, totalRows, visibleRows })
+CommandBar({ value, suggestions })
 ```
 
-Use workspace primitives when you are building a product-style full-screen terminal application:
+Use workspace primitives for full-screen product interfaces:
 
 ```js
 WorkspaceShell({ header, tabs, main, command, footer })
 ```
 
-Use `RichTerminalApp` when you want the built-in mock AI chat application instead of assembling your own runtime.
+Use `RichTerminalApp` when you want the included reference chat application with mock and replay providers, sessions, skills, structured blocks and slash commands.
+
+## Local data
+
+The built-in session store uses `~/.terlio` by default. Set `TERLIO_HOME` to place session data elsewhere:
+
+```bash
+TERLIO_HOME=/tmp/terlio npx terlio demo:chat
+```

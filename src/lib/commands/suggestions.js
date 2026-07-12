@@ -126,7 +126,7 @@ export function getSuggestions(input, app = null) {
 
 function sessionActionDescription(action) {
   if (action === 'new') return 'Start a new session.';
-  if (action === 'save') return 'Save the current session in ~/.mock-ai-terminal/sessions.';
+  if (action === 'save') return 'Save the current session in ~/.terlio/sessions.';
   if (action === 'list') return 'Show saved sessions.';
   if (action === 'open') return 'Open a saved session.';
   if (action === 'delete') return 'Delete a saved session.';

@@ -31,7 +31,7 @@ export function createChatScreen(props = {}) {
         height: rows,
         minWidth: CHAT_MIN_COLUMNS,
         minHeight: CHAT_MIN_ROWS,
-        title: 'Mock AI Terminal',
+        title: 'Terlio',
         message: 'The chat workspace needs a slightly larger terminal.',
         theme,
       }),
@@ -168,7 +168,7 @@ export function Header({
     border: true,
     borderColor: theme.borderActive ?? theme.accent ?? theme.border,
     padding: { left: 1, right: 1 },
-    title: ' Mock AI Terminal ',
+    title: ' Terlio ',
     height: compact ? 3 : 4,
   },
   Text(rowOne, { wrap: false }),
@@ -549,7 +549,7 @@ function renderWelcomeLines({ columns, height = 10, theme }) {
   const compact = columns < 72 || height < 9;
   const items = compact
     ? [
-        color(theme, 'title', 'Welcome to Mock AI Terminal'),
+        color(theme, 'title', 'Welcome to Terlio'),
         color(theme, 'text', 'A local, dependency-free AI chat workspace.'),
         '',
         color(theme, 'textMuted', 'Type a message and press Enter.'),
@@ -557,7 +557,7 @@ function renderWelcomeLines({ columns, height = 10, theme }) {
         color(theme, 'textMuted', 'Ctrl+J adds a line · PgUp/PgDn reads history.'),
       ]
     : [
-        color(theme, 'title', 'Welcome to Mock AI Terminal'),
+        color(theme, 'title', 'Welcome to Terlio'),
         color(theme, 'text', 'A local, dependency-free chat workspace for testing rich terminal interaction.'),
         '',
         color(theme, 'textAccent', 'Start here'),

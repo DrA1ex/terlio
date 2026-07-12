@@ -103,8 +103,8 @@ export function applySerializedSkillState(skillState, serialized = {}) {
 }
 
 function defaultRootDir() {
-  if (process.env.MOCK_AI_TERMINAL_HOME) return process.env.MOCK_AI_TERMINAL_HOME;
-  return path.join(os.homedir(), '.mock-ai-terminal');
+  if (process.env.TERLIO_HOME) return process.env.TERLIO_HOME;
+  return path.join(os.homedir(), '.terlio');
 }
 
 function sanitizeId(id) {

@@ -3,7 +3,7 @@
 All public exports are re-exported from the package entrypoint:
 
 ```js
-import * as terminal from 'mock-ai-terminal';
+import * as terminal from 'terlio';
 ```
 
 When developing inside this repository, import from `src/lib/index.js`.
@@ -16,7 +16,7 @@ When developing inside this repository, import from `src/lib/index.js`.
 new RichTerminalApp({ input, output, onExit, sessionStore })
 ```
 
-A complete mock AI chat terminal app. It owns terminal raw mode, alternate screen rendering, command execution, mock provider streaming, sessions, skills, suggestions, debug state, and command palette integration.
+A complete reference AI chat terminal app. It owns terminal raw mode, alternate screen rendering, command execution, mock provider streaming, sessions, skills, suggestions, debug state, and command palette integration.
 
 Important methods:
 
@@ -657,7 +657,7 @@ Exports:
 
 Use these when you want the built-in chat/transcript rendering without using the complete `RichTerminalApp`.
 
-## Providers and mock model
+## Providers and reference model
 
 Provider exports:
 

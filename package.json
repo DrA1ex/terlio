@@ -1,15 +1,32 @@
 {
-  "name": "mock-ai-terminal",
+  "name": "terlio",
   "version": "0.1.0",
-  "description": "Dependency-free rich terminal UI library and examples for Node.js.",
+  "description": "Dependency-free declarative terminal UI framework for Node.js.",
+  "keywords": [
+    "terminal",
+    "tui",
+    "cli",
+    "ui",
+    "nodejs",
+    "ansi",
+    "terminal-ui",
+    "command-palette",
+    "interactive-cli"
+  ],
   "type": "module",
   "bin": {
-    "mock-ai": "./examples/mock-ai-terminal.js"
+    "terlio": "bin/terlio.js"
   },
   "scripts": {
-    "start": "node examples/mock-ai-terminal.js",
+    "start": "node examples/chat.js",
+    "terlio": "node bin/terlio.js",
     "test": "node --test",
-    "check": "node --check examples/mock-ai-terminal.js && node --check src/index.js && find src/lib examples test -name \"*.js\" -print0 | xargs -0 -n1 node --check",
+    "check": "node --check bin/terlio.js && node --check src/index.js && find src/lib examples scripts test -name \"*.js\" -print0 | xargs -0 -n1 node --check",
+    "verify": "npm run check && npm test && npm run test:package",
+    "test:package": "node scripts/verify-package.js",
+    "pack:dry-run": "npm pack --dry-run",
+    "release:check": "npm run verify && npm publish --dry-run",
+    "prepublishOnly": "npm run verify",
     "examples": "node examples/index.js",
     "example:editor": "node examples/editor-lab.js",
     "example:palette": "node examples/command-palette.js",
@@ -20,7 +37,7 @@
     "example:blocks": "node examples/blocks.js",
     "demo:code-review": "node examples/code-review.js",
     "example:themes": "node examples/themes.js",
-    "demo:chat": "node examples/mock-ai-terminal.js",
+    "demo:chat": "node examples/chat.js",
     "demo:support-desk": "node examples/support-desk.js"
   },
   "engines": {
@@ -30,14 +47,21 @@
   "main": "./src/lib/index.js",
   "exports": {
     ".": "./src/lib/index.js",
-    "./example": "./examples/mock-ai-terminal.js",
-    "./examples/*": "./examples/*.js"
+    "./examples": "./examples/index.js",
+    "./examples/*": "./examples/*.js",
+    "./package.json": "./package.json"
   },
   "files": [
-    "src/lib",
-    "src/index.js",
+    "bin",
+    "src",
     "examples",
     "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
     "docs"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

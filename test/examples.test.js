@@ -10,7 +10,7 @@ import { createInteractionKitState, createInteractionKitView, handleInteractionK
 
 test('package exposes runnable example scripts', async () => {
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
-  assert.equal(pkg.scripts.start, 'node examples/mock-ai-terminal.js');
+  assert.equal(pkg.scripts.start, 'node examples/chat.js');
   assert.equal(pkg.scripts.examples, 'node examples/index.js');
   assert.equal(pkg.scripts['example:editor'], 'node examples/editor-lab.js');
   assert.equal(pkg.scripts['example:palette'], 'node examples/command-palette.js');
@@ -313,7 +313,7 @@ test('components snapshot renders a cohesive one-shot report without a TTY', () 
 test('interaction kit launches the product-grade showcase shell and overlays', () => {
   const state = createInteractionKitState();
   const output = renderToString(createInteractionKitView({ state, width: 132, height: 35 }), { width: 132, height: 35 });
-  assert.match(output, /Mock AI Terminal Kit/);
+  assert.match(output, /Terlio Component Studio/);
   assert.match(output, /Interactive component and capability showcase/);
   assert.match(output, /SHOWCASES/);
   assert.match(output, /PREVIEW · Welcome \/ Tour Map/);

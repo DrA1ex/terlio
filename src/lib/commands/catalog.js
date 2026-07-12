@@ -327,9 +327,9 @@ export const commands = [
   {
     name: '/about',
     usage: '/about',
-    description: 'Briefly describe the purpose of the prototype.',
+    description: 'Describe the Terlio reference chat application.',
     run(app) {
-      app.addSystemMessage('Mock AI Terminal is a dependency-free prototype of a rich terminal shell for AI chat. It includes a message log, input editor, session store, provider interface, actions for the last response, debug overlay, skills, themes, regex intents, and a streaming contract.');
+      app.addSystemMessage('Terlio is a dependency-free declarative terminal UI framework for Node.js. This reference chat application demonstrates the renderer, input editor, sessions, providers, response actions, overlays, skills, themes, regex intents and structured streaming contract.');
     },
   },
   {

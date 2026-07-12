@@ -145,7 +145,7 @@ export const replyRules = [
       'I would move from a stable shell toward a smarter model: terminal first, then commands, then skills, then a real backend for responses.',
       skills.has('planner')
         ? 'Work order: 1) lock down keyboard scenarios, 2) expand the suggestion engine, 3) move mock model rules into a separate list, 4) add state diagnostics, 5) only then connect real AI.'
-        : 'The main rule is not to mix the UX layer and response logic. Then the prototype stays manageable.',
+        : 'The main rule is not to mix the UX layer and response logic. Then the reference application stays manageable.',
       skills.has('analyst')
         ? 'The no-library tradeoff is clear: more manual TTY code, but no dependency on someone else\'s readline widget and more control over behavior.'
         : 'That is enough as a base for the current stage.',
@@ -179,7 +179,7 @@ export const replyRules = [
     build: ({ skills, active }) => [
       'I would explain it with a simple model: there is user input, terminal state, a set of active skills, and a response generator that streams text gradually.',
       skills.has('analyst')
-        ? 'It is important not to mix two layers: the model being smart and the interface behaving like an AI chat. This prototype primarily validates the second layer.'
+        ? 'It is important not to mix two layers: the model being smart and the interface behaving like an AI chat. This reference application primarily validates the second layer.'
         : 'This is demo logic for now, but the interaction shape already resembles a real chat.',
       skills.has('terminal')
         ? 'Terminal UX depends on predictable state: what is visible, where the cursor is, which suggestion is active, and whether the current stream can be cancelled.'
@@ -195,7 +195,7 @@ export const replyRules = [
       { re: /(pros|cons|advantages|disadvantages)/i, weight: 6 },
     ],
     build: ({ skills, active }) => [
-      'I would choose based on what matters most for the prototype: development speed, UX control, or future extensibility.',
+      'I would choose based on what matters most for the reference application: development speed, UX control, or future extensibility.',
       skills.has('analyst')
         ? 'If you need fully controlled terminal UX, manual raw TTY is better. If you need speed, a library is usually better. In this project the no-library constraint makes the manual path reasonable.'
         : 'For the current goal, behavior control matters more than implementation brevity.',
@@ -231,7 +231,7 @@ export const replyRules = [
       { re: /(edge\s+case|validation|manual)/i, weight: 5 },
     ],
     build: ({ skills, active }) => [
-      'I would test the prototype with scenarios, not only syntax: a normal message, `/`, command selection with arrows, Enter application, theme switching with `/theme`, skills with `/skill`, and response cancellation with Esc.',
+      'I would test the reference application with scenarios, not only syntax: a normal message, `/`, command selection with arrows, Enter application, theme switching with `/theme`, skills with `/skill`, and response cancellation with Esc.',
       skills.has('code')
         ? 'The minimum automated check here is `node --check` for all files plus a few direct calls to `buildMockReply()` and `getSuggestions()`.'
         : 'Manual testing matters because raw TTY behavior depends on key sequences.',
@@ -249,13 +249,13 @@ export const replyRules = [
       { re: /(danger|risk|vulnerability)/i, weight: 6 },
     ],
     build: ({ skills, active }) => [
-      'For this terminal prototype, I would separate application commands from shell commands immediately. Even if tools are added later, user input must not flow directly into `exec`.',
+      'For this terminal reference application, I would separate application commands from shell commands immediately. Even if tools are added later, user input must not flow directly into `exec`.',
       skills.has('code')
         ? 'Secrets should not be stored in message history or shown in `/history`. Future API providers should read keys from env and avoid rendering them in status output.'
         : 'The primary safety boundary is not executing user text as a system command.',
       skills.has('analyst')
         ? 'The main risk appears later, when the mock model is replaced by real tools. That is why the tools contract should be designed early.'
-        : 'This is only a UI prototype for now, but it is useful to define boundaries early.',
+        : 'This is a UI reference application for now, but it is useful to define boundaries early.',
       `Active skills: ${active}.`,
     ],
   },
@@ -267,7 +267,7 @@ export const replyRules = [
       { re: /(smooth|stream|output|chunk|buffer)/i, weight: 5 },
     ],
     build: ({ skills, active }) => [
-      'The main performance concern is frequent full-screen redraw during streaming. This is fine for the prototype, but later a redraw throttle can be added.',
+      'The main performance concern is frequent full-screen redraw during streaming. This is fine for the reference application, but later a redraw throttle can be added.',
       skills.has('terminal')
         ? 'A practical compromise is that model chunks may arrive often, while the screen updates no more than a fixed interval, for example 30-60 FPS. Input can remain responsive.'
         : 'Current delays intentionally imitate streaming so the AI-chat feeling can be tested.',
@@ -362,7 +362,7 @@ const fallbackRule = {
   id: 'fallback',
   title: 'general request',
   build: ({ skills, active }) => [
-    pick(skills, 'I understand the request. This is a mock model, so I am not trying to solve the task for real, but I select a response through regex rules and active skills.', 'Understood. In this prototype, the answer is not one fixed template; it is selected through rule matching on the prompt.'),
+    pick(skills, 'I understand the request. This is a mock model, so I am not trying to solve the task for real, but I select a response through regex rules and active skills.', 'Understood. In this reference application, the answer is not one fixed template; it is selected through rule matching on the prompt.'),
     skills.has('analyst')
       ? 'If no rule matches confidently, I use a general response. That is a useful fallback: terminal UX keeps working, and the intent set can expand without changing the interface.'
       : 'If the prompt does not match any template, the general fallback is used.',

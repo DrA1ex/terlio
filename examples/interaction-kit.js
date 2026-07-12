@@ -52,7 +52,7 @@ export function createInteractionKitView({ state = createInteractionKitState(), 
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
     title: 'Terminal too small',
-    message: 'Mock AI Terminal Kit needs more room for the product showcase.',
+    message: 'Terlio Component Studio needs more room for the product showcase.',
     theme,
     children: renderShell({ state, width, height, theme }),
   });
@@ -132,7 +132,7 @@ export function tickInteractionKit({ state } = {}) {
 export function createInteractionKitApp({ input = process.stdin, output = process.stdout } = {}) {
   const state = createInteractionKitState();
   return createWorkspaceApp({
-    title: 'Mock AI Terminal Kit',
+    title: 'Terlio Component Studio',
     state,
     input,
     output,
@@ -150,7 +150,7 @@ export function runInteractionKitDemo() {
 function renderShell({ state, width, height, theme }) {
   const entry = activeEntry(state);
   const header = WorkspaceHeader({
-    title: 'Mock AI Terminal Kit',
+    title: 'Terlio Component Studio',
     subtitle: 'Interactive component and capability showcase',
     stats: [
       { label: 'Theme', value: state.themeName },

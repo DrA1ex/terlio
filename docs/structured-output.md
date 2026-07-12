@@ -17,7 +17,7 @@ import {
   visibleConversationMessages,
   lastUserMessage,
   lastAssistantMessage,
-} from 'mock-ai-terminal';
+} from 'terlio';
 ```
 
 Create a message:
@@ -56,7 +56,7 @@ import {
   blockToText,
   blocksToText,
   ensureTextBlock,
-} from 'mock-ai-terminal';
+} from 'terlio';
 ```
 
 Supported block types:
@@ -95,7 +95,7 @@ const text = blocksToText(blocks);
 `createChatScreen()` creates the full chat UI tree used by `RichTerminalApp`.
 
 ```js
-import { createChatScreen, renderToString } from 'mock-ai-terminal';
+import { createChatScreen, renderToString } from 'terlio';
 
 const screen = createChatScreen({
   messages,
@@ -135,7 +135,7 @@ These are useful when you want the default transcript rendering but not the full
 Providers implement the streaming interface used by `RichTerminalApp`.
 
 ```js
-import { createProvider, listProviders } from 'mock-ai-terminal';
+import { createProvider, listProviders } from 'terlio';
 
 const provider = createProvider('mock');
 console.log(listProviders());
@@ -157,7 +157,7 @@ import {
   streamMockReply,
   streamMockBlocks,
   StreamCancelled,
-} from 'mock-ai-terminal';
+} from 'terlio';
 ```
 
 Build an immediate mock reply:
@@ -195,7 +195,7 @@ If streaming is aborted, helpers throw `StreamCancelled`.
 Skill helpers are used by the mock AI chat app to alter responses.
 
 ```js
-import { createSkillState, enabledSkillNames, formatSkillList, getSkill, skills } from 'mock-ai-terminal';
+import { createSkillState, enabledSkillNames, formatSkillList, getSkill, skills } from 'terlio';
 
 const state = createSkillState();
 const names = enabledSkillNames(state);
@@ -204,7 +204,7 @@ const names = enabledSkillNames(state);
 Session persistence helpers:
 
 ```js
-import { serializeSkillState, applySerializedSkillState } from 'mock-ai-terminal';
+import { serializeSkillState, applySerializedSkillState } from 'terlio';
 
 const saved = serializeSkillState(skillState);
 const restored = createSkillState();
@@ -216,7 +216,7 @@ applySerializedSkillState(restored, saved);
 You can render blocks directly without using the full chat screen:
 
 ```js
-import { renderBlocksLines, Box, Text } from 'mock-ai-terminal';
+import { renderBlocksLines, Box, Text } from 'terlio';
 
 const lines = renderBlocksLines(blocks, { width: 80 });
 const node = Box({ border: true, title: ' Assistant ' }, ...lines.map((line) => Text(line, { wrap: false })));
