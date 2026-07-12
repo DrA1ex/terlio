@@ -66,6 +66,7 @@ npx terlio components
 npm ci
 npm run check
 npm test
+npm run test:coverage
 npm run test:package
 ```
 
