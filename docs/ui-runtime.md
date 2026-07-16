@@ -241,3 +241,5 @@ Pointer regions normally activate automatic SGR mouse reporting. For text that m
 `createActionRegistry()` keeps key bindings, help text, footer hints and command-palette items derived from the same action definitions. A callback-valued `disabled` property is evaluated against the current context everywhere, including generated help and footer output.
 
 `createOverlayManager()` owns blocking overlays and transient toasts. Its `tick(delta)` method returns `true` only when the visible toast stack changes, so applications do not repaint merely because an invisible TTL value changed. Toasts rendered by `OverlayHost` dismiss immediately on click.
+
+For layout-local popups such as autocomplete, use `BottomOverlay` instead of a blocking overlay. It composes the popup after the underlying frame has been laid out, anchors it above a configurable bottom inset, and preserves pointer markers from both trees. The popup wins hit-testing only in covered cells; the rest of the application remains interactive. Removing or resizing it is handled by ordinary frame diffs over the affected rows.

@@ -9,6 +9,7 @@ import { renderShadowOverlay } from './shadowOverlay.js';
 import { renderText } from './text.js';
 import { renderSplitPane } from './splitPane.js';
 import { renderDocked } from './docked.js';
+import { renderBottomOverlay } from './bottomOverlay.js';
 import { renderKeyHintBar } from '../keyHintBar.js';
 import { renderOverlayHost } from '../../overlayHost.js';
 import { renderSelectList } from '../components/select.js';
@@ -70,6 +71,9 @@ function renderNodeInternal(node, width, pointerContext) {
       break;
     case 'docked':
       lines = renderDocked(node, width, childRenderer);
+      break;
+    case 'bottomOverlay':
+      lines = renderBottomOverlay(node, width, childRenderer);
       break;
     case 'keyHintBar':
       lines = renderKeyHintBar(node, width, childRenderer);

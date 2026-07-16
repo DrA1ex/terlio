@@ -113,6 +113,14 @@ measureNodeHeight(node, width)
 
 `layout()` returns a fixed-size frame. `renderNode()` returns rendered lines for a node at a given width. `measureNodeHeight()` renders the node at the same width and returns the number of rows it would occupy; use it when calculating available space for adaptive terminal layouts.
 
+### BottomOverlay
+
+```js
+BottomOverlay({ content, overlay, height, bottom, left, right, width, align, opaque })
+```
+
+Places `overlay` over the bottom portion of `content` without reserving rows in the underlying layout. The component clips to `height`, positions above `bottom` rows, and supports horizontal insets plus left/center/right alignment for narrower surfaces. Pointer regions inside the overlay participate in normal hit-testing and take precedence over covered background regions.
+
 ### Frame
 
 ```js

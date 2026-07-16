@@ -61,7 +61,7 @@ npx terlio.js components
 - Efficient rendering through fixed virtual frames and row-level ANSI patches.
 - Stateful interaction helpers for lists, scrolling, focus, modes, text editing and command palettes.
 - Pointer input with SGR 1006 mouse reporting, wheel/touchpad events, clicks, coordinates and component hit-testing.
-- Blocking modals and confirmations plus non-blocking toast overlays.
+- Blocking modals and confirmations, non-blocking toast overlays, and bottom-anchored popups that do not consume layout rows.
 - Unicode-aware measurement and clipping for emoji, CJK and styled ANSI text.
 - Structured response blocks for text, code, diffs, commands, warnings and tool results.
 - No runtime dependencies; Node.js built-ins only.
@@ -205,7 +205,7 @@ Use the `terlio.js` CLI rather than importing an interactive example when the go
 
 ## Project status
 
-Terlio.js 1.1 adds pointer input and mouse-enabled examples while preserving the stable 1.0 keyboard and rendering APIs. Public exports are covered by tests.
+Terlio.js 1.1 adds pointer input, mouse-enabled examples, and bottom-anchored non-modal overlays while preserving the stable 1.0 keyboard and rendering APIs. Public exports are covered by tests.
 
 ## License
 

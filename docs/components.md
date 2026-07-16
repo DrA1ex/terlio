@@ -209,6 +209,26 @@ SelectList({
 
 Renders a scroll-windowed selectable list. Items use one terminal row when their label and description fit, then grow only as needed up to `maxItemLines`. Content that still does not fit is clipped with an ellipsis on the final row. `windowStart` lets scrolling move the visible item window independently from `selectedIndex`; this is useful when wheel scrolling should not change selection until the selected item leaves the viewport. `rowLines` remains a compatibility alias for `maxItemLines`, while `reserveItemLines: true` opts into fixed-height rows.
 
+### BottomOverlay
+
+```js
+BottomOverlay({
+  content,
+  overlay,
+  height,
+  bottom = 0,
+  left = 0,
+  right = 0,
+  width = null,
+  align = 'stretch',
+  opaque = true,
+})
+```
+
+Composes a bottom-anchored, non-modal surface over an existing fixed-height frame. The underlying content keeps its full layout height. `bottom` places the surface above fixed footer or composer rows; `left` and `right` define the available horizontal inset; `width` can make the surface narrower; and `align` accepts `stretch`, `left`, `center`, or `right`. Oversized overlays are clipped to the available viewport height.
+
+Pointer markers from both trees are preserved. Regions inside the overlay are rendered later and therefore win hit-testing where the two surfaces overlap, while uncovered background regions remain interactive. Set `opaque: false` only when the overlay intentionally allows the underlying row to remain visible through unused cells.
+
 ### ConfirmPrompt
 
 ```js

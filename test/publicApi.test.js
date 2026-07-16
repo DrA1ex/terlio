@@ -13,6 +13,7 @@ test('library entry exports terminal app and low-level building blocks', () => {
     'parsePointer',
     'parseInputEvents',
     'PointerRegion',
+    'BottomOverlay',
     'SelectableText',
     'createTextSelectionState',
     'selectionContainsPoint',

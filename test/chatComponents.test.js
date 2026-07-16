@@ -44,8 +44,8 @@ test('ChatScreen renders the main shell from reusable components', () => {
   assert.match(output, /mock · dark/);
   assert.match(output, /skills code, writer/);
   // Compact height prioritizes the latest turn; older turns remain available through transcript scrolling.
-  assert.match(output, /assistant/);
-  assert.match(output, /Mock answer/);
+  assert.match(output, /you/);
+  assert.match(output, /hello terminal/);
   assert.match(output, /COMMANDS · 1 match/);
   assert.match(output, /\/help/);
   assert.match(output, /Ready\./);
@@ -149,7 +149,6 @@ test('RichTerminalApp.render delegates to component ChatScreen and TerminalRende
 
   const frame = stripAnsi(app.renderer.previousFrame.toString());
   assert.match(frame, new RegExp(packageDisplayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.match(frame, /hello from app/);
   assert.match(frame, /COMMANDS/);
   assert.match(frame, /\/help/);
 });

@@ -9,6 +9,7 @@ import { RequireViewport } from '../ui/requireViewport.js';
 import { Box, Column, Text } from '../ui/node.js';
 import { SelectableText } from '../ui/components/selectableText.js';
 import { renderNode } from '../ui/layout/index.js';
+import { BottomOverlay } from '../ui/layout/bottomOverlay.js';
 import { fit } from '../ui/layout/utils.js';
 import { renderCursorCell, renderTextEditorLines } from '../ui/components/editor.js';
 import { normalizeBlocks } from '../blocks.js';
@@ -57,7 +58,7 @@ export function createChatScreen(props = {}) {
   const debugHeight = rows >= headerHeight + suggestionHeight + composerHeight + statusHeight + requestedDebugHeight + 4
     ? requestedDebugHeight
     : 0;
-  const fixedHeight = headerHeight + suggestionHeight + debugHeight + composerHeight + statusHeight;
+  const fixedHeight = headerHeight + debugHeight + composerHeight + statusHeight;
   const transcriptPaneHeight = Math.max(4, rows - fixedHeight);
 
   const transcript = TranscriptPane({
@@ -93,7 +94,19 @@ export function createChatScreen(props = {}) {
     compact,
   });
 
-  const content = Column({ height: rows }, header, transcript.node, suggestions, debug, status, input);
+  const content = Column({ height: rows }, header, transcript.node, debug, status, input);
+  const contentWithSuggestions = suggestions
+    ? BottomOverlay({
+        content,
+        overlay: suggestions,
+        height: rows,
+        bottom: debugHeight + statusHeight + composerHeight,
+        left: 0,
+        right: 0,
+        align: 'stretch',
+        opaque: true,
+      })
+    : content;
   const manager = chatOverlayManager({
     mode: props.mode,
     palette: props.palette,
@@ -108,7 +121,7 @@ export function createChatScreen(props = {}) {
 
   return {
     node: OverlayHost({
-      content,
+      content: contentWithSuggestions,
       manager,
       theme,
       width: columns,
