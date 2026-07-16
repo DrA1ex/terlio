@@ -43,7 +43,7 @@ Printable input returns `printable: true` and `text` set to the typed text.
 
 The parser recognizes common modified arrow and enter escape sequences, including Shift, Alt/Meta, Ctrl, and some macOS Command-arrow forms.
 
-For read-only panes, a useful convention is to reserve `Shift+↑/↓` for one-row scrolling while leaving unmodified arrows available to lists, editors, or other locally focused controls. Keep `Page Up/Page Down` for larger jumps:
+For read-only panes, use `↑/↓` for one-row scrolling when that pane owns focus. Keep `Page Up/Page Down` for larger jumps:
 
 ```js
 if (key.shift && key.name === 'up') scrollByLines(-1);
@@ -99,14 +99,18 @@ A normalized pointer event includes:
 
 `createWorkspaceApp()` and `RichTerminalApp` accept a `pointer` option:
 
-- `'auto'` (default) enables reporting while a global or rendered component handler exists.
+- `'auto'` (default) enables reporting while a global handler or an auto-enabling rendered component exists.
 - `true` always enables reporting while the runtime is running.
 - `false` leaves mouse reporting disabled.
 - `{ enabled, drag, motion }` controls reporting explicitly. `drag` defaults to `true`; all-motion reporting defaults to `false`.
 
-The runtime enables basic mouse tracking plus SGR 1006 encoding and automatically restores terminal modes in `stop()`, `exit()`, and fatal cleanup paths. Call `app.setPointerEnabled(true | false | 'auto')` to change the mode while running.
+The runtime enables basic mouse tracking plus SGR 1006 encoding and automatically restores terminal modes in `stop()`, `exit()`, and fatal cleanup paths. Call `app.setPointerEnabled(true | false | 'auto')` to change the configured preference while running.
 
-Mouse reporting consumes ordinary drag gestures in many terminal emulators. Applications that display copyable text should expose a temporary selection mode that calls `setPointerEnabled(false)`, then restores the previous preference when selection is finished. The packaged chat demo uses `Ctrl+T` for this: pointer reporting pauses so user and assistant transcript text can be selected natively, while keyboard scrolling remains available.
+Terminal mouse reporting consumes the terminal emulator's native drag gesture, but applications can provide selection themselves. `SelectableText` and `ScrollPane({ selection })` keep reporting enabled, draw the selected range in the component, and capture drag events outside its bounds. Scrollable selections use content coordinates, so wheel or keyboard scrolling can move through multiple viewports without losing the range. A short click inside the highlighted range invokes `onCopy`; a successful result clears it, while a failed copy keeps it for retry. A short click elsewhere clears it without copying. Do not bind `Ctrl+C`: it remains `SIGINT`. Native clipboard tools are preferred for explicit copy actions, while OSC 52 remains the fallback for remote terminals. `copyOnRelease: true` remains available for applications that deliberately want immediate copy, and `nativeSelectionModifier` can be configured for terminal-specific behavior when needed.
+
+Use `app.setPointerOverride(true | false | null)` or `app.togglePointerOverride()` only for temporary exceptions. `true` forces reporting, `false` restores the terminal emulator's native selection, and `null` returns to the configured automatic behavior. The packaged demos bind this fallback to `Ctrl+T`.
+
+The chat transcript uses component-level selection, so wheel/trackpad scrolling, clicks, and drag selection are active together by default. The selection remains stable while scrolling, including across multiple screens. Clicking highlighted text copies it and clears the highlight after success; a failed copy leaves it selected. Clicking outside clears it without copying. The command palette remains an alternative explicit copy action, and `Ctrl+C` always interrupts. Read-only code-review panes use the same selection model. `Ctrl+T` is reserved for exceptional cases that require native terminal selection.
 
 ### Component hit-testing
 
@@ -127,7 +131,7 @@ Box({
 }, Text('Scrollable content'))
 ```
 
-Use `PointerRegion(props, child)` around components whose factory does not forward pointer props. `ScrollPane()` forwards pointer props directly and defaults its hit width to the full assigned width.
+Use `PointerRegion(props, child)` around components whose factory does not forward pointer props. `ScrollPane()` forwards pointer props directly and defaults its hit width to the full assigned width. `pointerAutoEnable` defaults to `true`. Set it to `false` only for a passive region that should not enable terminal mouse reporting by itself.
 
 Hit-testing is generated from the actual rendered layout. Routed events contain `target`, `currentTarget`, `localX`, and `localY`. Nested regions bubble from the innermost region outward; handlers can call `stopPropagation()`, `stopImmediatePropagation()`, or `preventDefault()`.
 
@@ -344,7 +348,7 @@ toasts.tick(1);
 const current = toasts.current();
 ```
 
-Use `toasts.current()` with the `Toast` component, or `toasts.clear()` to remove the active toast immediately.
+Use `toasts.current()` with the `Toast` component, or `toasts.clear()` to remove the active toast immediately. Toasts rendered through `OverlayHost` also dismiss immediately when clicked.
 
 ## SessionStore
 

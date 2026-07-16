@@ -1,6 +1,6 @@
 import { InputEditor, handleInputEditorKey } from './inputEditor.js';
 import { Box, Column, Row, Text } from './ui/node.js';
-import { HelpOverlay } from './ui/components/index.js';
+import { HelpOverlay, renderCursorCell } from './ui/components/index.js';
 import { color, truncateVisible } from './ansi/text.js';
 import { createListState, getListWindow, handleListKey, updateListItems } from './listState.js';
 
@@ -96,7 +96,7 @@ export function renderCommandPalette(state, { title = ' Command Palette ', showH
   const body = [
     Box({ border: true, borderColor: theme?.borderActive ?? theme?.border, padding: { left: 1, right: 1 }, title },
       Text(theme ? color(theme, 'textMuted', 'Search commands, actions, sessions, providers or skills.') : 'Search commands, actions, sessions, providers or skills.'),
-      Text(`${theme ? color(theme, 'textAccent', 'Query') : 'Query'}: ${query || '<empty>'}█`, { wrap: false }),
+      Text(`${theme ? color(theme, 'textAccent', 'Query') : 'Query'}: ${query || '<empty>'}${renderCursorCell(' ')}`, { wrap: false }),
       Text(theme ? color(theme, 'textMuted', state.status ?? '') : state.status ?? '', { wrap: false }),
     ),
     list,

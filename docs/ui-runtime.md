@@ -234,8 +234,10 @@ The runtime:
 - redraws on resize and skips identical frames;
 - removes timers and listeners during `stop()` or fatal cleanup.
 
+Pointer regions normally activate automatic SGR mouse reporting. For text that must remain selectable while wheel input stays active, use `SelectableText` or pass a `createTextSelectionState()` value to `ScrollPane({ selection })`; the component renders its own in-app selection in content coordinates. Wheel and keyboard scrolling preserve the range. A click inside the highlight can invoke `onCopy`; a successful copy clears the selection, while a failed copy keeps it for retry. A click outside clears it without copying. `Ctrl+C` is never reassigned and remains `SIGINT`. `copyTextToClipboard()` is available for explicit actions and uses the native platform clipboard when available, with OSC 52 as a remote-terminal fallback. Set `pointerAutoEnable: false` only for unusual passive regions. `setPointerOverride(true | false | null)` remains a manual escape hatch for forced pointer input, native terminal selection, or automatic behavior.
+
 ## Declarative actions and overlays
 
 `createActionRegistry()` keeps key bindings, help text, footer hints and command-palette items derived from the same action definitions. A callback-valued `disabled` property is evaluated against the current context everywhere, including generated help and footer output.
 
-`createOverlayManager()` owns blocking overlays and transient toasts. Its `tick(delta)` method returns `true` only when the visible toast stack changes, so applications do not repaint merely because an invisible TTL value changed.
+`createOverlayManager()` owns blocking overlays and transient toasts. Its `tick(delta)` method returns `true` only when the visible toast stack changes, so applications do not repaint merely because an invisible TTL value changed. Toasts rendered by `OverlayHost` dismiss immediately on click.

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  ansi,
   SelectList,
   ScrollPane,
   ConfirmPrompt,
@@ -148,7 +149,8 @@ test('Text editor view wraps long draft text and keeps cursor visible', () => {
   editor.move(-12);
   const lines = renderTextEditorLines({ value: editor.value, cursor: editor.cursor, width: 24, height: 4 });
   assert.equal(lines.length, 4);
-  assert.ok(lines.some((line) => line.includes('█')));
+  assert.ok(lines.some((line) => line.includes(ansi.inverse)));
+  assert.equal(lines.some((line) => line.includes('█')), false);
   assert.ok(lines.some((line) => /│/.test(line)));
 });
 

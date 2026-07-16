@@ -1,5 +1,5 @@
 import { Modal, Toast, ConfirmPrompt } from './ui/components/index.js';
-import { Box, Text, createNode } from './ui/node.js';
+import { Box, PointerRegion, Text, createNode } from './ui/node.js';
 import { fit } from './ui/layout/utils.js';
 import { stripAnsi, takeVisibleAnsi, visibleLength } from './ansi/text.js';
 import { stripPointerMarkers } from './pointer.js';
@@ -33,6 +33,11 @@ export class OverlayManager {
   }
 
   pop() { return this.stack.pop() ?? null; }
+  dismissToast(id) {
+    const before = this.toasts.length;
+    this.toasts = this.toasts.filter((toast) => toast?.id !== id);
+    return this.toasts.length !== before;
+  }
   clear() { this.stack = []; this.toasts = []; }
   top() { return this.stack[this.stack.length - 1] ?? null; }
   hasBlocking() { return Boolean(this.top()); }
@@ -92,7 +97,7 @@ export function renderOverlayHost(node, width, renderNode) {
     );
   }
   const toasts = manager?.toasts?.slice(-3) ?? [];
-  if (toasts.length) lines = overlayToasts(lines, toasts, theme, width, height, Math.max(0, Number(node.props.toastBottomMargin) || 0), renderNode);
+  if (toasts.length) lines = overlayToasts(lines, toasts, theme, width, height, Math.max(0, Number(node.props.toastBottomMargin) || 0), renderNode, manager);
   return lines;
 }
 
@@ -115,12 +120,25 @@ function overlayCentered(lines, overlayLines, width, height, { opaqueRows = fals
   return next;
 }
 
-function overlayToasts(lines, toasts, theme, width, height, bottomMargin, renderNode) {
+function overlayToasts(lines, toasts, theme, width, height, bottomMargin, renderNode, manager) {
   const toastWidth = Math.max(28, Math.min(58, width - 4));
   const rendered = [];
   for (const toast of toasts) {
     const prepared = prepareToast(toast, toastWidth);
-    rendered.push(...renderNode(Toast({ level: prepared.level, message: prepared.message, detail: prepared.detail, theme, width: toastWidth, shadow: true }), toastWidth));
+    const toastNode = Toast({ level: prepared.level, message: prepared.message, detail: prepared.detail, theme, width: toastWidth, shadow: true });
+    const dismiss = (event) => {
+      dismissToast(manager, toast);
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    };
+    rendered.push(...renderNode(PointerRegion({
+      pointerId: `toast:${toast.id ?? 'active'}`,
+      pointerData: { kind: 'toast', id: toast.id ?? null },
+      pointerWidth: 'fill',
+      onClick: dismiss,
+      onRelease: dismiss,
+    }, toastNode), toastWidth));
   }
   const stack = rendered.slice(-Math.max(1, height - bottomMargin - 1));
   const startRow = Math.max(0, height - bottomMargin - stack.length);
@@ -128,6 +146,24 @@ function overlayToasts(lines, toasts, theme, width, height, bottomMargin, render
   const next = [...lines];
   for (let i = 0; i < stack.length && startRow + i < height; i++) next[startRow + i] = overlayLine(next[startRow + i], fit(stack[i], toastWidth), startCol, width);
   return next;
+}
+
+
+function dismissToast(manager, toast) {
+  if (typeof toast?.onDismiss === 'function') {
+    toast.onDismiss(toast);
+    return true;
+  }
+  if (typeof manager?.dismissToast === 'function') return manager.dismissToast(toast?.id);
+  if (Array.isArray(manager?.toasts)) {
+    const before = manager.toasts.length;
+    for (let index = manager.toasts.length - 1; index >= 0; index -= 1) {
+      const item = manager.toasts[index];
+      if (item === toast || item?.id === toast?.id) manager.toasts.splice(index, 1);
+    }
+    return manager.toasts.length !== before;
+  }
+  return false;
 }
 
 function prepareToast(toast, width) {

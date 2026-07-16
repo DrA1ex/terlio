@@ -104,6 +104,7 @@ function registerPointerNode(props, context) {
     data: props.pointerData ?? props.data,
     disabled: Boolean(props.disabled),
     pointerEvents: props.pointerEvents ?? 'auto',
+    autoEnable: props.pointerAutoEnable !== false,
     parentToken: context.stack.at(-1) ?? null,
     onPointer: props.onPointer,
     onClick: props.onClick,

@@ -512,7 +512,7 @@ function contextHelp(state) {
     ];
   }
   return [
-    ['Shift+↑/↓', 'scroll line'],
+    ['↑/↓', 'scroll line'],
     ['PgUp/PgDn', 'scroll page'],
     ['Enter', 'apply candidate'],
     ['C', 'candidate / compare'],

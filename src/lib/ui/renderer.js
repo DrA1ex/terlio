@@ -1,3 +1,4 @@
+import { ansi } from '../ansi/codes.js';
 import { dispatchPointerEvent, hitTestPointerRegions } from '../pointer.js';
 import { patchFrames } from './diff.js';
 import { layout } from './layout/index.js';
@@ -15,6 +16,7 @@ export class TerminalRenderer {
     this.output = output;
     this.previousFrame = null;
     this.pointerRegions = [];
+    this.pointerCaptureToken = null;
   }
 
   renderLines(lines, options) {
@@ -30,8 +32,13 @@ export class TerminalRenderer {
   }
 
   renderFrame(frame) {
-    const patch = patchFrames(this.previousFrame, frame);
-    if (this.output && patch) this.output.write(patch);
+    const patch = patchFrames(this.previousFrame, frame, {
+      includeRegionChanges: true,
+      // Some terminal fonts draw block/background cells a fraction outside their
+      // nominal row. Repaint one neighboring row instead of clearing the screen.
+      bleedRows: 1,
+    });
+    if (this.output && patch) this.output.write(`${ansi.autoWrapOff}${patch}${ansi.autoWrapOn}`);
     this.previousFrame = frame;
     this.pointerRegions = Array.isArray(frame?.pointerRegions) ? frame.pointerRegions : [];
     return patch;
@@ -42,11 +49,15 @@ export class TerminalRenderer {
   }
 
   dispatchPointer(pointer, context = {}) {
-    return dispatchPointerEvent(pointer, this.pointerRegions, context);
+    const result = dispatchPointerEvent(pointer, this.pointerRegions, context, { capturedToken: this.pointerCaptureToken });
+    if (result.event?.pointerCaptureReleaseRequested || pointer?.action === 'release') this.pointerCaptureToken = null;
+    if (result.event?.pointerCaptureRequested && result.event?.targetToken != null) this.pointerCaptureToken = result.event.targetToken;
+    return result;
   }
 
   reset() {
     this.previousFrame = null;
     this.pointerRegions = [];
+    this.pointerCaptureToken = null;
   }
 }

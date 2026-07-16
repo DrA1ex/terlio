@@ -7,9 +7,10 @@ import { getCommandPaletteMatches, getPaletteQuery } from '../commandPalette.js'
 import { OverlayHost } from '../overlayHost.js';
 import { RequireViewport } from '../ui/requireViewport.js';
 import { Box, Column, Text } from '../ui/node.js';
+import { SelectableText } from '../ui/components/selectableText.js';
 import { renderNode } from '../ui/layout/index.js';
 import { fit } from '../ui/layout/utils.js';
-import { renderTextEditorLines } from '../ui/components/editor.js';
+import { renderCursorCell, renderTextEditorLines } from '../ui/components/editor.js';
 import { normalizeBlocks } from '../blocks.js';
 import { packageDisplayName } from '../packageMetadata.js';
 
@@ -102,6 +103,7 @@ export function createChatScreen(props = {}) {
     columns,
     onPaletteSelect: props.onPaletteSelect,
     onPaletteWheel: props.onPaletteWheel,
+    onPaletteDismiss: props.onPaletteDismiss,
   });
 
   return {
@@ -135,6 +137,8 @@ export function Header({
   activeSkills = null,
   compact = false,
   selectionMode = false,
+  pointerActive = false,
+  pointerOverride = null,
 } = {}) {
   const skills = Array.isArray(activeSkills)
     ? activeSkills.join(', ')
@@ -160,13 +164,23 @@ export function Header({
   const metaBudget = compact ? Math.max(10, innerWidth - visibleLength(title) - 2) : innerWidth;
   const meta = compact ? truncateVisible(rawMeta, metaBudget, '…') : rawMeta;
   const rowOne = joinSides(color(theme, 'text', title), color(theme, 'textMuted', meta), innerWidth);
-  const shortcuts = selectionMode
-    ? 'TEXT SELECTION · drag to copy · Ctrl+T restore pointer mode'
-    : compact
-      ? 'wheel/Shift+↑↓ read · Ctrl+T select text · Ctrl+P palette'
-      : columns < 124
-        ? 'wheel/Shift+↑↓ read · Ctrl+T text selection · Ctrl+P palette'
-        : 'wheel/trackpad or Shift+↑/↓ read  ·  Ctrl+T text selection  ·  Ctrl+P palette  ·  / commands';
+  const pointerForced = pointerOverride === true;
+  const selectionForced = pointerOverride === false || selectionMode;
+  const shortcuts = selectionForced
+    ? 'NATIVE SELECTION FALLBACK · Ctrl+T smart mode'
+    : pointerForced
+      ? 'POINTER OVERRIDE · wheel/click · Ctrl+T smart mode'
+      : pointerActive
+        ? compact
+          ? 'wheel/click + drag selection · Ctrl+T native mode · Ctrl+P palette'
+          : columns < 124
+            ? 'wheel/click + drag selection · Ctrl+T native mode · Ctrl+P palette'
+            : 'wheel/trackpad, clicks, and drag selection active  ·  Ctrl+T native fallback  ·  Ctrl+P palette  ·  / commands'
+        : compact
+          ? 'native terminal selection · Ctrl+T smart mode'
+          : columns < 124
+            ? 'native terminal selection · Ctrl+T smart mode'
+            : 'native terminal selection fallback  ·  Ctrl+T restores smart mouse mode  ·  Ctrl+P palette';
   const skillText = compact ? `${safeSkills}` : `skills: ${safeSkills}`;
   const rowTwo = joinSides(color(theme, 'textMuted', shortcuts), color(theme, 'textAccent', skillText), innerWidth);
 
@@ -181,7 +195,7 @@ export function Header({
   compact ? null : Text(rowTwo, { wrap: false }));
 }
 
-export function TranscriptPane({ columns = 80, height = 10, messages = [], theme = themes.dark, frame = 0, scrollOffset = 0, busy = false, onTranscriptWheel = null } = {}) {
+export function TranscriptPane({ columns = 80, height = 10, messages = [], theme = themes.dark, frame = 0, scrollOffset = 0, busy = false, transcriptSelection = null, onTranscriptWheel = null, onTranscriptCopy = null } = {}) {
   const safeHeight = Math.max(4, Number(height) || 4);
   const contentHeight = Math.max(1, safeHeight - 3);
   const transcript = Transcript({ columns: Math.max(20, columns - 4), height: contentHeight, messages, theme, frame, scrollOffset });
@@ -195,9 +209,13 @@ export function TranscriptPane({ columns = 80, height = 10, messages = [], theme
       ? `following live response${scrollSummary ? ` · ${scrollSummary}` : ''}`
       : `at latest${scrollSummary ? ` · ${scrollSummary}` : ''}`;
   const title = ` CONVERSATION · ${messages.length} message${messages.length === 1 ? '' : 's'} `;
+  const selectedText = String(transcriptSelection?.text ?? '');
+  const selectionHint = selectedText
+    ? `${Array.from(selectedText).length} selected · click the highlight to copy`
+    : `${transcript.totalRows} rows · drag to select · wheel to scroll`;
   const footer = joinSides(
     color(theme, 'textMuted', state),
-    color(theme, 'textMuted', `${transcript.totalRows} rows`),
+    color(theme, selectedText ? 'textAccent' : 'textMuted', selectionHint),
     Math.max(1, columns - 4),
   );
   return {
@@ -207,10 +225,19 @@ export function TranscriptPane({ columns = 80, height = 10, messages = [], theme
       padding: { left: 1, right: 1 },
       title,
       height: safeHeight,
+    }, SelectableText({
+      lines: transcript.lines,
+      selectionLines: transcript.allLines,
+      selectionOffsetY: transcript.start,
+      selection: transcriptSelection,
       pointerId: 'chat-transcript',
       pointerWidth: 'fill',
+      pointerAutoEnable: true,
       onWheel: onTranscriptWheel,
-    }, transcript.node, Text(footer, { wrap: false })),
+      onCopy: onTranscriptCopy,
+      clearOnWheel: false,
+      nativeSelectionModifier: false,
+    }), Text(footer, { wrap: false })),
     scrollOffset: transcript.scrollOffset,
     totalRows: transcript.totalRows,
     contentHeight,
@@ -221,8 +248,12 @@ export function Transcript({ columns = 80, height = 10, messages = [], theme = t
   if (!messages.length) {
     const rendered = renderWelcomeLines({ columns, height, theme });
     const sliced = rendered.slice(0, height);
+    const visibleLines = [...sliced, ...Array(Math.max(0, height - sliced.length)).fill('')];
     return {
-      node: Lines([...sliced, ...Array(Math.max(0, height - sliced.length)).fill('')]),
+      lines: visibleLines,
+      allLines: visibleLines,
+      start: 0,
+      node: Lines(visibleLines),
       scrollOffset: 0,
       totalRows: rendered.length,
       hiddenAbove: 0,
@@ -236,8 +267,12 @@ export function Transcript({ columns = 80, height = 10, messages = [], theme = t
   const end = Math.max(height, rendered.length - nextScrollOffset);
   const sliced = rendered.slice(Math.max(0, end - height), end);
   const missing = height - sliced.length;
+  const visibleLines = [...Array(Math.max(0, missing)).fill(''), ...sliced];
   return {
-    node: Lines([...Array(Math.max(0, missing)).fill(''), ...sliced]),
+    lines: visibleLines,
+    allLines: rendered,
+    start: Math.max(0, end - height) - missing,
+    node: Lines(visibleLines),
     scrollOffset: nextScrollOffset,
     totalRows: rendered.length,
     hiddenAbove: Math.max(0, rendered.length - height - nextScrollOffset),
@@ -392,6 +427,7 @@ export function SuggestionsPanel({
   suggestionWindowSize = null,
   onSuggestionSelect = null,
   onSuggestionWheel = null,
+  onSuggestionDismiss = null,
 } = {}) {
   const safeHeight = height === undefined ? null : Math.max(4, Number(height) || 4);
   const innerRows = safeHeight === null ? Math.max(2, suggestions.length + 1) : Math.max(1, safeHeight - 2);
@@ -419,7 +455,14 @@ export function SuggestionsPanel({
       const description = suggestion.description ?? '';
       const row = ` ${pointer} ${label.padEnd(18)} ${detail.padEnd(Math.max(12, Math.floor(columns * 0.34)))} ${description}`;
       const rowWidth = Math.max(1, columns - 4);
-      rows.push(Text(color(theme, selected ? 'selected' : 'suggestion', fit(truncateVisible(row, rowWidth, '…'), rowWidth)), { wrap: false, pointerId: `chat-suggestion:${originalIndex}`, pointerData: { suggestionIndex: originalIndex }, onClick: typeof onSuggestionSelect === 'function' ? () => onSuggestionSelect(suggestion, originalIndex) : null }));
+      const activate = typeof onSuggestionSelect === 'function' ? () => onSuggestionSelect(suggestion, originalIndex) : null;
+      rows.push(Text(color(theme, selected ? 'selected' : 'suggestion', fit(truncateVisible(row, rowWidth, '…'), rowWidth)), {
+        wrap: false,
+        pointerId: `chat-suggestion:${originalIndex}`,
+        pointerData: { suggestionIndex: originalIndex },
+        onClick: activate,
+        onRelease: activate,
+      }));
     });
   }
   while (rows.length < innerRows) rows.push(Text('', { wrap: false }));
@@ -434,10 +477,24 @@ export function SuggestionsPanel({
     ...(safeHeight !== null ? { height: safeHeight } : {}),
     pointerId: 'chat-suggestions',
     onWheel: onSuggestionWheel,
+    onClick: typeof onSuggestionDismiss === 'function' ? (event) => {
+      if (event.target?.id !== 'chat-suggestions') return false;
+      onSuggestionDismiss(event);
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    } : null,
+    onRelease: typeof onSuggestionDismiss === 'function' ? (event) => {
+      if (event.target?.id !== 'chat-suggestions') return false;
+      onSuggestionDismiss(event);
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    } : null,
   }, ...rows);
 }
 
-export function PalettePanel({ columns = 80, rows = 24, palette = null, theme = null, onPaletteSelect = null, onPaletteWheel = null } = {}) {
+export function PalettePanel({ columns = 80, rows = 24, palette = null, theme = null, onPaletteSelect = null, onPaletteWheel = null, onPaletteDismiss = null } = {}) {
   if (!palette) return Lines([]);
   const safeWidth = Math.max(32, Number(columns) || 68);
   const height = Math.min(16, Math.max(8, Number(rows) - 8));
@@ -453,7 +510,7 @@ export function PalettePanel({ columns = 80, rows = 24, palette = null, theme = 
   const query = getPaletteQuery(palette);
   const rowsOut = [
     Text(color(theme, 'textMuted', fit('Type to filter · ↑/↓ move · Enter insert · Esc clear/close', safeWidth - 4)), { wrap: false }),
-    Text(`${color(theme, 'textAccent', 'Search')}  ${query || '<all>'}█`, { wrap: false }),
+    Text(`${color(theme, 'textAccent', 'Search')}  ${query || '<all>'}${renderCursorCell(' ')}`, { wrap: false }),
   ];
   visible.forEach((item, offset) => {
     const index = start + offset;
@@ -464,7 +521,15 @@ export function PalettePanel({ columns = 80, rows = 24, palette = null, theme = 
     const titleWidth = Math.max(8, safeWidth - 4 - 1 - 13 - 1 - 18 - 3);
     const title = truncateVisible(item.title, titleWidth, '…');
     const line = `${marker} ${category.padEnd(13)} ${id.padEnd(18)} ${title}`;
-    rowsOut.push(Text(color(theme, item.disabled ? 'textMuted' : selected ? 'selected' : 'text', fit(line, safeWidth - 4)), { wrap: false, pointerId: `chat-palette:${item.id}`, pointerData: { paletteIndex: index, itemId: item.id }, pointerEvents: item.disabled ? 'none' : 'auto', onClick: !item.disabled && typeof onPaletteSelect === 'function' ? () => onPaletteSelect(item, index) : null }));
+    const activate = !item.disabled && typeof onPaletteSelect === 'function' ? () => onPaletteSelect(item, index) : null;
+    rowsOut.push(Text(color(theme, item.disabled ? 'textMuted' : selected ? 'selected' : 'text', fit(line, safeWidth - 4)), {
+      wrap: false,
+      pointerId: `chat-palette:${item.id}`,
+      pointerData: { paletteIndex: index, itemId: item.id },
+      pointerEvents: item.disabled ? 'none' : 'auto',
+      onClick: activate,
+      onRelease: activate,
+    }));
   });
   while (rowsOut.length < innerRows - 2) rowsOut.push(Text('', { wrap: false }));
   const selected = matches[palette.selectedIndex];
@@ -479,6 +544,20 @@ export function PalettePanel({ columns = 80, rows = 24, palette = null, theme = 
     height,
     pointerId: 'chat-palette',
     onWheel: onPaletteWheel,
+    onClick: typeof onPaletteDismiss === 'function' ? (event) => {
+      if (event.target?.id !== 'chat-palette') return false;
+      onPaletteDismiss(event);
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    } : null,
+    onRelease: typeof onPaletteDismiss === 'function' ? (event) => {
+      if (event.target?.id !== 'chat-palette') return false;
+      onPaletteDismiss(event);
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    } : null,
   }, ...rowsOut);
 }
 
@@ -522,17 +601,15 @@ export function InputBar({
   const value = inputValue || reconstructInput(inputParts);
   const cursor = inputCursor === undefined ? Array.from(inputParts?.before ?? value).length : inputCursor;
   const placeholder = busy ? 'Response is streaming…' : 'Ask something, or type / for commands…';
-  const editorLines = value
-    ? renderTextEditorLines({
-        value,
-        cursor,
-        width: Math.max(8, columns - 4),
-        height: innerHeight,
-        lineNumbers: false,
-        placeholder: '',
-        cursorGlyph: busy ? '·' : '█',
-      })
-    : [`${busy ? '·' : '█'} ${placeholder}`, ...Array(Math.max(0, innerHeight - 1)).fill('')];
+  const editorLines = renderTextEditorLines({
+    value,
+    cursor,
+    width: Math.max(8, columns - 4),
+    height: innerHeight,
+    lineNumbers: false,
+    placeholder,
+    cursorGlyph: busy ? '·' : null,
+  });
   const commandMode = String(value).trimStart().startsWith('/');
   const mode = busy ? 'STREAMING' : commandMode ? 'COMMAND' : 'CHAT';
   const hints = busy
@@ -569,7 +646,7 @@ function renderWelcomeLines({ columns, height = 10, theme }) {
         '',
         color(theme, 'textMuted', 'Type a message and press Enter.'),
         color(theme, 'textMuted', 'Use / for commands · Ctrl+P for the palette.'),
-        color(theme, 'textMuted', 'Wheel or Shift+↑/↓ reads history · Ctrl+T enables text selection.'),
+        color(theme, 'textMuted', 'Wheel scrolls · drag selects text · click the highlight to copy · Ctrl+T is the fallback.'),
       ]
     : [
         color(theme, 'title', `Welcome to ${packageDisplayName}`),
@@ -579,12 +656,12 @@ function renderWelcomeLines({ columns, height = 10, theme }) {
         color(theme, 'textMuted', '• Type a message and press Enter.'),
         color(theme, 'textMuted', '• Type / to browse commands with inline completion.'),
         color(theme, 'textMuted', '• Press Ctrl+P for the searchable action palette.'),
-        color(theme, 'textMuted', '• Use the wheel or Shift+↑/↓ to read; Ctrl+T enables native text selection.'),
+        color(theme, 'textMuted', '• Wheel scrolls; drag selects text; click the highlight to copy; Ctrl+T is the fallback.'),
       ];
   return items.flatMap((line) => line ? wrapText(line, width, '  ') : ['']);
 }
 
-function chatOverlayManager({ mode, palette, overlays, theme, rows = 24, columns = 80, onPaletteSelect = null, onPaletteWheel = null }) {
+function chatOverlayManager({ mode, palette, overlays, theme, rows = 24, columns = 80, onPaletteSelect = null, onPaletteWheel = null, onPaletteDismiss = null }) {
   const base = overlays ?? { toasts: [], top: () => null };
   return {
     toasts: base.toasts ?? [],
@@ -593,7 +670,7 @@ function chatOverlayManager({ mode, palette, overlays, theme, rows = 24, columns
         return {
           id: 'chat.palette',
           type: 'custom',
-          node: PalettePanel({ columns: Math.max(32, columns - 2), rows, palette, theme, onPaletteSelect, onPaletteWheel }),
+          node: PalettePanel({ columns: Math.max(32, columns - 2), rows, palette, theme, onPaletteSelect, onPaletteWheel, onPaletteDismiss }),
           width: Math.max(32, columns - 2),
           shadow: false,
           opaqueRows: true,

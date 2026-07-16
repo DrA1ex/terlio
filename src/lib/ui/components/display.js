@@ -27,6 +27,7 @@ export function SectionTabs({
   theme = null,
   onSelect = null,
   pointerId = 'section-tabs',
+  pointerAutoEnable = true,
 } = {}) {
   const parts = tabs.map((tab, index) => {
     const id = tab.id ?? tab.value ?? String(tab);
@@ -42,6 +43,7 @@ export function SectionTabs({
       wrap: false,
       pointerId: `${pointerId}:${id}`,
       pointerData: { kind: 'tab', id, index, tab },
+      pointerAutoEnable,
       onClick: typeof onSelect === 'function'
         ? (event) => onSelect(id, tab, index, event)
         : null,
@@ -105,6 +107,7 @@ export function ChipLine({
   variant = 'subtle',
   onSelect = null,
   pointerId = 'chip-line',
+  pointerAutoEnable = true,
 } = {}) {
   const parts = chips.map((chip, index) => {
     const id = chip.id ?? chip.value ?? String(chip);
@@ -115,6 +118,7 @@ export function ChipLine({
       wrap: false,
       pointerId: `${pointerId}:${id}`,
       pointerData: { kind: 'chip', id, index, chip },
+      pointerAutoEnable,
       onClick: typeof onSelect === 'function'
         ? (event) => onSelect(id, chip, index, event)
         : null,

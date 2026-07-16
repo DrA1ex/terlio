@@ -1,7 +1,10 @@
+import { ansi } from '../../ansi/codes.js';
+import { takeVisibleAnsi } from '../../ansi/text.js';
 import { Box, Text } from '../node.js';
 import { isScrollAtBottom, resolveAutoScrollOffset } from '../../scrollState.js';
 import { clamp } from './utils.js';
 import { fit } from '../layout/utils.js';
+import { SelectableText } from './selectableText.js';
 
 export function renderTextEditorLines({
   value = '',
@@ -10,7 +13,7 @@ export function renderTextEditorLines({
   height = 8,
   lineNumbers = true,
   placeholder = '',
-  cursorGlyph = '█',
+  cursorGlyph = null,
 } = {}) {
   const safeWidth = Math.max(8, Number(width) || 80);
   const safeHeight = Math.max(1, Number(height) || 1);
@@ -63,16 +66,6 @@ export function visibleWindowLines(lines = [], {
   autoscroll = false,
   previousTotalRows = undefined,
   sticky = undefined,
-  pointerId = undefined,
-  pointerData = undefined,
-  pointerWidth = 'fill',
-  pointerEvents = undefined,
-  onPointer = null,
-  onClick = null,
-  onWheel = null,
-  onDrag = null,
-  onMove = null,
-  onRelease = null,
 } = {}) {
   const safeLines = Array.from(lines, (line) => String(line ?? ''));
   const safeHeight = Math.max(1, Number(height) || 1);
@@ -108,18 +101,47 @@ export function ScrollPane({
   pointerData = undefined,
   pointerWidth = 'fill',
   pointerEvents = undefined,
+  pointerAutoEnable = true,
   onPointer = null,
   onClick = null,
   onWheel = null,
   onDrag = null,
   onMove = null,
   onRelease = null,
+  selection = null,
+  onSelectionChange = null,
+  onCopy = null,
+  copyOnRelease = false,
+  copyOnSelectionClick = true,
+  clearSelectionOnWheel = false,
+  nativeSelectionModifier = false,
 } = {}) {
   const chromeRows = (border ? 2 : 0) + (footer ? 1 : 0);
   const innerHeight = Math.max(1, (Number(height) || 1) - chromeRows);
-  const window = visibleWindowLines(lines, { height: Math.max(1, innerHeight), scroll, autoscroll, previousTotalRows, sticky });
-  const rows = window.lines.map((line) => Text(fit(line, Math.max(1, width - (border ? 4 : 0))), { wrap: false }));
-  if (footer) rows.push(Text(`wheel · Shift+↑/↓ · PgUp/PgDn ${window.scroll}/${window.maxScroll}`, { wrap: false }));
+  const contentWidth = Math.max(1, width - (border ? 4 : 0));
+  const sourceLines = Array.from(lines ?? [], (line) => takeVisibleAnsi(String(line ?? ''), contentWidth));
+  const window = visibleWindowLines(sourceLines, { height: Math.max(1, innerHeight), scroll, autoscroll, previousTotalRows, sticky });
+  const bodyLines = window.lines.map((line) => fit(line, contentWidth));
+  const rows = selection
+    ? [SelectableText({
+        lines: bodyLines,
+        selectionLines: sourceLines,
+        selectionOffsetY: window.start,
+        selection,
+        pointerId: pointerId ? `${pointerId}:selection` : 'scroll-pane:selection',
+        pointerData,
+        pointerWidth: 'fill',
+        pointerAutoEnable,
+        onWheel,
+        onSelectionChange,
+        onCopy,
+        copyOnRelease,
+        copyOnSelectionClick,
+        clearOnWheel: clearSelectionOnWheel,
+        nativeSelectionModifier,
+      })]
+    : bodyLines.map((line) => Text(line, { wrap: false }));
+  if (footer) rows.push(Text(`wheel · ↑/↓ · PgUp/PgDn ${window.scroll}/${window.maxScroll}`, { wrap: false }));
   return Box({
     border,
     padding: border ? { left: 1, right: 1 } : 0,
@@ -129,6 +151,7 @@ export function ScrollPane({
     pointerData,
     pointerWidth,
     pointerEvents,
+    pointerAutoEnable,
     onPointer,
     onClick,
     onWheel,
@@ -162,30 +185,52 @@ function splitLogicalLines(chars, cursor) {
   return lines.length ? lines : [{ text: '', cursorIndex: 0 }];
 }
 
+export function renderCursorCell(value = ' ') {
+  const cell = Array.from(String(value ?? ' '))[0] ?? ' ';
+  return `${ansi.inverse}${cell}${ansi.inverseOff}`;
+}
+
 function wrapEditorLine(text, cursorIndex, width, cursorGlyph) {
   const chars = Array.from(String(text ?? ''));
   const chunks = [];
   const safeWidth = Math.max(1, Number(width) || 1);
-  let start = 0;
+  const customGlyph = cursorGlyph === null || cursorGlyph === undefined || cursorGlyph === ''
+    ? null
+    : String(cursorGlyph);
 
   if (!chars.length) {
-    return [{ text: cursorIndex === 0 ? cursorGlyph : '', hasCursor: cursorIndex === 0 }];
+    return [{ text: cursorIndex === 0 ? renderCursorCell(' ') : '', hasCursor: cursorIndex === 0 }];
   }
 
-  while (start < chars.length || (cursorIndex === chars.length && start === chars.length)) {
+  let start = 0;
+  while (start < chars.length) {
     const end = Math.min(chars.length, start + safeWidth);
-    const hasCursor = cursorIndex >= start && cursorIndex <= end;
+    const cursorInside = cursorIndex >= start && cursorIndex < end;
+    const cursorAtPartialEnd = cursorIndex === chars.length
+      && end === chars.length
+      && end - start < safeWidth;
+    const hasCursor = cursorInside || cursorAtPartialEnd;
     const chunk = chars.slice(start, end);
     let rendered = chunk.join('');
+
     if (hasCursor) {
       const pos = cursorIndex - start;
-      if (pos >= rendered.length) rendered += cursorGlyph;
-      else rendered = rendered.slice(0, pos) + cursorGlyph + rendered.slice(pos + 1);
+      if (pos >= chunk.length) {
+        rendered += customGlyph ?? renderCursorCell(' ');
+      } else if (customGlyph) {
+        rendered = chunk.slice(0, pos).join('') + customGlyph + chunk.slice(pos + 1).join('');
+      } else {
+        rendered = chunk.slice(0, pos).join('') + renderCursorCell(chunk[pos]) + chunk.slice(pos + 1).join('');
+      }
     }
+
     chunks.push({ text: rendered, hasCursor });
-    if (end === chars.length) break;
     start = end;
   }
 
-  return chunks.length ? chunks : [{ text: cursorIndex === 0 ? cursorGlyph : '', hasCursor: cursorIndex === 0 }];
+  if (cursorIndex === chars.length && chars.length % safeWidth === 0) {
+    chunks.push({ text: customGlyph ?? renderCursorCell(' '), hasCursor: true });
+  }
+
+  return chunks;
 }

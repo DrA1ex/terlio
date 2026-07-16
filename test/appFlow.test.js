@@ -97,7 +97,8 @@ test('chat input routing supports editing, suggestions, history, scrolling and p
   app.onData('\x1b[Z');
   assert.equal(app.isSuggestionMode(), true);
   app.onData('\x1b');
-  assert.equal(app.suggestionsDismissed, true);
+  assert.equal(app.inputValue, '');
+  assert.equal(app.suggestionsDismissed, false);
 
   app.scrollOffset = 5;
   app.onData('\x1b');

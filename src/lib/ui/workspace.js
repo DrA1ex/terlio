@@ -22,9 +22,9 @@ export function WorkspaceHeader({
   );
 }
 
-export function WorkspaceTabs({ tabs = [], active = '', title = ' NAV ', hint = '[/] command · Ctrl+P palette · ? help', theme = null, onSelect = null, pointerId = 'workspace-tabs' } = {}) {
+export function WorkspaceTabs({ tabs = [], active = '', title = ' NAV ', hint = '[/] command · Ctrl+P palette · ? help', theme = null, onSelect = null, pointerId = 'workspace-tabs', pointerAutoEnable = true } = {}) {
   return Box({ border: true, borderColor: theme?.border, padding: { left: 1, right: 1 }, title },
-    SectionTabs({ tabs, active, gap: 3, theme, onSelect, pointerId }),
+    SectionTabs({ tabs, active, gap: 3, theme, onSelect, pointerId, pointerAutoEnable }),
     hint ? Text(theme ? color(theme, 'muted', hint) : hint, { wrap: false }) : null,
   );
 }
@@ -45,6 +45,7 @@ export function WorkspacePane({
   pointerData = undefined,
   pointerWidth = 'fill',
   pointerEvents = undefined,
+  pointerAutoEnable = true,
   onPointer = null,
   onClick = null,
   onWheel = null,
@@ -85,6 +86,7 @@ export function WorkspacePane({
     pointerData,
     pointerWidth,
     pointerEvents,
+    pointerAutoEnable,
     onPointer,
     onClick,
     onWheel,

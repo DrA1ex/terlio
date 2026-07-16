@@ -16,6 +16,8 @@ import { createOverlayManager } from './overlayHost.js';
 import { createAppPaletteItems } from './app/palette.js';
 import { buildAssistantActionText, errorMessage, isStreamCancellation, streamTextChunks } from './app/assistantActions.js';
 import { formatDebugKey, routeRichTerminalKey } from './app/inputRouter.js';
+import { requestsPointerReporting } from './pointer.js';
+import { clearTextSelection, copyTextToClipboard, createTextSelectionState } from './textSelection.js';
 
 const SUGGESTION_WINDOW_SIZE = 7;
 
@@ -28,9 +30,8 @@ export class RichTerminalApp {
     this.onExit = onExit;
     this.onPointer = typeof onPointer === 'function' ? onPointer : null;
     this.pointerOptions = normalizePointerOptions(pointer);
-    this.pointerPreference = this.pointerOptions.enabled;
+    this.pointerOverride = null;
     this.pointerActive = false;
-    this.selectionMode = false;
     this.sessionStore = sessionStore;
 
     this.running = false;
@@ -55,6 +56,7 @@ export class RichTerminalApp {
     this.suggestionIndex = 0;
     this.suggestionsDismissed = false;
     this.scrollOffset = 0;
+    this.transcriptSelection = createTextSelectionState();
     this.transcriptHeight = 6;
     this.transcriptTotalRows = 0;
     this.lastViewportWidth = null;
@@ -88,6 +90,10 @@ export class RichTerminalApp {
     this.editor.cursor = Math.max(0, Math.min(Array.from(this.editor.value).length, Number(value) || 0));
   }
 
+  get selectionMode() {
+    return this.pointerOverride === false;
+  }
+
   createDefaultSkillState() {
     return createSkillState();
   }
@@ -100,7 +106,7 @@ export class RichTerminalApp {
 
     this.running = true;
     this.renderer.reset();
-    this.output.write(ansi.altScreen + ansi.hideCursor + ansi.clear + ansi.home);
+    this.output.write(ansi.altScreen + ansi.hideCursor + ansi.autoWrapOff + ansi.clear + ansi.home);
     this.input.setEncoding('utf8');
     this.input.setRawMode(true);
     this.input.resume();
@@ -138,7 +144,7 @@ export class RichTerminalApp {
     this.inputDecoder.reset();
 
     this.renderer.reset();
-    this.output.write(ansi.showCursor + ansi.normalScreen + ansi.reset);
+    this.output.write(ansi.autoWrapOn + ansi.showCursor + ansi.normalScreen + ansi.reset);
     this.output.write('\n');
   }
 
@@ -167,6 +173,7 @@ export class RichTerminalApp {
     this.messages.push(message);
     this.messages = trimMessages(this.messages);
     this.scrollOffset = 0;
+    clearTextSelection(this.transcriptSelection);
     this.render();
     return message;
   }
@@ -190,6 +197,7 @@ export class RichTerminalApp {
   clearMessages() {
     this.messages = [];
     this.scrollOffset = 0;
+    clearTextSelection(this.transcriptSelection);
     this.render();
   }
 
@@ -250,10 +258,12 @@ export class RichTerminalApp {
         signal: this.abortController.signal,
         onChunk: (chunk) => {
           appendMessageChunk(assistant, chunk);
+          clearTextSelection(this.transcriptSelection);
           this.render();
         },
         onBlock: (block) => {
           appendMessageBlock(assistant, block);
+          clearTextSelection(this.transcriptSelection);
           this.render();
         },
       });
@@ -327,6 +337,7 @@ export class RichTerminalApp {
       signal,
       onChunk: (chunk) => {
         appendMessageChunk(message, chunk);
+        clearTextSelection(this.transcriptSelection);
         this.render();
       },
     });
@@ -341,6 +352,7 @@ export class RichTerminalApp {
     this.historyIndex = null;
     this.editor.clear();
     this.scrollOffset = 0;
+    clearTextSelection(this.transcriptSelection);
     this.status = 'New session created.';
     this.notify('New session', 'success', shortSessionLabel(this.sessionId));
   }
@@ -367,6 +379,7 @@ export class RichTerminalApp {
     applySerializedSkillState(this.skillState, snapshot.skillState);
     this.editor.clear();
     this.scrollOffset = 0;
+    clearTextSelection(this.transcriptSelection);
     this.status = `Session loaded: ${snapshot.title}.`;
     this.notify('Session loaded', 'success', snapshot.title);
   }
@@ -418,39 +431,47 @@ export class RichTerminalApp {
     return event;
   }
 
-  toggleSelectionMode(enabled = !this.selectionMode) {
-    const next = Boolean(enabled);
-    if (next === this.selectionMode) return this.selectionMode;
-
-    if (next) {
-      this.pointerPreference = this.pointerOptions.enabled;
-      this.selectionMode = true;
-      this.pointerOptions.enabled = false;
-    } else {
-      this.selectionMode = false;
-      this.pointerOptions.enabled = this.pointerPreference;
-    }
+  togglePointerOverride() {
+    const automatic = this.resolveAutomaticPointerEnabled();
+    this.pointerOverride = this.pointerOverride === null ? !automatic : null;
     this.syncPointerMode();
-    this.status = this.selectionMode
-      ? 'Text selection mode enabled. Drag to select transcript text; wheel and clicks are paused.'
-      : 'Pointer mode restored. Wheel, trackpad, and clicks are active.';
+    this.status = this.pointerOverride === null
+      ? 'Smart pointer mode restored.'
+      : this.pointerOverride
+        ? 'Pointer mode forced. Wheel, trackpad, and clicks are active; press Ctrl+T to restore smart mode.'
+        : 'Native text selection forced. Drag to select text; press Ctrl+T to restore smart mode.';
+    this.render();
+    return this.pointerOverride;
+  }
+
+  toggleSelectionMode(enabled = !this.selectionMode) {
+    this.pointerOverride = Boolean(enabled) ? false : null;
+    this.syncPointerMode();
+    this.status = this.pointerOverride === false
+      ? 'Native text selection forced. Drag to select text; press Ctrl+T to restore smart mode.'
+      : 'Smart pointer mode restored.';
     this.render();
     return this.selectionMode;
   }
 
   setPointerEnabled(value) {
     const requested = value === 'auto' ? 'auto' : Boolean(value);
-    this.pointerPreference = requested;
-    this.pointerOptions.enabled = this.selectionMode ? false : requested;
+    this.pointerOptions.enabled = requested;
     this.syncPointerMode();
     return requested;
   }
 
+  resolveAutomaticPointerEnabled() {
+    return this.pointerOptions.enabled === true || (
+      this.pointerOptions.enabled === 'auto'
+      && (Boolean(this.onPointer) || requestsPointerReporting(this.renderer.pointerRegions))
+    );
+  }
+
   syncPointerMode() {
     if (!this.running) return false;
-    const enabled = this.pointerOptions.enabled === true || (
-      this.pointerOptions.enabled === 'auto' && (Boolean(this.onPointer) || this.renderer.pointerRegions.length > 0)
-    );
+    const automatic = this.resolveAutomaticPointerEnabled();
+    const enabled = this.pointerOverride === null ? automatic : this.pointerOverride;
     this.setPointerActive(enabled);
     return enabled;
   }
@@ -467,7 +488,7 @@ export class RichTerminalApp {
     if (this.busy) return;
     this.palette = createCommandPaletteState({ items: createAppPaletteItems(this), windowSize: 7 });
     this.modes.push('palette');
-    this.status = 'Command palette opened. Type to filter, Enter inserts selected command, Esc closes.';
+    this.status = 'Command palette opened. Type to filter, Enter runs the selected action, Esc closes.';
     this.render();
   }
 
@@ -481,6 +502,13 @@ export class RichTerminalApp {
     }
 
     if (result.type === 'accept' && result.item) {
+      if (result.item.value?.action === 'copy-selection') {
+        this.modes.pop();
+        this.copyTranscriptSelection();
+        this.render();
+        return;
+      }
+
       const insert = result.item.value?.insert ?? result.item.id;
       this.editor.set(insert);
       this.modes.pop();
@@ -585,22 +613,33 @@ export class RichTerminalApp {
     return current !== proposed || /\s$/.test(this.editor.value);
   }
 
-  acceptCurrentSuggestion() {
+  acceptCurrentSuggestion({ dismiss = false, render = true } = {}) {
     const suggestions = this.getCurrentSuggestions();
     if (!suggestions.length) return false;
 
     const suggestion = suggestions[this.suggestionIndex];
     this.editor.set(suggestion.insert);
-    this.suggestionsDismissed = false;
+    this.suggestionsDismissed = Boolean(dismiss);
     this.resetSuggestionCycle();
     this.historyIndex = null;
-    this.render();
+    if (render) this.render();
     return true;
   }
 
   scrollTranscript(delta) {
     this.scrollOffset = Math.max(0, this.scrollOffset + delta);
     this.render();
+  }
+
+  copyTranscriptSelection(text = this.transcriptSelection?.text) {
+    const value = String(text ?? '');
+    if (!value) return false;
+    const result = copyTextToClipboard(value, { output: this.output });
+    if (result.copied) clearTextSelection(this.transcriptSelection);
+    this.status = result.copied
+      ? `Copied ${Array.from(value).length} selected character${Array.from(value).length === 1 ? '' : 's'} from the transcript${result.method && result.method !== 'osc52' ? ` via ${result.method}` : ''}.`
+      : 'Text selected. Clipboard transfer is unavailable in this terminal.';
+    return result.copied;
   }
 
   render() {
@@ -634,20 +673,33 @@ export class RichTerminalApp {
       status: this.status,
       busy: this.busy,
       selectionMode: this.selectionMode,
+      pointerActive: this.pointerActive,
+      pointerOverride: this.pointerOverride,
       scrollOffset,
+      transcriptSelection: this.transcriptSelection,
       frame: this.frame,
       onTranscriptWheel: (event) => {
         this.scrollOffset = Math.max(0, this.scrollOffset - event.deltaY);
         event.preventDefault();
       },
+      onTranscriptCopy: (text, _selection, event) => {
+        const copied = this.copyTranscriptSelection(text);
+        event?.preventDefault?.();
+        event?.stopPropagation?.();
+        return copied;
+      },
       onSuggestionSelect: (_suggestion, index) => {
         this.suggestionIndex = index;
-        this.acceptCurrentSuggestion();
+        this.acceptCurrentSuggestion({ dismiss: true, render: false });
       },
       onSuggestionWheel: (event) => {
         if (!event.deltaY) return;
         this.moveSuggestion(event.deltaY < 0 ? -1 : 1);
         event.preventDefault();
+      },
+      onSuggestionDismiss: () => {
+        this.suggestionsDismissed = true;
+        this.status = 'Command suggestions dismissed. Edit the input to show them again.';
       },
       onPaletteSelect: (_item, index) => {
         this.palette.selectedIndex = index;
@@ -657,6 +709,10 @@ export class RichTerminalApp {
         if (!event.deltaY) return;
         this.handleCommandPaletteKey({ name: event.deltaY < 0 ? 'up' : 'down' });
         event.preventDefault();
+      },
+      onPaletteDismiss: () => {
+        if (this.modes.is('palette')) this.modes.pop();
+        this.status = 'Command palette closed.';
       },
     });
 
@@ -674,7 +730,13 @@ export class RichTerminalApp {
     this.lastViewportWidth = columns;
     this.renderer.renderNode(screen.node, { width: columns, height: rows });
     this.output.write(ansi.reset);
+    const previousPointerActive = this.pointerActive;
     this.syncPointerMode();
+    if (this.pointerActive !== previousPointerActive) {
+      const refreshed = buildScreen(this.scrollOffset);
+      this.renderer.renderNode(refreshed.node, { width: columns, height: rows });
+      this.output.write(ansi.reset);
+    }
   }
 
 }

@@ -100,10 +100,11 @@ try {
   const packageSpecifier = JSON.stringify(packageName);
   const exampleSpecifier = JSON.stringify(`${packageName}/examples/components-showcase`);
   const importSmoke = run(process.execPath, ['--input-type=module', '-e', [
-    `const { Box, Text, renderToString } = await import(${packageSpecifier});`,
+    `const { Box, Text, SelectableText, createTextSelectionState, renderToString } = await import(${packageSpecifier});`,
     `const { createComponentsShowcaseView } = await import(${exampleSpecifier});`,
     "const output = renderToString(Box({ border: true }, Text('published import works')), { width: 32, height: 3 });",
     "if (!output.includes('published import works')) throw new Error('package import smoke failed');",
+    "if (typeof SelectableText !== 'function' || typeof createTextSelectionState !== 'function') throw new Error('selection export smoke failed');",
     "if (typeof createComponentsShowcaseView !== 'function') throw new Error('example export smoke failed');",
   ].join('\n')], { cwd: consumer });
   assert.equal(importSmoke, '');

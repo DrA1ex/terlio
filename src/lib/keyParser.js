@@ -103,6 +103,7 @@ export function parseKey(data) {
   return key({ name: 'unknown', sequence });
 }
 
+
 export function isPrintable(value) {
   if (!value) return false;
   if (value.startsWith('\x1b')) return false;

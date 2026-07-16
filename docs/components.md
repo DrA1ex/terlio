@@ -192,18 +192,22 @@ SelectList({
   items,
   selectedIndex,
   windowSize,
+  windowStart,
   emptyText,
   getLabel,
   getDescription,
   getDisabled,
-  wrapItems = false,
-  rowLines = 1,
+  wrapItems = true,
+  maxItemLines = 3,
   reserveItemLines = false,
+  onSelect,
+  onActivate,
+  onWheel,
   theme,
 })
 ```
 
-Renders a scroll-windowed selectable list. Set `wrapItems: true` to wrap long row labels by words. `rowLines` reserves a stable number of terminal rows for each item; `reserveItemLines: true` keeps that allocation stable when an item only needs one line. The above/below counters are rendered in the list title and never consume item rows.
+Renders a scroll-windowed selectable list. Items use one terminal row when their label and description fit, then grow only as needed up to `maxItemLines`. Content that still does not fit is clipped with an ellipsis on the final row. `windowStart` lets scrolling move the visible item window independently from `selectedIndex`; this is useful when wheel scrolling should not change selection until the selected item leaves the viewport. `rowLines` remains a compatibility alias for `maxItemLines`, while `reserveItemLines: true` opts into fixed-height rows.
 
 ### ConfirmPrompt
 
@@ -227,7 +231,7 @@ Renders a bordered modal body.
 Toast({ level, message })
 ```
 
-Renders an info/success/warning/error toast.
+Renders an info/success/warning/error toast. Toasts managed by `OverlayManager` are wrapped in a pointer region and dismiss immediately when clicked.
 
 ### ProgressBar
 
@@ -276,7 +280,17 @@ Render a multi-line editor view or its raw lines.
 
 ```js
 visibleWindowLines(lines, { height, scroll, tail, autoscroll, previousTotalRows, sticky })
-ScrollPane({ title, lines, width, height, scroll, border, footer, autoscroll, previousTotalRows, sticky, pointerId, pointerData, pointerWidth, pointerEvents, onPointer, onClick, onWheel, onDrag, onMove, onRelease })
+ScrollPane({ title, lines, width, height, scroll, border, footer, autoscroll, previousTotalRows, sticky, pointerId, pointerData, pointerWidth, pointerEvents, pointerAutoEnable, onPointer, onClick, onWheel, onDrag, onMove, onRelease, selection, onSelectionChange, onCopy, copyOnRelease, copyOnSelectionClick, clearSelectionOnWheel, nativeSelectionModifier })
+SelectableText({ lines, selectionLines, selectionOffsetX, selectionOffsetY, selection, pointerId, pointerData, pointerWidth, pointerAutoEnable, onWheel, onSelectionChange, onCopy, copyOnRelease, copyOnSelectionClick, clearOnWheel, nativeSelectionModifier })
+createTextSelectionState(initial)
+clearTextSelection(state)
+beginTextSelection(state, point, lines)
+updateTextSelection(state, point, lines)
+completeTextSelection(state, point, lines)
+selectedText(lines, state)
+renderTextSelectionLines(lines, state)
+copyTextToClipboard(text, options)
+writeClipboardText(text, output, options)
 resolveAutoScrollOffset({ scroll, previousTotalRows, totalRows, visibleRows, sticky })
 resolveScrollKeyOffset({ keyName, scroll, totalRows, visibleRows, sticky })
 scrollLine(scroll, direction, max, step)
@@ -284,7 +298,9 @@ isScrollAtBottom(scroll, totalRows, visibleRows)
 scrollMax(totalRows, visibleRows)
 ```
 
-Render or calculate a scroll window. Use `resolveAutoScrollOffset()` for log/transcript panes that should follow new output only while the user is already at the bottom. Use `resolveScrollKeyOffset()` for read-only panes that should handle `up`, `down`, `page-up`, and `page-down` consistently. Once the user scrolls up, keep `sticky: false`; when they scroll or page back to the bottom, set it to `true` again.
+Render or calculate a scroll window. Pass a state from `createTextSelectionState()` as `selection` to make text drag-selectable without disabling mouse reporting. `SelectableText` can be used directly for non-scrolling text. For virtualized or scrolling content, pass the complete content as `selectionLines` and the first visible content row as `selectionOffsetY`; `ScrollPane` does this automatically. The selection remains in content coordinates across wheel, keyboard, and page scrolling, including while a drag is active. A short click inside the highlighted range calls `onCopy`; returning `true` or `{ copied: true }` clears the range, while a failed result keeps it for retry. A short click outside clears the range without copying. Set `copyOnSelectionClick: false` to disable that behavior, or `copyOnRelease: true` only when immediate copy after dragging is intentionally desired. `Ctrl+C` remains `SIGINT`. `nativeSelectionModifier` is disabled by default but can explicitly reserve a modifier for terminal-specific native selection. `copyTextToClipboard()` first uses the native platform clipboard when available (`pbcopy`, `wl-copy`, `xclip`/`xsel`, or the Windows clipboard) and falls back to OSC 52 for remote terminals. `writeClipboardText()` is the low-level boolean OSC 52 writer and always writes to the supplied terminal output stream.
+
+Use `resolveAutoScrollOffset()` for log/transcript panes that should follow new output only while the user is already at the bottom. Use `resolveScrollKeyOffset()` for read-only panes that should handle `up`, `down`, `page-up`, and `page-down` consistently. Once the user scrolls up, keep `sticky: false`; when they scroll or page back to the bottom, set it to `true` again.
 
 ### fitInline
 
@@ -494,10 +510,10 @@ Normalize raw TTY data and detect printable text.
 ### PointerRegion
 
 ```js
-PointerRegion({ pointerId, pointerData, pointerWidth, pointerEvents, onPointer, onClick, onWheel, onDrag, onMove, onRelease }, child)
+PointerRegion({ pointerId, pointerData, pointerWidth, pointerEvents, pointerAutoEnable, onPointer, onClick, onWheel, onDrag, onMove, onRelease }, child)
 ```
 
-Creates a layout-transparent hit region around its children. The same pointer props may be attached directly to any node. `pointerWidth` accepts a positive cell count or `'fill'`; without it, hit width follows rendered non-trailing content.
+Creates a layout-transparent hit region around its children. The same pointer props may be attached directly to any node. `pointerWidth` accepts a positive cell count or `'fill'`; without it, hit width follows rendered non-trailing content. `pointerAutoEnable` defaults to `true`; set it to `false` for a passive region that remains hit-testable without activating global terminal mouse reporting by itself.
 
 ### parsePointer / input decoding
 
@@ -515,9 +531,10 @@ new TerminalInputDecoder()
 ```js
 hitTestPointerRegions(regions, x, y, { all })
 dispatchPointerEvent(pointer, regions, context)
+requestsPointerReporting(regions)
 ```
 
-Rendered frames expose `pointerRegions`. Hit-testing uses zero-based screen coordinates and returns the innermost matching region first. Dispatch adds target and local coordinates, invokes action-specific handlers followed by `onPointer`, and supports propagation control.
+Rendered frames expose `pointerRegions`. Hit-testing uses zero-based screen coordinates and returns the innermost matching region first. Dispatch adds target and local coordinates, invokes action-specific handlers followed by `onPointer`, and supports propagation control. A handler can call `capturePointer()` so later drag and release events remain routed to the same component, then `releasePointerCapture()` when the gesture finishes. `requestsPointerReporting()` reports whether the current region set contains at least one enabled, non-passive region that should activate automatic mouse ownership.
 
 ### mouseReportingSequence
 

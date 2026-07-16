@@ -84,6 +84,15 @@ export function isPointerEvent(value) {
   return Boolean(value && value.type === 'pointer' && Number.isFinite(value.x) && Number.isFinite(value.y));
 }
 
+export function requestsPointerReporting(regions = []) {
+  return Array.from(regions ?? []).some((region) => (
+    region
+    && !region.disabled
+    && region.pointerEvents !== 'none'
+    && region.autoEnable !== false
+  ));
+}
+
 export function hitTestPointerRegions(regions = [], x, y, { all = false } = {}) {
   const safeX = Number(x);
   const safeY = Number(y);
@@ -104,10 +113,12 @@ export function hitTestPointerRegions(regions = [], x, y, { all = false } = {}) 
   return all ? matches : null;
 }
 
-export function dispatchPointerEvent(pointer, regions = [], context = {}) {
+export function dispatchPointerEvent(pointer, regions = [], context = {}, { capturedToken = null } = {}) {
   if (!isPointerEvent(pointer)) return { handled: false, event: pointer, targets: [] };
 
-  const hits = hitTestPointerRegions(regions, pointer.x, pointer.y, { all: true });
+  const hits = capturedToken == null
+    ? hitTestPointerRegions(regions, pointer.x, pointer.y, { all: true })
+    : capturedPointerHits(regions, capturedToken, pointer);
   const matches = routedMatchChain(hits);
   const target = matches[0]?.region ?? null;
   const event = createRoutedPointerEvent(pointer, target);
@@ -200,6 +211,36 @@ export function pointerMarker(token, width) {
   return `\x1b[?9000;${Math.max(1, Number(token) || 1)};${Math.max(1, Number(width) || 1)}z`;
 }
 
+
+function capturedPointerHits(regions, token, pointer) {
+  const region = Array.from(regions ?? []).find((item) => item?.token === token);
+  if (!region || region.disabled || region.pointerEvents === 'none') return [];
+  const segment = nearestSegment(region.segments, pointer?.y) ?? {
+    x: region.bounds?.x ?? 0,
+    y: region.bounds?.y ?? 0,
+    width: Math.max(1, region.bounds?.width ?? 1),
+    height: 1,
+  };
+  const hits = [{ region, segment }];
+  let parentToken = region.parentToken;
+  while (parentToken != null) {
+    const parent = Array.from(regions ?? []).find((item) => item?.token === parentToken);
+    if (!parent) break;
+    hits.push({ region: parent, segment: nearestSegment(parent.segments, pointer?.y) ?? parent.segments?.[0] ?? segment });
+    parentToken = parent.parentToken;
+  }
+  return hits;
+}
+
+function nearestSegment(segments = [], y = 0) {
+  if (!segments.length) return null;
+  const exact = segments.find((item) => Number(item.y) === Number(y));
+  if (exact) return exact;
+  return segments.reduce((best, item) => (
+    Math.abs(Number(item.y) - Number(y)) < Math.abs(Number(best.y) - Number(y)) ? item : best
+  ), segments[0]);
+}
+
 function routedMatchChain(hits = []) {
   const target = hits[0];
   if (!target) return [];
@@ -227,6 +268,11 @@ function createRoutedPointerEvent(pointer, target) {
     defaultPrevented: false,
     propagationStopped: false,
     immediatePropagationStopped: false,
+    pointerCaptureRequested: false,
+    pointerCaptureReleaseRequested: false,
+    targetToken: target?.token ?? null,
+    capturePointer() { this.pointerCaptureRequested = true; },
+    releasePointerCapture() { this.pointerCaptureReleaseRequested = true; },
     preventDefault() { this.defaultPrevented = true; },
     stopPropagation() { this.propagationStopped = true; },
     stopImmediatePropagation() {
@@ -250,6 +296,7 @@ function publicRegion(region) {
   return {
     id: region.id,
     data: region.data,
+    autoEnable: region.autoEnable !== false,
     bounds: { ...region.bounds },
     segments: region.segments.map((segment) => ({ ...segment })),
   };

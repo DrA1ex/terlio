@@ -69,9 +69,9 @@ test('editor lab keeps editor arrows local, supports Ctrl-J and lets history arr
   assert.doesNotMatch(initialOutput, /Navigation notes/);
   const beforeArrow = state.paneScroll.diagnostics;
   handleEditorLabKey({ key: { name: 'down' }, state });
-  assert.equal(state.paneScroll.diagnostics, beforeArrow);
+  assert.equal(state.paneScroll.diagnostics, beforeArrow + 1);
   handleEditorLabKey({ key: { name: 'page-down' }, state });
-  assert.ok(state.paneScroll.diagnostics > beforeArrow);
+  assert.ok(state.paneScroll.diagnostics > beforeArrow + 1);
 });
 
 test('editor lab updates selected drafts and only creates a new draft from add another', () => {

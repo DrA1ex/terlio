@@ -30,7 +30,7 @@ test('diffFrames returns only changed rows and patchFrames emits cursor moves', 
   const previous = createFrame(['one', 'two'], { width: 5, height: 2 });
   const next = createFrame(['one', 'TWO'], { width: 5, height: 2 });
   assert.deepEqual(diffFrames(previous, next), [{ row: 2, line: 'TWO  ' }]);
-  assert.equal(patchFrames(previous, next), '\x1b[2;1H\x1b[2KTWO  ');
+  assert.equal(patchFrames(previous, next), '\x1b[0m\x1b[2;1H\x1b[2KTWO  \x1b[0m');
 });
 
 test('Box height reserves vertical space for fixed footer layouts', () => {

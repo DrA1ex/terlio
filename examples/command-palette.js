@@ -25,6 +25,7 @@ import {
   getCommandPaletteMatches,
   getPaletteQuery,
   handleCommandPaletteKey as handlePaletteStateKey,
+  renderCursorCell,
   resolveWorkspaceShellLayout,
   themes,
   truncateVisible,
@@ -626,7 +627,7 @@ function paletteOverlayNode(state, width, height, theme) {
   const search = WorkspaceCommandBar({
     mode: 'SEARCH ACTIONS',
     prompt: '›',
-    value: `${query || '<type a command>'}█`,
+    value: `${query || '<type a command>'}${renderCursorCell(' ')}`,
     suggestions: categories.map(([category, count]) => `${category.toLowerCase()} ${count}`),
     hint: 'fuzzy title · description · aliases',
     theme,
@@ -671,7 +672,7 @@ function paletteOverlayNode(state, width, height, theme) {
       : color(theme, 'success', 'Mission complete. Explore rollback, appearance and scenario commands.')),
     search,
     Row({ gap: 2, widths: [listWidth, detailWidth] }, list, detail),
-    Text(color(theme, 'textMuted', 'Type to filter · wheel or Shift+↑/↓ move · PgUp/PgDn page · Enter execute · Esc clear/close')),
+    Text(color(theme, 'textMuted', 'Type to filter · wheel or ↑/↓ move · PgUp/PgDn page · Enter execute · Esc clear/close')),
   );
 }
 

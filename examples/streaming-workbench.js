@@ -219,7 +219,7 @@ export function handleStreamingWorkbenchKey({ key, state, runtime }) {
       return;
     }
     if (key.name === 'up' || key.name === 'down') {
-      state.status = 'Control is read-only. Use PgUp/PgDn if it overflows.';
+      scrollActivePane(state, key.name, { lineStep: 1 });
     }
     return;
   }
@@ -678,7 +678,7 @@ function scrollActivePaneByDelta(state, pane, delta) {
 function contextHelpHints(state) {
   if (state.activeTab === 'transcript') {
     return [
-      ['Shift+↑/↓', 'line scroll'],
+      ['↑/↓', 'line scroll'],
       ['PgUp/PgDn', 'page scroll'],
       ['Enter', 'jump to newest'],
       ['Esc', 'cancel stream'],
@@ -688,11 +688,10 @@ function contextHelpHints(state) {
   if (state.activeTab === 'control') {
     return [
       ['Enter', 'cancel if streaming'],
-      ['Shift+↑/↓', 'scroll control'],
+      ['↑/↓', 'scroll control'],
       ['PgUp/PgDn', 'scroll control'],
       ['Esc', 'cancel stream'],
       ['Tab', 'switch pane'],
-      ['↑/↓', 'not used here'],
     ];
   }
   if (state.pendingTemplate) {

@@ -1,4 +1,6 @@
 export function routeRichTerminalKey(app, key) {
+  // Ctrl+C always keeps its terminal meaning: interrupt the running app.
+  // Clipboard actions must be explicit and must never depend on selection state.
   if (key.name === 'ctrl-c') {
     app.requestExit(130);
     return true;
@@ -10,7 +12,7 @@ export function routeRichTerminalKey(app, key) {
   }
 
   if (key.ctrl && key.name === 't') {
-    app.toggleSelectionMode();
+    app.togglePointerOverride();
     return true;
   }
 
@@ -42,9 +44,12 @@ export function routeRichTerminalKey(app, key) {
     if (app.busy && app.abortController) {
       app.abortController.abort();
       app.status = 'Cancelling response…';
-    } else if (app.isSuggestionMode()) {
-      app.suggestionsDismissed = true;
-      app.status = 'Command suggestions dismissed. Edit the input to reopen them.';
+    } else if (String(app.editor.value ?? '').trimStart().startsWith('/')) {
+      app.editor.clear();
+      app.suggestionsDismissed = false;
+      app.historyIndex = null;
+      app.resetSuggestionCycle();
+      app.status = 'Command input cleared.';
     } else if (app.scrollOffset > 0) {
       app.scrollOffset = 0;
       app.status = 'Returned to the latest response.';

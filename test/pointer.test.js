@@ -16,6 +16,7 @@ import {
   parseInputEvent,
   parseInputEvents,
   parsePointer,
+  requestsPointerReporting,
   renderToFrame,
 } from '../src/lib/index.js';
 
@@ -264,11 +265,60 @@ test('WorkspaceApp can explicitly disable mouse reporting while keeping pointer 
   app.stop();
 });
 
+test('WorkspaceApp exposes a temporary pointer override without losing its auto preference', () => {
+  const input = new FakeInput();
+  const output = new FakeOutput();
+  const app = createWorkspaceApp({
+    input,
+    output,
+    render: () => Box({ onClick() {}, pointerId: 'automatic-pointer' }, Text('x')),
+  });
 
-test('RichTerminalApp enables transcript pointer input and scrolls history with wheel direction', () => {
+  app.start();
+  assert.equal(app.pointerActive, true);
+  assert.equal(app.togglePointerOverride(), false);
+  assert.equal(app.pointerActive, false);
+  assert.equal(app.togglePointerOverride(), null);
+  assert.equal(app.pointerActive, true);
+  assert.equal(app.setPointerOverride(true), true);
+  assert.equal(app.pointerActive, true);
+  assert.equal(app.setPointerOverride(null), null);
+  assert.equal(app.pointerActive, true);
+  app.stop();
+});
+
+test('passive pointer regions remain routable without automatically enabling mouse reporting', () => {
+  const input = new FakeInput();
+  const output = new FakeOutput();
+  let wheels = 0;
+  const app = createWorkspaceApp({
+    input,
+    output,
+    render: () => Box({
+      pointerId: 'passive-scroll',
+      pointerAutoEnable: false,
+      onWheel: () => { wheels += 1; },
+    }, Text('copyable output')),
+  });
+
+  app.start();
+  const region = app.renderer.pointerRegions[0];
+  assert.equal(region.autoEnable, false);
+  assert.equal(requestsPointerReporting(app.renderer.pointerRegions), false);
+  assert.equal(app.pointerActive, false);
+  assert.doesNotMatch(output.buffer, /\x1b\[\?1006h/);
+
+  const pointer = parsePointer(`\x1b[<65;${region.bounds.x + 1};${region.bounds.y + 1}M`);
+  assert.equal(app.renderer.dispatchPointer(pointer).handled, true);
+  assert.equal(wheels, 1);
+  app.stop();
+});
+
+
+test('RichTerminalApp keeps wheel and custom transcript selection active by default', () => {
   const input = new FakeInput();
   const output = new FakeOutput({ columns: 80, rows: 24 });
-  const app = new RichTerminalApp({ input, output, pointer: { enabled: 'auto', drag: false } });
+  const app = new RichTerminalApp({ input, output, pointer: { enabled: 'auto', drag: true } });
   app.messages = Array.from({ length: 20 }, (_, index) => ({
     id: `m${index}`,
     role: 'assistant',
@@ -281,22 +331,26 @@ test('RichTerminalApp enables transcript pointer input and scrolls history with 
   app.start();
   const transcript = app.renderer.pointerRegions.find((region) => region.id === 'chat-transcript');
   assert.ok(transcript);
+  assert.equal(transcript.autoEnable, true);
+  assert.equal(app.pointerActive, true);
+  assert.match(output.buffer, /\x1b\[\?1000h/);
+  assert.match(output.buffer, /\x1b\[\?1002h/);
+
   const x = transcript.bounds.x + 1;
   const y = transcript.bounds.y + 1;
   input.emit('data', `\x1b[<64;${x + 1};${y + 1}M`);
   assert.equal(app.scrollOffset, 1);
-  assert.match(output.buffer, /\x1b\[\?1000h/);
-  assert.doesNotMatch(output.buffer, /\x1b\[\?1002h/);
 
-  app.setPointerEnabled(false);
+  app.togglePointerOverride();
+  assert.equal(app.pointerOverride, false);
   assert.equal(app.pointerActive, false);
-  app.setPointerEnabled('auto');
+  app.togglePointerOverride();
+  assert.equal(app.pointerOverride, null);
   assert.equal(app.pointerActive, true);
   app.stop();
 });
 
-
-test('RichTerminalApp toggles native text selection with Ctrl+T and line-scrolls with Shift+arrows', () => {
+test('RichTerminalApp smart mode toggles pointer overrides and line-scrolls with Shift+arrows', () => {
   const input = new FakeInput();
   const output = new FakeOutput({ columns: 80, rows: 24 });
   const app = new RichTerminalApp({ input, output });
@@ -311,11 +365,12 @@ test('RichTerminalApp toggles native text selection with Ctrl+T and line-scrolls
 
   app.start();
   assert.equal(app.pointerActive, true);
+  assert.equal(app.pointerOverride, null);
 
   input.emit('data', '');
-  assert.equal(app.selectionMode, true);
+  assert.equal(app.pointerOverride, false);
   assert.equal(app.pointerActive, false);
-  assert.match(output.buffer, /\[\?1006l/);
+  assert.match(output.buffer, /\[\?1006h/);
 
   const initial = app.scrollOffset;
   input.emit('data', '[1;2A');
@@ -324,7 +379,21 @@ test('RichTerminalApp toggles native text selection with Ctrl+T and line-scrolls
   assert.equal(app.scrollOffset, initial);
 
   input.emit('data', '');
-  assert.equal(app.selectionMode, false);
+  assert.equal(app.pointerOverride, null);
+  assert.equal(app.pointerActive, true);
+
+  input.emit('data', '/');
+  assert.equal(app.pointerOverride, null);
+  assert.equal(app.pointerActive, true);
+  input.emit('data', '');
+  assert.equal(app.pointerOverride, false);
+  assert.equal(app.selectionMode, true);
+  assert.equal(app.pointerActive, false);
+  input.emit('data', '');
+  assert.equal(app.pointerOverride, null);
+  assert.equal(app.pointerActive, true);
+  input.emit('data', '\x1b');
+  assert.equal(app.editor.value, '');
   assert.equal(app.pointerActive, true);
   app.stop();
 });

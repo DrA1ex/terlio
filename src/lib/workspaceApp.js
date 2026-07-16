@@ -3,6 +3,7 @@ import { TerminalInputDecoder } from './inputParser.js';
 import { renderToFrame, TerminalRenderer } from './ui/renderer.js';
 import { createActionRegistry } from './actionRegistry.js';
 import { createOverlayManager } from './overlayHost.js';
+import { requestsPointerReporting } from './pointer.js';
 
 
 export function createWorkspaceApp(config = {}) {
@@ -20,6 +21,7 @@ export class WorkspaceApp {
     this.onKey = typeof onKey === 'function' ? onKey : null;
     this.onPointer = typeof onPointer === 'function' ? onPointer : null;
     this.pointerOptions = normalizePointerOptions(pointer);
+    this.pointerOverride = null;
     this.pointerActive = false;
     this.onTick = tick;
     this.tickMs = Number(tickMs) || 0;
@@ -41,7 +43,7 @@ export class WorkspaceApp {
     if (this.running) return this;
     if (!this.input.isTTY || !this.output.isTTY) throw new Error(`${this.title} requires an interactive TTY.`);
     this.running = true;
-    this.output.write(ansi.altScreen + ansi.hideCursor + ansi.clear + ansi.home);
+    this.output.write(ansi.altScreen + ansi.hideCursor + ansi.autoWrapOff + ansi.clear + ansi.home);
     this.input.setEncoding('utf8');
     this.input.setRawMode(true);
     this.input.resume();
@@ -71,7 +73,7 @@ export class WorkspaceApp {
     this.input.pause();
     this.inputDecoder.reset();
     this.renderer.reset();
-    this.output.write(ansi.showCursor + ansi.normalScreen + ansi.reset + '\n');
+    this.output.write(ansi.autoWrapOn + ansi.showCursor + ansi.normalScreen + ansi.reset + '\n');
   }
 
   exit(code = 0) {
@@ -158,11 +160,27 @@ export class WorkspaceApp {
     return this.pointerOptions.enabled;
   }
 
+  setPointerOverride(value = null) {
+    this.pointerOverride = value === null || value === undefined ? null : Boolean(value);
+    this.syncPointerMode();
+    return this.pointerOverride;
+  }
+
+  togglePointerOverride() {
+    const automatic = this.resolveAutomaticPointerEnabled();
+    return this.setPointerOverride(this.pointerOverride === null ? !automatic : null);
+  }
+
+  resolveAutomaticPointerEnabled() {
+    return this.pointerOptions.enabled === true || (
+      this.pointerOptions.enabled === 'auto' && (Boolean(this.onPointer) || requestsPointerReporting(this.renderer.pointerRegions))
+    );
+  }
+
   syncPointerMode() {
     if (!this.running) return false;
-    const enabled = this.pointerOptions.enabled === true || (
-      this.pointerOptions.enabled === 'auto' && (Boolean(this.onPointer) || this.renderer.pointerRegions.length > 0)
-    );
+    const automatic = this.resolveAutomaticPointerEnabled();
+    const enabled = this.pointerOverride === null ? automatic : this.pointerOverride;
     this.setPointerActive(enabled);
     return enabled;
   }

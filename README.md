@@ -136,7 +136,7 @@ app.start();
 
 ## Pointer input
 
-`createWorkspaceApp()` can own mouse reporting together with raw keyboard input. In the default `pointer: 'auto'` mode, Terlio enables SGR 1006 reporting when the rendered tree contains pointer handlers or the runtime has a global `onPointer` handler, then disables it during cleanup.
+`createWorkspaceApp()` can own mouse reporting together with raw keyboard input. In the default `pointer: 'auto'` mode, Terlio enables SGR 1006 reporting when the rendered tree contains an auto-enabling pointer region or the runtime has a global `onPointer` handler, then disables it during cleanup.
 
 ```js
 import { ScrollPane, createWorkspaceApp, scrollBy } from 'terlio.js';
@@ -154,6 +154,7 @@ const app = createWorkspaceApp({
     height,
     scroll: state.scroll,
     pointerId: 'history',
+    pointerAutoEnable: false,
     onWheel: (event) => {
       const max = Math.max(0, state.lines.length - height + 3);
       state.scroll = scrollBy(state.scroll, event.deltaY, max);
@@ -169,9 +170,11 @@ app.start();
 
 Pointer events expose zero-based screen coordinates as `x` and `y`, original one-based terminal coordinates as `column` and `row`, wheel deltas, modifiers, button information, and hit-tested `target`, `currentTarget`, `localX`, and `localY` fields. Touchpad scrolling is reported by terminals through the same `wheel-up`, `wheel-down`, `wheel-left`, and `wheel-right` events.
 
-Because mouse reporting can consume native drag selection, applications with copyable text should provide a temporary selection mode by disabling pointer reporting and restoring it afterward. The packaged chat demo uses `Ctrl+T` so user and assistant transcript text remains selectable.
+Set `pointerAutoEnable: false` on a passive region when its handlers should remain registered without enabling global mouse reporting by themselves. Such regions become active whenever another component enables pointer reporting or the application temporarily forces it with `app.setPointerOverride(true)`.
 
-Any node can define `onPointer`, `onClick`, `onWheel`, `onDrag`, `onMove`, or `onRelease`. Use `PointerRegion()` to wrap a component that does not expose pointer props directly.
+For text that must stay selectable while wheel input remains active, use `SelectableText` or `ScrollPane({ selection })`. Dragging creates an in-app selection in content coordinates, so it remains visible and valid while the pane scrolls. Clicking inside the highlighted range invokes `onCopy`; a successful copy clears the selection, while a failed copy keeps it for retry. Clicking elsewhere clears the selection without copying. `Ctrl+C` always keeps its terminal meaning (`SIGINT`). `Ctrl+T` remains an exceptional fallback for temporarily disabling mouse reporting and using the terminal emulator's native selection.
+
+Any node can define `onPointer`, `onClick`, `onWheel`, `onDrag`, `onMove`, or `onRelease`. Use `PointerRegion()` to wrap a component that does not expose pointer props directly. Call `app.togglePointerOverride()` or `app.setPointerOverride(true | false | null)` to temporarily override automatic ownership without changing the configured pointer preference.
 
 ## Documentation
 

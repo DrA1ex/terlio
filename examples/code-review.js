@@ -13,6 +13,8 @@ import {
   appendMessageBlock,
   color,
   createMessage,
+  createTextSelectionState,
+  copyTextToClipboard,
   createToastManager,
   fitInline,
   measureNodeHeight,
@@ -52,6 +54,7 @@ export function createCodeReviewState() {
   return {
     pullRequests: clonePullRequests(),
     selectedPrIndex: 0,
+    prPickerScroll: 0,
     pr,
     descriptionEditor: new InputEditor(pr.description),
     commentEditor: new InputEditor(''),
@@ -59,9 +62,16 @@ export function createCodeReviewState() {
     activeTab: 'general',
     selectedCommitIndex: 0,
     selectedCommentIndex: Math.max(0, pr.comments.length - 1),
+    commitSelectionNeedsReveal: false,
+    commentSelectionNeedsReveal: false,
     commentLineAnchors: [],
     commitLineAnchors: [],
     commentDetailScroll: 0,
+    textSelections: {
+      general: createTextSelectionState(),
+      diff: createTextSelectionState(),
+      commentDetail: createTextSelectionState(),
+    },
     commentDetailMetrics: { totalRows: 0, visibleRows: 1 },
     modes,
     confirmSelected: 'confirm',
@@ -362,7 +372,7 @@ function reviewOverlayManager(state) {
   if (!target) {
     return {
       top: () => null,
-      toasts: [{ id: 'code-review.toast', ...current }],
+      toasts: [{ id: 'code-review.toast', ...current, onDismiss: () => { state.toasts?.clear(); state.toastTarget = null; } }],
     };
   }
 
@@ -375,6 +385,7 @@ function reviewOverlayManager(state) {
       ...current,
       message: 'New review comment — Press J to jump',
       detail: `${target.author} commented on ${file} at ${target.location}`,
+      onDismiss: () => { state.toasts?.clear(); state.toastTarget = null; },
     }],
   };
 }
@@ -384,16 +395,18 @@ function pullRequestPicker(state, width, height = undefined) {
   const compact = width < 100 || Number(height) < 15;
   const children = [];
   if (!compact) children.push(Text('Select a pull request to review. Ctrl+O opens this picker again from any pane.', { wrap: false }));
+  const pickerWindowSize = Math.max(2, Math.min(compact ? 3 : 5, state.pullRequests.length));
+  state.prPickerScroll = clampWindowStart(state.prPickerScroll, state.pullRequests.length, pickerWindowSize);
   children.push(SelectList({
     title: 'Pull Requests',
     items: state.pullRequests,
     selectedIndex: state.selectedPrIndex,
-    windowSize: Math.max(2, Math.min(compact ? 3 : 5, state.pullRequests.length)),
+    windowSize: pickerWindowSize,
+    windowStart: state.prPickerScroll,
     getLabel: (pr) => `#${pr.number} ${pr.title}`,
     getDescription: (pr) => compact ? '' : `${pr.status} · ${pr.checks} · ${pr.author}`,
     wrapItems: !compact,
-    rowLines: compact ? 1 : 2,
-    reserveItemLines: !compact,
+    maxItemLines: compact ? 1 : 3,
     theme: EXAMPLE_THEME,
     pointerId: 'code-review:pr-picker',
     onSelect: (_pr, index) => {
@@ -401,7 +414,19 @@ function pullRequestPicker(state, width, height = undefined) {
       state.status = `Selected PR ${index + 1}/${state.pullRequests.length}. Press Enter to open.`;
     },
     onWheel: (event) => {
-      state.selectedPrIndex = clampIndex(state.selectedPrIndex + (event.deltaY < 0 ? -1 : 1), state.pullRequests.length);
+      const direction = event.deltaY < 0 ? -1 : 1;
+      const previous = state.prPickerScroll;
+      state.prPickerScroll = clampWindowStart(previous + direction, state.pullRequests.length, pickerWindowSize);
+      if (state.prPickerScroll !== previous) {
+        state.selectedPrIndex = keepSelectionInsideItemWindow({
+          selectedIndex: state.selectedPrIndex,
+          start: state.prPickerScroll,
+          size: pickerWindowSize,
+          direction,
+          total: state.pullRequests.length,
+        });
+        state.status = `Pull request list ${state.prPickerScroll + 1}-${Math.min(state.pullRequests.length, state.prPickerScroll + pickerWindowSize)} of ${state.pullRequests.length}.`;
+      }
       event.preventDefault();
     },
   }));
@@ -475,13 +500,19 @@ function commitsPane(state, width, height) {
   });
   state.commitLineAnchors = starts;
   const visibleRows = Math.max(1, Number(height) - 3);
-  state.paneScroll.commits = ensureSelectedCommentVisible({
-    scroll: state.paneScroll.commits ?? 0,
-    visibleRows,
-    starts,
-    selectedIndex: state.selectedCommitIndex,
-    totalRows: lines.length,
-  });
+  const max = scrollMax(lines.length, visibleRows);
+  let scroll = Math.max(0, Math.min(state.paneScroll.commits ?? 0, max));
+  if (state.commitSelectionNeedsReveal) {
+    scroll = ensureSelectedCommentVisible({
+      scroll,
+      visibleRows,
+      starts,
+      selectedIndex: state.selectedCommitIndex,
+      totalRows: lines.length,
+    });
+    state.commitSelectionNeedsReveal = false;
+  }
+  state.paneScroll.commits = scroll;
   return scrollablePane({
     title: ` COMMITS ${state.selectedCommitIndex + 1}/${state.pr.commits.length} `,
     pane: 'commits',
@@ -535,6 +566,8 @@ function commentsPane(state, width, height, { showEditor = state.commentMode ===
     });
   } else if (!showEditor || state.commentMode === 'list') {
     scroll = Math.max(0, Math.min(scroll, max));
+  }
+  if (state.commentSelectionNeedsReveal && (!showEditor || state.commentMode === 'list')) {
     scroll = ensureSelectedCommentVisible({
       scroll,
       visibleRows,
@@ -542,6 +575,7 @@ function commentsPane(state, width, height, { showEditor = state.commentMode ===
       selectedIndex: state.selectedCommentIndex,
       totalRows: lines.length,
     });
+    state.commentSelectionNeedsReveal = false;
   }
 
   state.paneScroll.comments = scroll;
@@ -559,7 +593,7 @@ function commentsPane(state, width, height, { showEditor = state.commentMode ===
     pointerId: 'code-review:comments',
     onClick: () => { state.activeTab = 'comments'; },
     onWheel: (event) => {
-      scrollPaneByDelta(state, 'comments', wheelScrollDelta(event));
+      scrollSelectablePaneByDelta(state, 'comments', wheelScrollDelta(event));
       event.preventDefault();
     },
     footer: `${modeHelp} · ${state.paneScroll.comments}/${max}`,
@@ -689,6 +723,10 @@ function commentDetailModal(state, width, height) {
         scroll: state.commentDetailScroll,
         border: false,
         footer: false,
+        pointerId: 'code-review:comment-detail:text',
+        selection: state.textSelections?.commentDetail ?? null,
+        onSelectionChange: (text) => updateSelectionStatus(state, text),
+        onCopy: (text, _selection, _event, context) => copySelectionText(state, text, context),
       }),
     ],
   });
@@ -713,7 +751,8 @@ function scrollablePane({ title, pane, state, lines, width, height, active, foot
     pointerId: `code-review:${pane}`,
     onClick: () => { state.activeTab = pane; },
     onWheel: (event) => {
-      scrollPaneByDelta(state, pane, wheelScrollDelta(event));
+      if (pane === 'commits') scrollSelectablePaneByDelta(state, pane, wheelScrollDelta(event));
+      else scrollPaneByDelta(state, pane, wheelScrollDelta(event));
       event.preventDefault();
     },
     footer: `${footerLabel} · ${state.paneScroll[pane] ?? 0}/${result.maxScroll}`,
@@ -726,6 +765,10 @@ function scrollablePane({ title, pane, state, lines, width, height, active, foot
         scroll: state.paneScroll[pane] ?? 0,
         footer: false,
         border: false,
+        pointerId: `code-review:${pane}:text`,
+        selection: state.textSelections?.[pane] ?? null,
+        onSelectionChange: (text) => updateSelectionStatus(state, text),
+        onCopy: (text, _selection, _event, context) => copySelectionText(state, text, context),
       }),
     ],
   });
@@ -734,31 +777,37 @@ function scrollablePane({ title, pane, state, lines, width, height, active, foot
 function handlePullRequestPickerKey(key, state) {
   if (key.name === 'up') {
     state.selectedPrIndex = clampIndex(state.selectedPrIndex - 1, state.pullRequests.length);
+    state.prPickerScroll = ensureItemVisible(state.prPickerScroll, state.selectedPrIndex, state.pullRequests.length, pickerWindowSizeForState(state));
     state.status = `Selected PR #${state.pullRequests[state.selectedPrIndex].number}.`;
     return;
   }
   if (key.name === 'down') {
     state.selectedPrIndex = clampIndex(state.selectedPrIndex + 1, state.pullRequests.length);
+    state.prPickerScroll = ensureItemVisible(state.prPickerScroll, state.selectedPrIndex, state.pullRequests.length, pickerWindowSizeForState(state));
     state.status = `Selected PR #${state.pullRequests[state.selectedPrIndex].number}.`;
     return;
   }
   if (key.name === 'page-up') {
     state.selectedPrIndex = clampIndex(state.selectedPrIndex - 3, state.pullRequests.length);
+    state.prPickerScroll = ensureItemVisible(state.prPickerScroll, state.selectedPrIndex, state.pullRequests.length, pickerWindowSizeForState(state));
     state.status = `Selected PR #${state.pullRequests[state.selectedPrIndex].number}.`;
     return;
   }
   if (key.name === 'page-down') {
     state.selectedPrIndex = clampIndex(state.selectedPrIndex + 3, state.pullRequests.length);
+    state.prPickerScroll = ensureItemVisible(state.prPickerScroll, state.selectedPrIndex, state.pullRequests.length, pickerWindowSizeForState(state));
     state.status = `Selected PR #${state.pullRequests[state.selectedPrIndex].number}.`;
     return;
   }
   if (key.name === 'home') {
     state.selectedPrIndex = 0;
+    state.prPickerScroll = 0;
     state.status = `Selected PR #${state.pullRequests[0].number}.`;
     return;
   }
   if (key.name === 'end') {
     state.selectedPrIndex = Math.max(0, state.pullRequests.length - 1);
+    state.prPickerScroll = ensureItemVisible(state.prPickerScroll, state.selectedPrIndex, state.pullRequests.length, pickerWindowSizeForState(state));
     state.status = `Selected PR #${state.pullRequests[state.selectedPrIndex].number}.`;
     return;
   }
@@ -946,6 +995,87 @@ function scrollCommentDetailByDelta(state, delta) {
   state.status = max ? `comment scroll ${state.commentDetailScroll}/${max}.` : 'Comment fits without scrolling.';
 }
 
+
+function scrollSelectablePaneByDelta(state, pane, delta) {
+  const direction = delta < 0 ? -1 : 1;
+  const before = state.paneScroll[pane] ?? 0;
+  scrollPaneByDelta(state, pane, delta);
+  const after = state.paneScroll[pane] ?? 0;
+  if (after === before) return;
+  keepAnchoredSelectionVisibleAfterScroll(state, pane, direction);
+}
+
+function keepAnchoredSelectionVisibleAfterScroll(state, pane, direction) {
+  const anchors = pane === 'comments' ? state.commentLineAnchors : state.commitLineAnchors;
+  const count = pane === 'comments' ? state.pr.comments.length : state.pr.commits.length;
+  if (!Array.isArray(anchors) || !anchors.length || !count) return;
+  const metrics = state.scrollMetrics[pane] ?? { totalRows: 0, visibleRows: 1 };
+  const scroll = state.paneScroll[pane] ?? 0;
+  const bottom = scroll + Math.max(1, metrics.visibleRows) - 1;
+  const selectedIndex = pane === 'comments' ? state.selectedCommentIndex : state.selectedCommitIndex;
+  const selectedTop = anchors[selectedIndex] ?? 0;
+  const selectedBottom = Math.max(selectedTop, (anchors[selectedIndex + 1] ?? metrics.totalRows) - 2);
+  if (selectedBottom >= scroll && selectedTop <= bottom) return;
+
+  let next = selectedIndex;
+  if (direction > 0) {
+    next = anchors.findIndex((start, index) => {
+      const end = Math.max(start, (anchors[index + 1] ?? metrics.totalRows) - 2);
+      return end >= scroll;
+    });
+    if (next < 0) next = count - 1;
+  } else {
+    next = count - 1;
+    for (let index = 0; index < count; index += 1) {
+      if ((anchors[index] ?? 0) > bottom) break;
+      next = index;
+    }
+  }
+
+  if (pane === 'comments') {
+    state.selectedCommentIndex = clampIndex(next, count);
+    state.commentsSticky = false;
+  } else state.selectedCommitIndex = clampIndex(next, count);
+}
+
+
+function updateSelectionStatus(state, text) {
+  const value = String(text ?? '');
+  if (value) state.status = `Selected ${Array.from(value).length} character${Array.from(value).length === 1 ? '' : 's'}. Click the highlighted text to copy it.`;
+}
+
+function copySelectionText(state, text, context) {
+  const value = String(text ?? '');
+  if (!value) return false;
+  const result = copyTextToClipboard(value, { output: context?.runtime?.output ?? process.stdout });
+  state.status = result.copied
+    ? `Copied ${Array.from(value).length} selected character${Array.from(value).length === 1 ? '' : 's'}.`
+    : 'Selection is ready, but clipboard transfer is unavailable.';
+  return result.copied;
+}
+
+
+function clampWindowStart(start, total, size) {
+  return Math.max(0, Math.min(Number(start) || 0, Math.max(0, Number(total) - Math.max(1, Number(size) || 1))));
+}
+
+function keepSelectionInsideItemWindow({ selectedIndex, start, size, direction, total }) {
+  const end = Math.min(total, start + size);
+  if (selectedIndex >= start && selectedIndex < end) return selectedIndex;
+  return direction > 0 ? start : Math.max(start, end - 1);
+}
+
+function ensureItemVisible(start, selectedIndex, total, size) {
+  let next = clampWindowStart(start, total, size);
+  if (selectedIndex < next) next = selectedIndex;
+  else if (selectedIndex >= next + size) next = selectedIndex - size + 1;
+  return clampWindowStart(next, total, size);
+}
+
+function pickerWindowSizeForState(state) {
+  return Math.max(2, Math.min(state.viewport?.width < 100 || state.viewport?.height < 15 ? 3 : 5, state.pullRequests.length));
+}
+
 function openPullRequestPicker(state) {
   if (state.modes.current() !== 'pr-picker') state.modes.push('pr-picker');
   state.status = 'Choose a pull request.';
@@ -965,6 +1095,14 @@ function openPullRequestByIndex(state, index, options = {}) {
   state.commentMode = 'list';
   state.selectedCommitIndex = 0;
   state.selectedCommentIndex = Math.max(0, state.pr.comments.length - 1);
+  state.commitSelectionNeedsReveal = false;
+  state.commentSelectionNeedsReveal = false;
+  state.textSelections = {
+    general: createTextSelectionState(),
+    diff: createTextSelectionState(),
+    commentDetail: createTextSelectionState(),
+  };
+  state.commentDetailScroll = 0;
   state.commentLineAnchors = [];
   state.commitLineAnchors = [];
   state.paneScroll = { general: 0, commits: 0, diff: 0, comments: 0 };
@@ -1035,6 +1173,7 @@ function setCommentSelection(state, index, { sticky = false } = {}) {
   }
   state.selectedCommentIndex = clampIndex(index, state.pr.comments.length);
   state.commentsSticky = Boolean(sticky);
+  state.commentSelectionNeedsReveal = !state.commentsSticky;
   if (state.commentsSticky) {
     const metrics = state.scrollMetrics.comments ?? { totalRows: 0, visibleRows: 1 };
     state.paneScroll.comments = scrollMax(metrics.totalRows, metrics.visibleRows);
@@ -1073,6 +1212,7 @@ function moveCommitSelection(state, delta) {
 
 function setCommitSelection(state, index) {
   state.selectedCommitIndex = clampIndex(index, state.pr.commits.length);
+  state.commitSelectionNeedsReveal = true;
   state.paneScroll.diff = 0;
   state.status = `Selected commit ${selectedCommit(state).sha}.`;
 }
@@ -1120,13 +1260,13 @@ function contextHelpHints(state) {
     return [['↑/↓', 'line'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['Enter/Esc', 'back'], ['Ctrl+C', 'exit']];
   }
   if (state.activeTab === 'general') {
-    return [['Shift+↑/↓', 'line'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['Enter', 'read-only'], ['Ctrl+O', 'PRs'], ['Tab', 'pane']];
+    return [['↑/↓', 'line'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['Enter', 'read-only'], ['Ctrl+O', 'PRs'], ['Tab', 'pane']];
   }
   if (state.activeTab === 'commits') {
     return [['↑/↓', 'commit'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['Enter', 'diff'], ['Ctrl+O', 'PRs'], ['Tab', 'pane']];
   }
   if (state.activeTab === 'diff') {
-    return [['Shift+↑/↓', 'line'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['[/]', 'commit'], ['Esc', 'commits'], ['Tab', 'pane']];
+    return [['↑/↓', 'line'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['[/]', 'commit'], ['Esc', 'commits'], ['Tab', 'pane']];
   }
   if (state.commentMode === 'editor') {
     return [['Enter', 'review post'], ['Ctrl+J', 'newline'], ['Tab', 'indent'], ['PgUp/PgDn', 'thread'], ['Esc', 'draft'], ['Ctrl+O', 'PRs']];
@@ -1220,6 +1360,10 @@ function ensurePullRequest(state) {
   state.descriptionEditor = state.descriptionEditor ?? new InputEditor(state.pr.description);
   state.commentEditor = state.commentEditor ?? new InputEditor('');
   state.selectedCommentIndex = state.selectedCommentIndex ?? Math.max(0, state.pr.comments.length - 1);
+  state.commitSelectionNeedsReveal = Boolean(state.commitSelectionNeedsReveal);
+  state.commentSelectionNeedsReveal = Boolean(state.commentSelectionNeedsReveal);
+  state.prPickerScroll = state.prPickerScroll ?? 0;
+  state.textSelections = state.textSelections ?? { general: createTextSelectionState(), diff: createTextSelectionState(), commentDetail: createTextSelectionState() };
   state.commentLineAnchors = state.commentLineAnchors ?? [];
   state.commitLineAnchors = state.commitLineAnchors ?? [];
   state.commentDetailScroll = state.commentDetailScroll ?? 0;

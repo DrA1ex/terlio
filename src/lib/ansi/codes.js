@@ -7,6 +7,8 @@ export const ansi = {
   showCursor: `${ESC}?25h`,
   altScreen: `${ESC}?1049h`,
   normalScreen: `${ESC}?1049l`,
+  autoWrapOff: `${ESC}?7l`,
+  autoWrapOn: `${ESC}?7h`,
   mouseBasicOn: `${ESC}?1000h`,
   mouseBasicOff: `${ESC}?1000l`,
   mouseDragOn: `${ESC}?1002h`,
@@ -19,6 +21,7 @@ export const ansi = {
   bold: `${ESC}1m`,
   dim: `${ESC}2m`,
   inverse: `${ESC}7m`,
+  inverseOff: `${ESC}27m`,
   underline: `${ESC}4m`,
   moveTo(row, col) {
     return `${ESC}${row};${col}H`;

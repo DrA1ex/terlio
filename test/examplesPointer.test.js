@@ -27,6 +27,7 @@ import { createBlocksGalleryState, createBlocksGalleryView } from '../examples/b
 import { createCodeReviewState, createCodeReviewView } from '../examples/code-review.js';
 import { createInteractionKitState, createInteractionKitView } from '../examples/interaction-kit.js';
 import { createSupportDeskState, createSupportDeskView } from '../examples/support-desk.js';
+import { InteractiveRuntime } from '../examples/_demoRuntime.js';
 
 class FakeInput extends EventEmitter {
   constructor() {
@@ -93,15 +94,19 @@ test('every interactive packaged example exposes working click and wheel regions
   }
 });
 
-test('chat example keeps pointer controls while offering an explicit native text-selection mode', () => {
+test('chat example enables wheel, clicks, and component text selection by default', () => {
   const app = new RichTerminalApp({ input: new FakeInput(), output: new FakeOutput() });
   app.running = true;
   app.render();
-  app.onData('/');
+  assert.equal(app.pointerActive, true);
+  const transcript = app.renderer.pointerRegions.find((region) => region.id === 'chat-transcript');
+  assert.ok(transcript && typeof transcript.onWheel === 'function');
+  assert.equal(transcript.autoEnable, true);
+  assert.equal(typeof transcript.onDrag, 'function');
 
-  const frame = app.renderer.previousFrame;
-  assertPointerSurface('Chat workspace', frame);
-  assert.ok(frame.pointerRegions.some((region) => region.id === 'chat-transcript' && typeof region.onWheel === 'function'));
+  app.onData('/');
+  assertPointerSurface('Chat workspace', app.renderer.previousFrame);
+  assert.equal(app.pointerActive, true);
 
   app.toggleSelectionMode(true);
   assert.equal(app.selectionMode, true);
@@ -109,4 +114,35 @@ test('chat example keeps pointer controls while offering an explicit native text
   app.toggleSelectionMode(false);
   assert.equal(app.selectionMode, false);
   assert.equal(app.pointerActive, true);
+
+  app.onData('\x1b');
+  assert.equal(app.editor.value, '');
+  assert.equal(app.pointerActive, true);
+});
+
+test('packaged interactive examples can temporarily invert smart pointer mode with Ctrl+T', () => {
+  const output = new FakeOutput();
+  const runtime = new InteractiveRuntime({
+    title: 'Pointer override example',
+    state: {},
+    render: () => ({
+      type: 'box',
+      props: { pointerId: 'clickable', onClick() {} },
+      children: [{ type: 'text', props: { value: 'copyable text', wrap: false }, children: [] }],
+    }),
+  });
+  runtime.output = output;
+  runtime.renderer.output = output;
+  runtime.running = true;
+  runtime.render();
+  assert.equal(runtime.pointerActive, true);
+
+  runtime.handleData('\x14');
+  assert.equal(runtime.pointerOverride, false);
+  assert.equal(runtime.pointerActive, false);
+  assert.match(runtime.state.status, /Native text selection forced/);
+
+  runtime.handleData('\x14');
+  assert.equal(runtime.pointerOverride, null);
+  assert.equal(runtime.pointerActive, true);
 });

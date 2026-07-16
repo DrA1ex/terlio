@@ -7,6 +7,7 @@ import {
   Row,
   Text,
   TextEditorView,
+  renderCursorCell,
   renderNode,
   color,
   WorkspaceFooter,
@@ -196,7 +197,7 @@ export function handleEditorLabKey({ key, state }) {
       moveHistorySelection(state, key.name === 'up' ? -1 : 1);
       return;
     }
-    state.status = 'Diagnostics is read-only; use PageUp/PageDown.';
+    scrollPaneByLines(state, 'diagnostics', key.name === 'up' ? -1 : 1);
     return;
   }
 
@@ -427,7 +428,7 @@ function narrowPane(state, width, height) {
 
 function diagnosticsRows(state, width) {
   const parts = state.editor.getParts();
-  const cursorPreview = `${parts.before}█${parts.current === ' ' ? '' : parts.current}${parts.after}`;
+  const cursorPreview = `${parts.before}${renderCursorCell(parts.current)}${parts.after}`;
   const submitted = state.submitted.length
     ? state.submitted.slice(-8).map((line, index) => `${index + 1}. ${fitInline(line, Math.max(8, width - 6)).trimEnd()}`)
     : ['No submitted lines yet. Press Enter to submit the current draft.'];
@@ -538,7 +539,7 @@ function scrollActivePane(state, direction) {
 function scrollActivePaneByLines(state, delta) {
   const id = state.activeTab === 'diagnostics' ? 'diagnostics' : state.activeTab === 'history' ? 'history' : null;
   if (!id) {
-    state.status = 'Shift+↑/↓ scrolls History or Diagnostics; the editor keeps normal cursor movement.';
+    state.status = 'Switch to History or Diagnostics to scroll; the editor keeps normal cursor movement.';
     return;
   }
   scrollPaneByLines(state, id, delta);
@@ -567,7 +568,6 @@ function contextHelpHints(state, height = 28) {
   if (state.activeTab === 'history') {
     return [
       ['↑/↓', 'select history item'],
-      ['Shift+↑/↓', 'scroll one line'],
       ['PgUp/PgDn', 'scroll history'],
       ['Home/End', 'first / add another'],
       ['Enter', 'load draft / add another'],
@@ -578,10 +578,9 @@ function contextHelpHints(state, height = 28) {
   }
   if (state.activeTab === 'diagnostics') {
     return [
-      ['Shift+↑/↓', 'scroll one line'],
       ['PgUp/PgDn', 'scroll diagnostics'],
       ['Tab', 'switch tab'],
-      ['↑/↓', 'disabled here'],
+      ['↑/↓', 'scroll one line'],
       ['Ctrl+J', 'newline in editor'],
       ['Ctrl+C', 'exit'],
     ];

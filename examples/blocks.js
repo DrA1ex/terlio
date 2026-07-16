@@ -560,7 +560,7 @@ function contextHelp(state, block) {
     ];
   }
   const hints = [
-    ['Shift+↑/↓', 'scroll line'],
+    ['↑/↓', 'scroll line'],
     ['PgUp/PgDn', 'scroll page'],
     ['Home/End', 'top/bottom'],
     ['Esc', state.isolated ? 'full response' : 'response map'],

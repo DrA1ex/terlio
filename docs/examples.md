@@ -23,7 +23,7 @@ npx terlio.js components
 npx terlio.js demo:chat
 ```
 
-A responsive chat workspace with slash completion, a clickable command palette, multiline and bracketed-paste input, sessions, skills, structured blocks, wheel/trackpad scroll, and `Shift+↑/↓` line scrolling. Press `Ctrl+T` to pause pointer reporting and select user or assistant transcript text with an ordinary drag gesture; press it again to restore clicks and wheel input.
+A responsive chat workspace with slash completion, a clickable command palette, multiline and bracketed-paste input, sessions, skills, structured blocks, wheel/trackpad and `Page Up/Page Down` transcript scrolling. Mouse reporting stays active by default: dragging in the transcript creates an in-app selection, scrolling preserves it across multiple viewports, and clicking the highlighted range copies it to the system clipboard and clears the highlight after success. A failed copy keeps the selection for retry. Clicking elsewhere clears the selection without copying. `Ctrl+C` remains `SIGINT`. `Esc` clears a slash command in the composer but leaves ordinary draft text intact. `Ctrl+T` is only a fallback for temporarily using the terminal emulator's native selection.
 
 ### Support Triage Desk — `demo:support-desk`
 
@@ -39,7 +39,7 @@ An inbox-first support workflow with clickable tabs and tickets, wheel/trackpad 
 npx terlio.js demo:code-review
 ```
 
-A pull-request review workflow with keyboard and pointer-driven PR selection, commits, diffs, full-width review threads, reply composition, live comments, confirmations and stable scroll positions through resize.
+A pull-request review workflow with keyboard and pointer-driven PR selection, commits, diffs, full-width review threads, reply composition, live comments, confirmations and stable scroll positions through resize. Wheel input scrolls list content independently; selection moves only when the selected item leaves the viewport. General, diff and comment-detail text can be selected and copied without disabling pointer input. `Ctrl+T` remains a native-selection fallback.
 
 ## Product-style examples
 
@@ -49,7 +49,7 @@ A pull-request review workflow with keyboard and pointer-driven PR selection, co
 npx terlio.js example:editor
 ```
 
-A multiline editor workspace with clickable panes and history rows, wheel/trackpad scrolling, `Shift+↑/↓` line scrolling, cursor diagnostics, editable saved drafts, history navigation, local key ownership, adaptive help and compact fallback.
+A multiline editor workspace with clickable panes and history rows, wheel/trackpad scrolling and focused `↑/↓` navigation, cursor diagnostics, editable saved drafts, history navigation, local key ownership, adaptive help and compact fallback.
 
 ### Release Command Center — `example:palette`
 
@@ -65,7 +65,7 @@ A guided release workflow with clickable mission steps and palette rows. Start w
 npx terlio.js example:stream
 ```
 
-A streaming workspace with clickable templates and panes, wheel/trackpad scrolling, `Shift+↑/↓` line scrolling, multiline prompt editing, templates, sticky transcript autoscroll, scrollback preservation, runtime progress, cancellation and timer cleanup.
+A streaming workspace with clickable templates and panes, wheel/trackpad scrolling and focused `↑/↓` navigation, multiline prompt editing, templates, sticky transcript autoscroll, scrollback preservation, runtime progress, cancellation and timer cleanup.
 
 ## UI mechanics
 
@@ -83,7 +83,7 @@ An interactive catalog with clickable tabs, lists, panes and wheel-scrollable su
 npx terlio.js example:keys
 ```
 
-Shows raw escape sequences with clickable event inspection and wheel/`Shift+↑/↓` history scrolling, normalized keys and actual editor mutations. Useful for checking Alt/Option behavior, Shift+Tab, bracketed paste and terminal compatibility.
+Shows raw escape sequences with clickable event inspection and wheel/`↑/↓` history scrolling, normalized keys and actual editor mutations. Useful for checking Alt/Option behavior, Shift+Tab, bracketed paste and terminal compatibility.
 
 ### Theme Studio — `example:themes`
 
@@ -99,7 +99,7 @@ Click or scroll through themes, then stage a candidate theme, compare it with th
 npx terlio.js example:blocks
 ```
 
-Click response blocks and use wheel/`Shift+↑/↓` scrolling to explore complete structured responses, inspect individual block payloads and simulate safe copy, diff-apply and command-run actions without touching the filesystem or starting processes.
+Click response blocks and use wheel/`↑/↓` scrolling to explore complete structured responses, inspect individual block payloads and simulate safe copy, diff-apply and command-run actions without touching the filesystem or starting processes.
 
 ### Component Composition Snapshot — `example:components`
 

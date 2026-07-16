@@ -14,6 +14,7 @@ import {
   getResponsiveMode,
   padEndVisible,
   renderCommandPalette,
+  renderCursorCell,
   renderNode,
   responsiveColumns,
   stripAnsi,
@@ -544,9 +545,9 @@ function contextHintLine(state, theme, width) {
     return `${fitInlineRegion(controls, controlsWidth)}${color(theme, 'muted', divider)}${fitInlineRegion(options, optionsWidth)}`;
   }
   if (state.focus === 'rail') return color(theme, 'muted', truncateVisible('Context: ↑/↓ scroll · PgUp/PgDn page · Tab returns to work', width));
-  if (state.activeTab === 'ticket') return color(theme, 'muted', truncateVisible('Ticket: wheel or Shift+↑/↓ scroll thread · PgUp/PgDn page · Ctrl+R reply · Ctrl+N note · Esc inbox', width));
-  if (state.activeTab === 'reply') return color(theme, 'muted', truncateVisible('Reply preview: wheel or Shift+↑/↓ scroll · Ctrl+R edit · Ctrl+N note · Esc inbox', width));
-  if (state.activeTab === 'customer') return color(theme, 'muted', truncateVisible('Customer: wheel or Shift+↑/↓ scroll · PgUp/PgDn page · Esc inbox', width));
+  if (state.activeTab === 'ticket') return color(theme, 'muted', truncateVisible('Ticket: wheel or ↑/↓ scroll thread · PgUp/PgDn page · Ctrl+R reply · Ctrl+N note · Esc inbox', width));
+  if (state.activeTab === 'reply') return color(theme, 'muted', truncateVisible('Reply preview: wheel or ↑/↓ scroll · Ctrl+R edit · Ctrl+N note · Esc inbox', width));
+  if (state.activeTab === 'customer') return color(theme, 'muted', truncateVisible('Customer: wheel or ↑/↓ scroll · PgUp/PgDn page · Esc inbox', width));
   if (state.activeTab === 'activity') return color(theme, 'muted', truncateVisible('Activity: click/wheel or ↑/↓ select · PgUp/PgDn page · Esc inbox', width));
   return color(theme, 'muted', truncateVisible('Use [/] to switch tabs or / to run a command.', width));
 }
@@ -897,7 +898,7 @@ function draftText(state, ticket) {
 
 function editorLines(text, limit, width) {
   const lines = String(text || '').split('\n').slice(0, limit);
-  return lines.map((line, index) => `${String(index + 1).padStart(2)} │ ${truncateVisible(line, Math.max(8, width - 7))}${index === lines.length - 1 ? ' █' : ''}`);
+  return lines.map((line, index) => `${String(index + 1).padStart(2)} │ ${truncateVisible(line, Math.max(8, width - 7))}${index === lines.length - 1 ? ` ${renderCursorCell(' ')}` : ''}`);
 }
 
 function internalContext(ticket) {

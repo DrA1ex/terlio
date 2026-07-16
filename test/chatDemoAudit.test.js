@@ -41,7 +41,7 @@ test('chat composer supports Ctrl+J multiline input and bracketed paste without 
   assert.equal(app.messages.length, 0);
 });
 
-test('chat slash completion accepts with Tab and Esc dismisses suggestions until input changes', () => {
+test('chat slash completion accepts with Tab and Esc clears only command input', () => {
   const app = new RichTerminalApp({ input: fakeInput(), output: fakeOutput() });
   app.onData('/');
   assert.equal(app.isSuggestionMode(), true);
@@ -51,9 +51,12 @@ test('chat slash completion accepts with Tab and Esc dismisses suggestions until
   assert.equal(app.editor.value, '/help');
 
   app.onData('\x1b');
+  assert.equal(app.editor.value, '');
   assert.equal(app.isSuggestionMode(), false);
-  app.onData(' ');
-  assert.equal(app.isSuggestionMode(), true);
+
+  app.onData('ordinary text');
+  app.onData('\x1b');
+  assert.equal(app.editor.value, 'ordinary text');
 });
 
 test('chat renders an exact compact fallback instead of drawing beyond a small terminal', () => {

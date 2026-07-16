@@ -5,6 +5,7 @@ import {
   TerminalRenderer,
   ansi,
   mouseReportingSequence,
+  requestsPointerReporting,
   renderToFrame,
 } from '../src/lib/index.js';
 
@@ -30,6 +31,7 @@ export class InteractiveRuntime {
     this.onKey = onKey;
     this.onPointer = typeof onPointer === 'function' ? onPointer : null;
     this.pointerOptions = normalizePointerOptions(pointer);
+    this.pointerOverride = null;
     this.pointerActive = false;
     this.onTick = onTick;
     this.tickMs = Number(tickMs) || 0;
@@ -52,7 +54,7 @@ export class InteractiveRuntime {
 
     this.running = true;
     this.renderer.reset();
-    this.output.write(ansi.altScreen + ansi.hideCursor + ansi.clear + ansi.home);
+    this.output.write(ansi.altScreen + ansi.hideCursor + ansi.autoWrapOff + ansi.clear + ansi.home);
     this.input.setEncoding('utf8');
     this.input.setRawMode(true);
     this.input.resume();
@@ -86,7 +88,7 @@ export class InteractiveRuntime {
       try { this.onStop?.({ state: this.state, runtime: this }); } catch {}
     }
     this.renderer.reset();
-    this.output.write(ansi.showCursor + ansi.normalScreen + ansi.reset + '\n');
+    this.output.write(ansi.autoWrapOn + ansi.showCursor + ansi.normalScreen + ansi.reset + '\n');
   }
 
   exit(code = 0) {
@@ -142,6 +144,11 @@ export class InteractiveRuntime {
         return;
       }
 
+      if (key.ctrl && key.name === 't') {
+        this.togglePointerOverride();
+        continue;
+      }
+
       this.onKey?.({ key, state: this.state, runtime: this });
       this.render();
     }
@@ -168,12 +175,30 @@ export class InteractiveRuntime {
     return this.pointerOptions.enabled;
   }
 
+  resolveAutomaticPointerEnabled() {
+    return this.pointerOptions.enabled === true || (
+      this.pointerOptions.enabled === 'auto'
+      && (Boolean(this.onPointer) || requestsPointerReporting(this.renderer.pointerRegions))
+    );
+  }
+
+  togglePointerOverride() {
+    const automatic = this.resolveAutomaticPointerEnabled();
+    this.pointerOverride = this.pointerOverride === null ? !automatic : null;
+    this.syncPointerMode();
+    this.state.status = this.pointerOverride === null
+      ? 'Smart pointer mode restored.'
+      : this.pointerOverride
+        ? 'Pointer mode forced. Press Ctrl+T to restore smart mode.'
+        : 'Native text selection forced. Press Ctrl+T to restore smart mode.';
+    this.render();
+    return this.pointerOverride;
+  }
+
   syncPointerMode() {
     if (!this.running) return false;
-    const enabled = this.pointerOptions.enabled === true || (
-      this.pointerOptions.enabled === 'auto'
-      && (Boolean(this.onPointer) || this.renderer.pointerRegions.length > 0)
-    );
+    const automatic = this.resolveAutomaticPointerEnabled();
+    const enabled = this.pointerOverride === null ? automatic : this.pointerOverride;
     this.setPointerActive(enabled);
     return enabled;
   }

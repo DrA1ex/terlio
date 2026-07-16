@@ -2,7 +2,7 @@ import { themes } from '../ansi/themes.js';
 import { commands as commandList } from '../commands.js';
 import { skills } from '../skills.js';
 
-export function createAppPaletteItems() {
+export function createAppPaletteItems(app = null) {
   const commandItems = commandList.map((command) => ({
     id: command.name,
     title: command.description,
@@ -40,7 +40,18 @@ export function createAppPaletteItems() {
     value: { insert: `/skill on ${skill.name}` },
   }));
 
-  return [...commandItems, ...themeItems, ...providerItems, ...skillItems];
+  const selectionItems = [{
+    id: 'selection.copy',
+    title: 'Copy selected transcript text',
+    description: 'Explicitly copy the current in-app selection. Ctrl+C remains SIGINT.',
+    category: 'Selection',
+    keywords: ['copy', 'selection', 'clipboard', 'transcript'],
+    aliases: ['copy selected text'],
+    disabled: !String(app?.transcriptSelection?.text ?? ''),
+    value: { action: 'copy-selection' },
+  }];
+
+  return [...selectionItems, ...commandItems, ...themeItems, ...providerItems, ...skillItems];
 }
 
 function commandCategory(name) {
