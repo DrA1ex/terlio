@@ -23,6 +23,8 @@ test('parseKey normalizes control keys', () => {
   assert.deepEqual(pick(parseKey('\x1b[111;5u')), { name: 'o', meta: false, cmd: false, shift: false });
   assert.equal(parseKey('\x1b[111;5u').ctrl, true);
   assert.equal(parseKey('\x10').name, 'command-palette');
+  assert.deepEqual(pick(parseKey('\x14')), { name: 't', meta: false, cmd: false, shift: false });
+  assert.equal(parseKey('\x14').ctrl, true);
   assert.equal(parseKey('\x1b[112;5u').name, 'command-palette');
   assert.equal(parseKey('\x7f').name, 'backspace');
   assert.equal(parseKey('\x1b[3~').name, 'delete');
@@ -30,6 +32,8 @@ test('parseKey normalizes control keys', () => {
 
 test('parseKey normalizes arrows and modifier arrows', () => {
   assert.deepEqual(pick(parseKey('\x1b[A')), { name: 'up', meta: false, cmd: false, shift: false });
+  assert.deepEqual(pick(parseKey('\x1b[1;2A')), { name: 'up', meta: false, cmd: false, shift: true });
+  assert.deepEqual(pick(parseKey('\x1b[1;2B')), { name: 'down', meta: false, cmd: false, shift: true });
   assert.deepEqual(pick(parseKey('\x1b[1;3D')), { name: 'left', meta: true, cmd: false, shift: false });
   assert.deepEqual(pick(parseKey('\x1b[1;9C')), { name: 'right', meta: false, cmd: true, shift: false });
 });

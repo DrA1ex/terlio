@@ -2,6 +2,7 @@ import { Modal, Toast, ConfirmPrompt } from './ui/components/index.js';
 import { Box, Text, createNode } from './ui/node.js';
 import { fit } from './ui/layout/utils.js';
 import { stripAnsi, takeVisibleAnsi, visibleLength } from './ansi/text.js';
+import { stripPointerMarkers } from './pointer.js';
 
 export function createOverlayManager({ toasts = [] } = {}) {
   return new OverlayManager({ toasts });
@@ -77,6 +78,7 @@ export function renderOverlayHost(node, width, renderNode) {
   let lines = fitLines(renderNode(content, width), width, height);
   const blocking = manager?.top?.();
   if (blocking) {
+    lines = lines.map((line) => stripPointerMarkers(line));
     if (node.props.dim !== false) lines = dimBackgroundLines(lines, theme, width);
     const requestedWidth = Number(blocking.width);
     const defaultWidth = Math.max(20, Math.min(width - 6, 72));

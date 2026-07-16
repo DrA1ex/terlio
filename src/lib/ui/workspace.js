@@ -22,9 +22,9 @@ export function WorkspaceHeader({
   );
 }
 
-export function WorkspaceTabs({ tabs = [], active = '', title = ' NAV ', hint = '[/] command · Ctrl+P palette · ? help', theme = null } = {}) {
+export function WorkspaceTabs({ tabs = [], active = '', title = ' NAV ', hint = '[/] command · Ctrl+P palette · ? help', theme = null, onSelect = null, pointerId = 'workspace-tabs' } = {}) {
   return Box({ border: true, borderColor: theme?.border, padding: { left: 1, right: 1 }, title },
-    SectionTabs({ tabs, active, gap: 3, theme }),
+    SectionTabs({ tabs, active, gap: 3, theme, onSelect, pointerId }),
     hint ? Text(theme ? color(theme, 'muted', hint) : hint, { wrap: false }) : null,
   );
 }
@@ -41,6 +41,16 @@ export function WorkspacePane({
   footerMaxHeight = Infinity,
   borderColor = '',
   theme = null,
+  pointerId = undefined,
+  pointerData = undefined,
+  pointerWidth = 'fill',
+  pointerEvents = undefined,
+  onPointer = null,
+  onClick = null,
+  onWheel = null,
+  onDrag = null,
+  onMove = null,
+  onRelease = null,
 } = {}) {
   const nodes = normalizeChildren(children);
   const inactiveBorder = borderColor || theme?.border || '';
@@ -71,6 +81,16 @@ export function WorkspacePane({
     borderColor: active ? activeBorder : inactiveBorder,
     padding: { left: 1, right: 1 },
     title,
+    pointerId,
+    pointerData,
+    pointerWidth,
+    pointerEvents,
+    onPointer,
+    onClick,
+    onWheel,
+    onDrag,
+    onMove,
+    onRelease,
     ...(height !== undefined ? { height } : {}),
   }, ...bodyNodes);
 }
@@ -147,6 +167,7 @@ export function resolveWorkspaceShellLayout({
   tabs = [],
   activeTab = '',
   tabHint = '',
+  onTabSelect = null,
   command = null,
   activity = null,
   footer = null,
@@ -157,7 +178,7 @@ export function resolveWorkspaceShellLayout({
   const safeHeight = Math.max(0, Number(height) || 0);
   const fixedNodes = [
     WorkspaceHeader({ title, subtitle, stats, right, focus, theme }),
-    tabs.length ? WorkspaceTabs({ tabs, active: activeTab, hint: tabHint, theme }) : null,
+    tabs.length ? WorkspaceTabs({ tabs, active: activeTab, hint: tabHint, theme, onSelect: onTabSelect }) : null,
     command,
     activity,
     footer,
@@ -182,6 +203,7 @@ export function WorkspaceShell({
   tabs = [],
   activeTab = '',
   tabHint = '',
+  onTabSelect = null,
   main = null,
   command = null,
   activity = null,
@@ -195,7 +217,7 @@ export function WorkspaceShell({
   const themedFooter = theme ? applyThemeToBorders(footer, theme) : footer;
   const children = [
     WorkspaceHeader({ title, subtitle, stats, right, focus, theme }),
-    tabs.length ? WorkspaceTabs({ tabs, active: activeTab, hint: tabHint, theme }) : null,
+    tabs.length ? WorkspaceTabs({ tabs, active: activeTab, hint: tabHint, theme, onSelect: onTabSelect }) : null,
     themedMain ? withGrow(themedMain) : WorkspacePane({ title: ' Main ', active: true, theme, children: [Text('No main content.')] }),
     themedCommand,
     themedActivity,

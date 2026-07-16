@@ -1,4 +1,4 @@
-import { Text, createNode } from '../node.js';
+import { PointerRegion, Text, createNode } from '../node.js';
 import { color, visibleLength } from '../../ansi/text.js';
 import { clamp } from './utils.js';
 import { Box } from '../node.js';
@@ -18,6 +18,10 @@ export function SelectList({
   wrapItems = false,
   rowLines = 1,
   reserveItemLines = false,
+  onSelect = null,
+  onActivate = null,
+  onWheel = null,
+  pointerId = 'select-list',
 } = {}) {
   return createNode('selectList', {
     title,
@@ -32,6 +36,10 @@ export function SelectList({
     wrapItems,
     rowLines,
     reserveItemLines,
+    onSelect,
+    onActivate,
+    onWheel,
+    pointerId,
   }, []);
 }
 
@@ -59,14 +67,35 @@ export function renderSelectList(node, width, renderNode) {
     const selectedItem = absolute === selected;
     const token = item.disabled ? 'textMuted' : selectedItem ? 'selected' : 'text';
     const itemRows = formatItemRows({ item, selected: selectedItem, theme, token, width: innerWidth, wrapItems, rowLines, reserveItemLines });
-    rows.push(...itemRows.map((line) => Text(line, { wrap: false })));
+    const rowNodes = itemRows.map((line) => Text(line, { wrap: false }));
+    rows.push(PointerRegion({
+      pointerId: `${props.pointerId ?? 'select-list'}:${absolute}`,
+      pointerData: { kind: 'select-item', index: absolute, item: item.raw, disabled: item.disabled },
+      pointerWidth: 'fill',
+      disabled: item.disabled,
+      onClick: typeof props.onSelect === 'function' || typeof props.onActivate === 'function'
+        ? (event) => {
+            props.onSelect?.(item.raw, absolute, event);
+            props.onActivate?.(item.raw, absolute, event);
+          }
+        : null,
+      onWheel: typeof props.onWheel === 'function' ? props.onWheel : null,
+    }, ...rowNodes));
   }
   const minRows = itemCount * (reserveItemLines ? rowLines : 1);
   while (rows.length < minRows) rows.push(Text('', { wrap: false }));
 
   const more = [window.above > 0 ? `↑${window.above}` : '', window.below > 0 ? `↓${window.below}` : ''].filter(Boolean).join(' ');
   const suffix = `${selected + 1}/${normalized.length}${more ? ` · ${more}` : ''}`;
-  return renderBox(Box({ border: true, borderColor: theme?.border ?? undefined, padding: { left: 1, right: 1 }, title: ` ${props.title ?? 'Select'} ${suffix} ` }, ...rows), width, renderNode);
+  return renderBox(Box({
+    border: true,
+    borderColor: theme?.border ?? undefined,
+    padding: { left: 1, right: 1 },
+    title: ` ${props.title ?? 'Select'} ${suffix} `,
+    pointerId: `${props.pointerId ?? 'select-list'}:surface`,
+    pointerWidth: 'fill',
+    onWheel: typeof props.onWheel === 'function' ? props.onWheel : null,
+  }, ...rows), width, renderNode);
 }
 
 function formatItemRows({ item, selected, theme, token, width, wrapItems, rowLines, reserveItemLines }) {

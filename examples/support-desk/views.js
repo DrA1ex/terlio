@@ -22,8 +22,9 @@ import {
   visibleWindowLines,
   truncateVisible,
   visibleLength,
+  scrollBy,
 } from '../../src/lib/index.js';
-import { getActivityEvents, getSelectedTicket, getVisibleTickets } from './reducers.js';
+import { getActivityEvents, getSelectedTicket, getVisibleTickets, openTicket, selectActivityByDelta, selectTicketByDelta } from './reducers.js';
 import { getSupportTheme, SUPPORT_THEME_NAMES } from './themes.js';
 import { SUPPORT_TEMPLATES, renderTemplate } from './templates.js';
 import { getSupportSlashSuggestions } from './commands.js';
@@ -175,14 +176,19 @@ function appHeader({ state, width, theme, compact = false }) {
 }
 
 function tabsBar({ state, theme, compact = false }) {
-  const parts = SUPPORT_TABS.map((tab) => {
+  const help = compact ? 'click or [/] switch tabs' : 'click tabs · [/] keyboard switch';
+  const tabs = SUPPORT_TABS.map((tab) => {
     const active = tab.id === state.activeTab;
     const label = active ? `[${tab.label}]` : ` ${tab.label} `;
-    return active ? color(theme, 'accent', label) : color(theme, 'muted', label);
+    return Text(active ? color(theme, 'accent', label) : color(theme, 'muted', label), {
+      wrap: false,
+      pointerId: `support:tab:${tab.id}`,
+      pointerData: { tabId: tab.id },
+      onClick: () => selectSupportTab(state, tab.id),
+    });
   });
-  const help = compact ? '[/] switch tabs' : '[/] switch tabs · tabs are never focus targets';
   return pane({ title: ' WORKSPACE ', theme },
-    Text(`${parts.join('   ')}${compact ? '' : `       ${color(theme, 'muted', help)}`}`, { wrap: false }),
+    Row({ gap: 3 }, ...tabs, Text(color(theme, 'muted', help), { wrap: false })),
   );
 }
 
@@ -191,13 +197,13 @@ function inboxPane({ state, theme, width, height = 36, compact = false }) {
   const windowSize = Math.max(4, Math.min(compact ? 14 : 18, height - 7));
   const slice = takeVisible(visible, state.selectedIndex, windowSize);
   const inner = Math.max(24, width - 4);
-  const rows = slice.items.map((ticket, offset) => ticketRow({ ticket, selected: slice.start + offset === slice.selected, theme, width: inner }));
+  const rows = slice.items.map((ticket, offset) => ({ ticket, index: slice.start + offset, line: ticketRow({ ticket, selected: slice.start + offset === slice.selected, theme, width: inner }) }));
   const view = `Queue ${state.filter.queue} · Priority ${state.filter.priority} · Status ${state.filter.status} · Sort ${state.sort}`;
 
-  return pane({ title: `${state.focus === 'inbox' ? '▶' : ' '} INBOX ${spinner(state.frame)} Live `, theme, active: state.focus === 'inbox', height },
+  return pane({ title: `${state.focus === 'inbox' ? '▶' : ' '} INBOX ${spinner(state.frame)} Live `, theme, active: state.focus === 'inbox', height, pointerId: 'support:inbox', onClick: () => { state.focus = 'inbox'; state.inboxControl = 'tickets'; }, onWheel: (event) => { state.focus = 'inbox'; state.inboxControl = 'tickets'; selectTicketByDelta(state, event.deltaY < 0 ? -1 : 1); event.preventDefault(); } },
     Text(color(theme, 'muted', truncateVisible(view, inner)), { wrap: false }),
     Text(color(theme, 'muted', ticketTableHeader(inner)), { wrap: false }),
-    ...rows.map((row) => Text(row, { wrap: false })),
+    ...rows.map(({ ticket, index, line }) => Text(line, { wrap: false, pointerId: `support:ticket:${ticket.id}`, pointerData: { ticketId: ticket.id, index }, onClick: () => { state.selectedIndex = index; state.selectedTicketId = ticket.id; state.focus = 'inbox'; state.inboxControl = 'tickets'; } })),
     Text(color(theme, 'muted', truncateVisible(`${slice.start + 1}-${slice.start + slice.items.length} of ${visible.length} · selected ${getSelectedTicket(state).id}`, inner)), { wrap: false }),
   );
 }
@@ -241,9 +247,12 @@ function ticketView({ state, ticket, theme, mode, width, height = 24 }) {
     padding: 0,
     title: threadTitle,
     height: metrics.threadHeight,
+    pointerId: 'support:ticket-thread',
+    onWheel: (event) => { scrollSupportPanel(state, 'ticketThread', event.deltaY < 0 ? 3 : -3); event.preventDefault(); },
+    onClick: () => { state.focus = 'work'; },
   }, Lines(window.lines));
 
-  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} TICKET ${ticket.id} `, theme, active: state.focus === 'work', height },
+  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} TICKET ${ticket.id} `, theme, active: state.focus === 'work', height, pointerId: 'support:ticket-work', onClick: () => { state.focus = 'work'; } },
     ...metrics.headerNodes,
     threadPane,
     ...metrics.footerNodes,
@@ -297,7 +306,7 @@ function replyView({ state, ticket, theme, mode, width, height = 24 }) {
   const editorHeight = Math.max(5, Math.min(mode === 'wide' ? 10 : 8, height - 16));
   const previewHeight = Math.max(2, Math.min(5, height - editorHeight - 14));
 
-  return pane({ title: `${state.focus === 'work' || state.focus === 'composer' ? '▶' : ' '} REPLY TO ${ticket.id} `, theme, active: state.focus === 'work' || state.focus === 'composer', height },
+  return pane({ title: `${state.focus === 'work' || state.focus === 'composer' ? '▶' : ' '} REPLY TO ${ticket.id} `, theme, active: state.focus === 'work' || state.focus === 'composer', height, pointerId: 'support:reply', onClick: () => { state.focus = 'work'; }, onWheel: (event) => { scrollSupportPanel(state, 'reply', event.deltaY < 0 ? -3 : 3); event.preventDefault(); } },
     Text(`${color(theme, 'title', truncateVisible(ticket.subject, Math.max(20, inner - 34)))}  ${color(theme, 'ok', '●')} Autosaved ${clockTime()}  Tone ${tag('Empathetic ▾', theme, 'accent')}`, { wrap: false }),
     Text(`Template  ${templateNames.map((name) => tag(name, theme, state.composerTemplate === name ? 'ok' : 'muted')).join(' ')}`, { wrap: false }),
     divider(theme, inner),
@@ -326,6 +335,9 @@ function customerFocusView({ state, ticket, theme, width, height = 24 }) {
     theme,
     active: state.focus === 'work',
     title: ' CUSTOMER PROFILE ',
+    pointerId: 'support:customer',
+    onClick: () => { state.focus = 'work'; },
+    onWheel: (event) => { scrollSupportPanel(state, 'customer', event.deltaY < 0 ? -3 : 3); event.preventDefault(); },
   });
 }
 
@@ -353,12 +365,12 @@ function activityFocusView({ state, ticket, theme, width, mode, height = 24 }) {
   const page = clamp(state.activityPage || 0, 0, maxPage);
   const start = page * pageSize;
   const events = allEvents.slice(start, start + pageSize);
-  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} ACTIVITY TIMELINE ${spinner(state.frame)} Live `, theme, active: state.focus === 'work', height },
+  return pane({ title: `${state.focus === 'work' ? '▶' : ' '} ACTIVITY TIMELINE ${spinner(state.frame)} Live `, theme, active: state.focus === 'work', height, pointerId: 'support:activity', onClick: () => { state.focus = 'work'; }, onWheel: (event) => { selectActivityByDelta(state, event.deltaY < 0 ? -1 : 1); event.preventDefault(); } },
     Text(`Time [Last 24h]  Queues [All]  Types [All]  Agents [All]  Search ${state.filter.text || '<none>'}`, { wrap: false }),
     Text(metricLine({ state, theme }), { wrap: false }),
     divider(theme, inner),
     Text(color(theme, 'muted', activityHeader(inner)), { wrap: false }),
-    ...events.map((event, index) => Text(activityRow({ event, theme, width: inner, selected: start + index === state.activitySelectedIndex }), { wrap: false })),
+    ...events.map((event, index) => Text(activityRow({ event, theme, width: inner, selected: start + index === state.activitySelectedIndex }), { wrap: false, pointerId: `support:event:${event.id}`, pointerData: { eventId: event.id, index: start + index }, onClick: () => { state.activitySelectedIndex = start + index; state.focus = 'work'; } })),
     divider(theme, inner),
     Text(color(theme, 'muted', `Page ${page + 1}/${maxPage + 1}  Rows ${start + 1}-${start + events.length} of ${allEvents.length}    ←/→ or PgUp/PgDn paginate    ↑/↓ select event`), { wrap: false }),
   );
@@ -367,7 +379,7 @@ function activityFocusView({ state, ticket, theme, width, mode, height = 24 }) {
 function contextRail({ state, theme, width, height = 30 }) {
   const active = state.focus === 'rail';
   const content = contextRailContent({ state, theme, width });
-  return scrollRenderedNode({ node: content, width, height, scroll: state.scroll?.rail || 0, theme, active, title: ' CONTEXT ' });
+  return scrollRenderedNode({ node: content, width, height, scroll: state.scroll?.rail || 0, theme, active, title: ' CONTEXT ', pointerId: 'support:rail', onClick: () => { state.focus = 'rail'; }, onWheel: (event) => { scrollSupportPanel(state, 'rail', event.deltaY < 0 ? -3 : 3); event.preventDefault(); } });
 }
 
 function contextRailContent({ state, theme, width }) {
@@ -532,10 +544,10 @@ function contextHintLine(state, theme, width) {
     return `${fitInlineRegion(controls, controlsWidth)}${color(theme, 'muted', divider)}${fitInlineRegion(options, optionsWidth)}`;
   }
   if (state.focus === 'rail') return color(theme, 'muted', truncateVisible('Context: ↑/↓ scroll · PgUp/PgDn page · Tab returns to work', width));
-  if (state.activeTab === 'ticket') return color(theme, 'muted', truncateVisible('Ticket: ↑/↓ scroll thread · PgUp/PgDn page · Ctrl+R reply · Ctrl+N note · Esc inbox', width));
-  if (state.activeTab === 'reply') return color(theme, 'muted', truncateVisible('Reply preview: ↑/↓ scroll · Ctrl+R edit · Ctrl+N note · Esc inbox', width));
-  if (state.activeTab === 'customer') return color(theme, 'muted', truncateVisible('Customer: ↑/↓ scroll · PgUp/PgDn page · Esc inbox', width));
-  if (state.activeTab === 'activity') return color(theme, 'muted', truncateVisible('Activity: ↑/↓ select · PgUp/PgDn page · Esc inbox', width));
+  if (state.activeTab === 'ticket') return color(theme, 'muted', truncateVisible('Ticket: wheel or Shift+↑/↓ scroll thread · PgUp/PgDn page · Ctrl+R reply · Ctrl+N note · Esc inbox', width));
+  if (state.activeTab === 'reply') return color(theme, 'muted', truncateVisible('Reply preview: wheel or Shift+↑/↓ scroll · Ctrl+R edit · Ctrl+N note · Esc inbox', width));
+  if (state.activeTab === 'customer') return color(theme, 'muted', truncateVisible('Customer: wheel or Shift+↑/↓ scroll · PgUp/PgDn page · Esc inbox', width));
+  if (state.activeTab === 'activity') return color(theme, 'muted', truncateVisible('Activity: click/wheel or ↑/↓ select · PgUp/PgDn page · Esc inbox', width));
   return color(theme, 'muted', truncateVisible('Use [/] to switch tabs or / to run a command.', width));
 }
 
@@ -734,16 +746,36 @@ function previewLines(draft, width, height, scroll = 0) {
   return visible;
 }
 
-function scrollRenderedNode({ node, width, height, scroll, theme, active, title }) {
+function scrollRenderedNode({ node, width, height, scroll, theme, active, title, pointerId, onClick, onWheel }) {
   const content = renderNode(node, width);
   const visibleHeight = Math.max(1, height - 2);
   const window = visibleWindowLines(content, { height: visibleHeight, scroll });
   const header = window.maxScroll > 0 ? `${title} ↑/↓ PgUp/PgDn ${window.scroll}/${window.maxScroll} ` : title;
-  return pane({ title: active ? `▶${header}` : header, theme, active, padding: { left: 0, right: 0 } },
+  return pane({ title: active ? `▶${header}` : header, theme, active, padding: { left: 0, right: 0 }, pointerId, onClick, onWheel },
     Lines(window.lines.slice(0, visibleHeight)),
   );
 }
 
+
+function selectSupportTab(state, id) {
+  if (!SUPPORT_TABS.some((tab) => tab.id === id)) return;
+  state.activeTab = id;
+  state.focus = id === 'inbox' ? 'inbox' : 'work';
+  if (id === 'customer') state.scroll.customer = 0;
+  if (id === 'activity') {
+    state.activitySelectedIndex = 0;
+    state.activityPage = 0;
+  }
+  state.toasts?.show?.(`Tab: ${id}.`, 'info', 2);
+}
+
+function scrollSupportPanel(state, key, delta) {
+  state.scroll = state.scroll || {};
+  const width = Number(state.viewport?.width) || 118;
+  const height = Number(state.viewport?.height) || 34;
+  const max = getSupportScrollMax({ state, key, width, height });
+  state.scroll[key] = scrollBy(state.scroll[key] || 0, delta, max);
+}
 
 function inboxControlsLine(state, theme, width) {
   const control = state.inboxControl || 'tickets';

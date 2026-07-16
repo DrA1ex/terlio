@@ -63,6 +63,16 @@ export function visibleWindowLines(lines = [], {
   autoscroll = false,
   previousTotalRows = undefined,
   sticky = undefined,
+  pointerId = undefined,
+  pointerData = undefined,
+  pointerWidth = 'fill',
+  pointerEvents = undefined,
+  onPointer = null,
+  onClick = null,
+  onWheel = null,
+  onDrag = null,
+  onMove = null,
+  onRelease = null,
 } = {}) {
   const safeLines = Array.from(lines, (line) => String(line ?? ''));
   const safeHeight = Math.max(1, Number(height) || 1);
@@ -94,13 +104,38 @@ export function ScrollPane({
   autoscroll = false,
   previousTotalRows = undefined,
   sticky = undefined,
+  pointerId = undefined,
+  pointerData = undefined,
+  pointerWidth = 'fill',
+  pointerEvents = undefined,
+  onPointer = null,
+  onClick = null,
+  onWheel = null,
+  onDrag = null,
+  onMove = null,
+  onRelease = null,
 } = {}) {
   const chromeRows = (border ? 2 : 0) + (footer ? 1 : 0);
   const innerHeight = Math.max(1, (Number(height) || 1) - chromeRows);
   const window = visibleWindowLines(lines, { height: Math.max(1, innerHeight), scroll, autoscroll, previousTotalRows, sticky });
   const rows = window.lines.map((line) => Text(fit(line, Math.max(1, width - (border ? 4 : 0))), { wrap: false }));
-  if (footer) rows.push(Text(`↑↓ scroll ${window.scroll}/${window.maxScroll}`, { wrap: false }));
-  return Box({ border, padding: border ? { left: 1, right: 1 } : 0, title, height }, ...rows);
+  if (footer) rows.push(Text(`wheel · Shift+↑/↓ · PgUp/PgDn ${window.scroll}/${window.maxScroll}`, { wrap: false }));
+  return Box({
+    border,
+    padding: border ? { left: 1, right: 1 } : 0,
+    title,
+    height,
+    pointerId,
+    pointerData,
+    pointerWidth,
+    pointerEvents,
+    onPointer,
+    onClick,
+    onWheel,
+    onDrag,
+    onMove,
+    onRelease,
+  }, ...rows);
 }
 
 function splitLogicalLines(chars, cursor) {

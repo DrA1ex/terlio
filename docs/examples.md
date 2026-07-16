@@ -1,12 +1,12 @@
 # Examples
 
-Terlio.js ships every example in the npm package. Use the bundled launcher after installing from the registry:
+Terlio.js ships every example in the npm package. Install it in a Node.js project, then use the bundled launcher:
 
 ```bash
 npx terlio.js list
 ```
 
-The same ids work with local, global and `npx` installations:
+The same ids work through a project dependency, a global installation, or `npx`:
 
 ```bash
 npx terlio.js demo:chat
@@ -14,7 +14,6 @@ npx terlio.js example:palette
 npx terlio.js components
 ```
 
-Inside the source repository, equivalent `npm run demo:*` and `npm run example:*` aliases are available for development.
 
 ## Demos
 
@@ -24,7 +23,7 @@ Inside the source repository, equivalent `npm run demo:*` and `npm run example:*
 npx terlio.js demo:chat
 ```
 
-A responsive chat workspace with slash completion, command palette, multiline and bracketed-paste input, sessions, skills, semantic themes, structured blocks, streaming-aware scroll anchoring and a compact viewport fallback.
+A responsive chat workspace with slash completion, a clickable command palette, multiline and bracketed-paste input, sessions, skills, structured blocks, wheel/trackpad scroll, and `Shift+↑/↓` line scrolling. Press `Ctrl+T` to pause pointer reporting and select user or assistant transcript text with an ordinary drag gesture; press it again to restore clicks and wheel input.
 
 ### Support Triage Desk — `demo:support-desk`
 
@@ -32,7 +31,7 @@ A responsive chat workspace with slash completion, command palette, multiline an
 npx terlio.js demo:support-desk
 ```
 
-An inbox-first support workflow with stable ticket selection, bracket-switched tabs, pane-local scrolling, reply and note composers, SLA details, activity history, overlays, and slash commands that return to the previous pane unless they navigate elsewhere. Use `Esc` to return to Inbox and `Ctrl+Q` to quit.
+An inbox-first support workflow with clickable tabs and tickets, wheel/trackpad and keyboard pane scrolling, reply and note composers, SLA details, activity history, overlays, and slash commands that return to the previous pane unless they navigate elsewhere. Use `Esc` to return to Inbox and `Ctrl+Q` to quit.
 
 ### Code Review — `demo:code-review`
 
@@ -40,7 +39,7 @@ An inbox-first support workflow with stable ticket selection, bracket-switched t
 npx terlio.js demo:code-review
 ```
 
-A pull-request review workflow with keyboard-driven PR selection, commits, diffs, full-width review threads, reply composition, live comments, confirmations and stable scroll positions through resize.
+A pull-request review workflow with keyboard and pointer-driven PR selection, commits, diffs, full-width review threads, reply composition, live comments, confirmations and stable scroll positions through resize.
 
 ## Product-style examples
 
@@ -50,7 +49,7 @@ A pull-request review workflow with keyboard-driven PR selection, commits, diffs
 npx terlio.js example:editor
 ```
 
-A multiline editor workspace with cursor diagnostics, editable saved drafts, history navigation, local key ownership, adaptive help and compact fallback.
+A multiline editor workspace with clickable panes and history rows, wheel/trackpad scrolling, `Shift+↑/↓` line scrolling, cursor diagnostics, editable saved drafts, history navigation, local key ownership, adaptive help and compact fallback.
 
 ### Release Command Center — `example:palette`
 
@@ -58,7 +57,7 @@ A multiline editor workspace with cursor diagnostics, editable saved drafts, his
 npx terlio.js example:palette
 ```
 
-A guided release workflow. Start with a mission briefing, open the fuzzy command palette, run checks, generate notes, request approval and confirm a staging deployment. Commands close the palette, show activity progress, mutate the workspace and finish with contextual next-step guidance.
+A guided release workflow with clickable mission steps and palette rows. Start with a mission briefing, open the fuzzy command palette, run checks, generate notes, request approval and confirm a staging deployment. Commands close the palette, show activity progress, mutate the workspace and finish with contextual next-step guidance.
 
 ### Streaming Workbench — `example:stream`
 
@@ -66,7 +65,7 @@ A guided release workflow. Start with a mission briefing, open the fuzzy command
 npx terlio.js example:stream
 ```
 
-A streaming workspace with multiline prompt editing, templates, sticky transcript autoscroll, scrollback preservation, runtime progress, cancellation and timer cleanup.
+A streaming workspace with clickable templates and panes, wheel/trackpad scrolling, `Shift+↑/↓` line scrolling, multiline prompt editing, templates, sticky transcript autoscroll, scrollback preservation, runtime progress, cancellation and timer cleanup.
 
 ## UI mechanics
 
@@ -76,7 +75,7 @@ A streaming workspace with multiline prompt editing, templates, sticky transcrip
 npx terlio.js example:kit
 ```
 
-An interactive catalog covering layout, workspace composition, lists, command palettes, editor mechanics, overlays, scrolling, progress, timelines, semantic themes, focus and frame diffs.
+An interactive catalog with clickable tabs, lists, panes and wheel-scrollable surfaces covering layout, workspace composition, lists, command palettes, editor mechanics, overlays, scrolling, progress, timelines, semantic themes, focus and frame diffs.
 
 ### Key Inspector — `example:keys`
 
@@ -84,7 +83,7 @@ An interactive catalog covering layout, workspace composition, lists, command pa
 npx terlio.js example:keys
 ```
 
-Shows raw escape sequences, normalized keys and actual editor mutations. Useful for checking Alt/Option behavior, Shift+Tab, bracketed paste and terminal compatibility.
+Shows raw escape sequences with clickable event inspection and wheel/`Shift+↑/↓` history scrolling, normalized keys and actual editor mutations. Useful for checking Alt/Option behavior, Shift+Tab, bracketed paste and terminal compatibility.
 
 ### Theme Studio — `example:themes`
 
@@ -92,7 +91,7 @@ Shows raw escape sequences, normalized keys and actual editor mutations. Useful 
 npx terlio.js example:themes
 ```
 
-Stage a candidate theme, compare it with the active theme and apply it to the complete workspace. The inspector explains the semantic tokens used by components.
+Click or scroll through themes, then stage a candidate theme, compare it with the active theme and apply it to the complete workspace. The inspector explains the semantic tokens used by components.
 
 ### Structured Response Explorer — `example:blocks`
 
@@ -100,7 +99,7 @@ Stage a candidate theme, compare it with the active theme and apply it to the co
 npx terlio.js example:blocks
 ```
 
-Explore complete structured responses, inspect individual block payloads and simulate safe copy, diff-apply and command-run actions without touching the filesystem or starting processes.
+Click response blocks and use wheel/`Shift+↑/↓` scrolling to explore complete structured responses, inspect individual block payloads and simulate safe copy, diff-apply and command-run actions without touching the filesystem or starting processes.
 
 ### Component Composition Snapshot — `example:components`
 
@@ -122,3 +121,23 @@ npx terlio.js run demo:chat
 ```
 
 Interactive examples require a real TTY because they use raw input and alternate-screen rendering. `example:components` does not.
+
+
+## Development checkout
+
+When working from the Terlio.js source repository, install development dependencies and use the repository-only aliases:
+
+```bash
+npm ci
+npm run demo:chat
+npm run demo:support-desk
+npm run demo:code-review
+npm run example:editor
+npm run example:palette
+npm run example:stream
+npm run example:kit
+npm run example:keys
+npm run example:themes
+npm run example:blocks
+npm run example:components
+```

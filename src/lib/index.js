@@ -1,11 +1,13 @@
 export { RichTerminalApp, createAppPaletteItems } from './app.js';
-export { ansi } from './ansi/codes.js';
+export { ansi, mouseReportingSequence } from './ansi/codes.js';
 export { themes } from './ansi/themes.js';
 export { color, stripAnsi, visibleLength, wcwidth, padEndVisible, truncateVisible } from './ansi/text.js';
 export { commands, findCommand, getSuggestions, helpText, parseCommand } from './commands.js';
 export { FocusManager } from './focusManager.js';
 export { InputEditor, handleInputEditorKey } from './inputEditor.js';
 export { parseKey, isPrintable } from './keyParser.js';
+export { TerminalInputDecoder, parseInputEvent, parseInputEvents } from './inputParser.js';
+export { parsePointer, isPointerEvent, hitTestPointerRegions, dispatchPointerEvent } from './pointer.js';
 export { buildMockBlocks, buildMockReply, replyRules, selectRule, streamMockBlocks, streamMockReply, StreamCancelled } from './mockModel.js';
 export { createProvider, listProviders, MockProvider, ReplayProvider } from './providers.js';
 export { SessionStore, applySerializedSkillState, serializeSkillState } from './sessionStore.js';
@@ -14,7 +16,7 @@ export { appendMessageBlock, appendMessageChunk, completeMessage, createMessage,
 export { BLOCK_TYPES, appendBlockContent, blockToText, blocksToText, createBlock, ensureTextBlock, normalizeBlock, normalizeBlocks } from './blocks.js';
 export { wrapText } from './wrap.js';
 
-export { Box, Column, Panel, Row, Text, createNode, normalizeChildren } from './ui/node.js';
+export { Box, Column, Panel, PointerRegion, Row, Text, createNode, normalizeChildren } from './ui/node.js';
 export { createWorkspaceApp, WorkspaceApp } from './workspaceApp.js';
 export { ActionRegistry, createActionRegistry, normalizeAction, keyMatches, parseKeySpec } from './actionRegistry.js';
 export { OverlayManager, OverlayHost, createOverlayManager } from './overlayHost.js';

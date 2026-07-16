@@ -1,8 +1,8 @@
-import { ansi } from './ansi/codes.js';
+import { ansi, mouseReportingSequence } from './ansi/codes.js';
 import { themes } from './ansi/themes.js';
 import { findCommand, getSuggestions, parseCommand } from './commands.js';
 import { InputEditor } from './inputEditor.js';
-import { parseKey } from './keyParser.js';
+import { TerminalInputDecoder } from './inputParser.js';
 import { FocusManager } from './focusManager.js';
 import { ModeManager } from './modeManager.js';
 import { createCommandPaletteState, handleCommandPaletteKey } from './commandPalette.js';
@@ -22,10 +22,15 @@ const SUGGESTION_WINDOW_SIZE = 7;
 export { createAppPaletteItems };
 
 export class RichTerminalApp {
-  constructor({ input = process.stdin, output = process.stdout, onExit = null, sessionStore = new SessionStore() } = {}) {
+  constructor({ input = process.stdin, output = process.stdout, onExit = null, onPointer = null, pointer = 'auto', sessionStore = new SessionStore() } = {}) {
     this.input = input;
     this.output = output;
     this.onExit = onExit;
+    this.onPointer = typeof onPointer === 'function' ? onPointer : null;
+    this.pointerOptions = normalizePointerOptions(pointer);
+    this.pointerPreference = this.pointerOptions.enabled;
+    this.pointerActive = false;
+    this.selectionMode = false;
     this.sessionStore = sessionStore;
 
     this.running = false;
@@ -61,6 +66,7 @@ export class RichTerminalApp {
     this.overlays = createOverlayManager();
     this.tickTimer = null;
     this.renderer = new TerminalRenderer({ output: this.output });
+    this.inputDecoder = new TerminalInputDecoder();
 
     this.boundOnData = this.onData.bind(this);
     this.boundOnResize = this.render.bind(this);
@@ -126,8 +132,10 @@ export class RichTerminalApp {
     this.input.off('data', this.boundOnData);
     this.output.off('resize', this.boundOnResize);
 
+    this.setPointerActive(false);
     if (this.input.isTTY) this.input.setRawMode(false);
     this.input.pause();
+    this.inputDecoder.reset();
 
     this.renderer.reset();
     this.output.write(ansi.showCursor + ansi.normalScreen + ansi.reset);
@@ -382,15 +390,77 @@ export class RichTerminalApp {
   }
 
   logDebug(type, detail) {
-    if (!this.debug.enabled && type === 'key') return;
+    if (!this.debug.enabled && (type === 'key' || type === 'pointer')) return;
     this.debug.events.push({ at: new Date().toISOString(), type, detail: String(detail ?? '') });
     if (this.debug.events.length > 80) this.debug.events = this.debug.events.slice(-80);
   }
 
   onData(data) {
-    const key = parseKey(data);
-    this.logDebug('key', formatDebugKey(key));
-    routeRichTerminalKey(this, key);
+    for (const event of this.inputDecoder.write(data)) {
+      if (event?.type === 'pointer') {
+        this.handlePointer(event);
+        continue;
+      }
+      this.logDebug('key', formatDebugKey(event));
+      routeRichTerminalKey(this, event);
+    }
+  }
+
+  handlePointer(pointer) {
+    this.logDebug('pointer', `${pointer.name} @ ${pointer.x},${pointer.y}`);
+    const routed = this.renderer.dispatchPointer(pointer, { app: this, runtime: this });
+    const event = routed.event;
+    if (!event.propagationStopped && this.onPointer) {
+      const result = this.onPointer({ pointer: event, app: this, runtime: this });
+      if (result !== false) event.handled = true;
+    }
+    if (event.handled) this.render();
+    return event;
+  }
+
+  toggleSelectionMode(enabled = !this.selectionMode) {
+    const next = Boolean(enabled);
+    if (next === this.selectionMode) return this.selectionMode;
+
+    if (next) {
+      this.pointerPreference = this.pointerOptions.enabled;
+      this.selectionMode = true;
+      this.pointerOptions.enabled = false;
+    } else {
+      this.selectionMode = false;
+      this.pointerOptions.enabled = this.pointerPreference;
+    }
+    this.syncPointerMode();
+    this.status = this.selectionMode
+      ? 'Text selection mode enabled. Drag to select transcript text; wheel and clicks are paused.'
+      : 'Pointer mode restored. Wheel, trackpad, and clicks are active.';
+    this.render();
+    return this.selectionMode;
+  }
+
+  setPointerEnabled(value) {
+    const requested = value === 'auto' ? 'auto' : Boolean(value);
+    this.pointerPreference = requested;
+    this.pointerOptions.enabled = this.selectionMode ? false : requested;
+    this.syncPointerMode();
+    return requested;
+  }
+
+  syncPointerMode() {
+    if (!this.running) return false;
+    const enabled = this.pointerOptions.enabled === true || (
+      this.pointerOptions.enabled === 'auto' && (Boolean(this.onPointer) || this.renderer.pointerRegions.length > 0)
+    );
+    this.setPointerActive(enabled);
+    return enabled;
+  }
+
+  setPointerActive(enabled) {
+    const next = Boolean(enabled);
+    if (next === this.pointerActive) return false;
+    this.pointerActive = next;
+    this.output.write(mouseReportingSequence(next, this.pointerOptions));
+    return true;
   }
 
   openCommandPalette() {
@@ -563,8 +633,31 @@ export class RichTerminalApp {
       debug: this.debug,
       status: this.status,
       busy: this.busy,
+      selectionMode: this.selectionMode,
       scrollOffset,
       frame: this.frame,
+      onTranscriptWheel: (event) => {
+        this.scrollOffset = Math.max(0, this.scrollOffset - event.deltaY);
+        event.preventDefault();
+      },
+      onSuggestionSelect: (_suggestion, index) => {
+        this.suggestionIndex = index;
+        this.acceptCurrentSuggestion();
+      },
+      onSuggestionWheel: (event) => {
+        if (!event.deltaY) return;
+        this.moveSuggestion(event.deltaY < 0 ? -1 : 1);
+        event.preventDefault();
+      },
+      onPaletteSelect: (_item, index) => {
+        this.palette.selectedIndex = index;
+        this.handleCommandPaletteKey({ name: 'enter' });
+      },
+      onPaletteWheel: (event) => {
+        if (!event.deltaY) return;
+        this.handleCommandPaletteKey({ name: event.deltaY < 0 ? 'up' : 'down' });
+        event.preventDefault();
+      },
     });
 
     let screen = buildScreen();
@@ -581,8 +674,25 @@ export class RichTerminalApp {
     this.lastViewportWidth = columns;
     this.renderer.renderNode(screen.node, { width: columns, height: rows });
     this.output.write(ansi.reset);
+    this.syncPointerMode();
   }
 
+}
+
+function normalizePointerOptions(pointer) {
+  if (pointer && typeof pointer === 'object') {
+    const requested = pointer.enabled ?? 'auto';
+    return {
+      enabled: requested === 'auto' ? 'auto' : Boolean(requested),
+      drag: pointer.drag !== false,
+      motion: Boolean(pointer.motion),
+    };
+  }
+  return {
+    enabled: pointer === undefined || pointer === 'auto' ? 'auto' : Boolean(pointer),
+    drag: true,
+    motion: false,
+  };
 }
 
 function shortSessionLabel(id) {

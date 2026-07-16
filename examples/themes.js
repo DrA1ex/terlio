@@ -24,10 +24,13 @@ import {
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
 import {
   cycleTab,
+  isShiftLineScroll,
   responsiveTabHint,
   responsiveTabs,
   scrollOffset,
+  shiftLineScrollDelta,
   visibleScrollableRows,
+  wheelScrollDelta,
 } from './_workspaceExampleUtils.js';
 
 const THEME_PROFILES = [
@@ -132,6 +135,10 @@ export function createThemeGalleryView({ state, width = 112, height = 32 } = {})
     focus: state.activeTab,
     tabs: visibleTabs,
     activeTab: state.activeTab,
+    onTabSelect: (id) => {
+      state.activeTab = id;
+      state.status = `Focus moved to ${id}.`;
+    },
     tabHint,
     activity,
     footer,
@@ -167,6 +174,10 @@ export function createThemeGalleryView({ state, width = 112, height = 32 } = {})
     focus: state.activeTab,
     tabs: visibleTabs,
     activeTab: state.activeTab,
+    onTabSelect: (id) => {
+      state.activeTab = id;
+      state.status = `Focus moved to ${id}.`;
+    },
     tabHint,
     main,
     activity,
@@ -228,6 +239,11 @@ export function handleThemeGalleryKey({ key, state }) {
     return;
   }
 
+  if (isShiftLineScroll(key) && state.activeTab !== 'library') {
+    scrollThemePane(state, state.activeTab, key.name);
+    return;
+  }
+
   if (state.activeTab === 'library') {
     if (key.name === 'up') return selectTheme(state, state.selectedIndex - 1);
     if (key.name === 'down') return selectTheme(state, state.selectedIndex + 1);
@@ -266,6 +282,8 @@ function themeLibraryPane(state, appTheme, width, height) {
     active: state.activeTab === 'library',
     height,
     theme: appTheme,
+    pointerId: 'themes:library',
+    onClick: () => { state.activeTab = 'library'; },
     children: [SelectList({
       title: 'Themes',
       items: THEME_PROFILES.map((profile) => ({
@@ -284,6 +302,15 @@ function themeLibraryPane(state, appTheme, width, height) {
       wrapItems: width < 34,
       rowLines: width < 34 ? 2 : 1,
       reserveItemLines: width < 34,
+      pointerId: 'themes:list',
+      onSelect: (_profile, index) => {
+        state.activeTab = 'library';
+        selectTheme(state, index);
+      },
+      onWheel: (event) => {
+        selectTheme(state, state.selectedIndex + (event.deltaY < 0 ? -1 : 1));
+        event.preventDefault();
+      },
     })],
     footerNode: summary,
     footerGap: showSummary ? 1 : 0,
@@ -312,6 +339,12 @@ function livePreviewPane(state, selectedProfile, appliedProfile, candidateTheme,
     active: state.activeTab === 'preview',
     height,
     theme: candidateTheme,
+    pointerId: 'themes:preview',
+    onClick: () => { state.activeTab = 'preview'; },
+    onWheel: (event) => {
+      scrollThemePaneByDelta(state, 'preview', wheelScrollDelta(event));
+      event.preventDefault();
+    },
     children: window.rows.map((row) => Text(row, { wrap: false })),
   });
 }
@@ -340,6 +373,12 @@ function tokenContractPane(state, profile, theme, width, height) {
     active: state.activeTab === 'tokens',
     height,
     theme,
+    pointerId: 'themes:tokens',
+    onClick: () => { state.activeTab = 'tokens'; },
+    onWheel: (event) => {
+      scrollThemePaneByDelta(state, 'tokens', wheelScrollDelta(event));
+      event.preventDefault();
+    },
     children: window.rows.map((row) => Text(row, { wrap: false })),
   });
 }
@@ -454,6 +493,13 @@ function scrollThemePane(state, pane, keyName) {
   state.status = `${pane === 'tokens' ? 'Token contract' : 'Live preview'} scrolled.`;
 }
 
+function scrollThemePaneByDelta(state, pane, delta) {
+  const visible = pane === 'tokens' ? 10 : 8;
+  const total = pane === 'tokens' ? TOKEN_SPECS.length + 5 : state.previewMode === 'compare' ? 34 : 18;
+  state.paneScroll[pane] = scrollOffset(state.paneScroll[pane], delta, total, visible);
+  state.status = `${pane === 'tokens' ? 'Token contract' : 'Live preview'} scrolled.`;
+}
+
 function contextHelp(state) {
   if (state.activeTab === 'library') {
     return [
@@ -466,7 +512,7 @@ function contextHelp(state) {
     ];
   }
   return [
-    ['↑/↓', 'scroll line'],
+    ['Shift+↑/↓', 'scroll line'],
     ['PgUp/PgDn', 'scroll page'],
     ['Enter', 'apply candidate'],
     ['C', 'candidate / compare'],

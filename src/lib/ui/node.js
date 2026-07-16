@@ -28,6 +28,10 @@ export function Panel(title, ...children) {
   return Box({ border: true, padding: 1, title }, ...children);
 }
 
+export function PointerRegion(props = {}, ...children) {
+  return createNode('pointerRegion', props, children);
+}
+
 export function normalizeChildren(children) {
   return children.flat(Infinity)
     .filter((child) => child !== null && child !== undefined && child !== false)

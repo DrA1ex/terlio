@@ -9,6 +9,11 @@ export function routeRichTerminalKey(app, key) {
     return true;
   }
 
+  if (key.ctrl && key.name === 't') {
+    app.toggleSelectionMode();
+    return true;
+  }
+
   if (key.name === 'command-palette') {
     if (app.modes.is('palette')) {
       app.modes.pop();
@@ -20,6 +25,16 @@ export function routeRichTerminalKey(app, key) {
 
   if (app.modes.is('palette')) {
     app.handleCommandPaletteKey(key);
+    return true;
+  }
+
+  if (key.shift && key.name === 'up') {
+    app.scrollTranscript(1);
+    return true;
+  }
+
+  if (key.shift && key.name === 'down') {
+    app.scrollTranscript(-1);
     return true;
   }
 

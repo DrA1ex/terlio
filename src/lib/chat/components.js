@@ -100,6 +100,8 @@ export function createChatScreen(props = {}) {
     theme,
     rows,
     columns,
+    onPaletteSelect: props.onPaletteSelect,
+    onPaletteWheel: props.onPaletteWheel,
   });
 
   return {
@@ -132,6 +134,7 @@ export function Header({
   skillState = null,
   activeSkills = null,
   compact = false,
+  selectionMode = false,
 } = {}) {
   const skills = Array.isArray(activeSkills)
     ? activeSkills.join(', ')
@@ -157,11 +160,13 @@ export function Header({
   const metaBudget = compact ? Math.max(10, innerWidth - visibleLength(title) - 2) : innerWidth;
   const meta = compact ? truncateVisible(rawMeta, metaBudget, '…') : rawMeta;
   const rowOne = joinSides(color(theme, 'text', title), color(theme, 'textMuted', meta), innerWidth);
-  const shortcuts = compact
-    ? 'Ctrl+P palette · / commands · PgUp/PgDn transcript'
-    : columns < 124
-      ? 'Ctrl+P palette · / commands · Ctrl+J newline · PgUp/PgDn read'
-      : 'Ctrl+P palette  ·  / commands  ·  Ctrl+J newline  ·  PgUp/PgDn transcript  ·  Esc latest/cancel';
+  const shortcuts = selectionMode
+    ? 'TEXT SELECTION · drag to copy · Ctrl+T restore pointer mode'
+    : compact
+      ? 'wheel/Shift+↑↓ read · Ctrl+T select text · Ctrl+P palette'
+      : columns < 124
+        ? 'wheel/Shift+↑↓ read · Ctrl+T text selection · Ctrl+P palette'
+        : 'wheel/trackpad or Shift+↑/↓ read  ·  Ctrl+T text selection  ·  Ctrl+P palette  ·  / commands';
   const skillText = compact ? `${safeSkills}` : `skills: ${safeSkills}`;
   const rowTwo = joinSides(color(theme, 'textMuted', shortcuts), color(theme, 'textAccent', skillText), innerWidth);
 
@@ -176,7 +181,7 @@ export function Header({
   compact ? null : Text(rowTwo, { wrap: false }));
 }
 
-export function TranscriptPane({ columns = 80, height = 10, messages = [], theme = themes.dark, frame = 0, scrollOffset = 0, busy = false } = {}) {
+export function TranscriptPane({ columns = 80, height = 10, messages = [], theme = themes.dark, frame = 0, scrollOffset = 0, busy = false, onTranscriptWheel = null } = {}) {
   const safeHeight = Math.max(4, Number(height) || 4);
   const contentHeight = Math.max(1, safeHeight - 3);
   const transcript = Transcript({ columns: Math.max(20, columns - 4), height: contentHeight, messages, theme, frame, scrollOffset });
@@ -202,6 +207,9 @@ export function TranscriptPane({ columns = 80, height = 10, messages = [], theme
       padding: { left: 1, right: 1 },
       title,
       height: safeHeight,
+      pointerId: 'chat-transcript',
+      pointerWidth: 'fill',
+      onWheel: onTranscriptWheel,
     }, transcript.node, Text(footer, { wrap: false })),
     scrollOffset: transcript.scrollOffset,
     totalRows: transcript.totalRows,
@@ -382,6 +390,8 @@ export function SuggestionsPanel({
   busy = false,
   windowSize = DEFAULT_SUGGESTION_WINDOW_SIZE,
   suggestionWindowSize = null,
+  onSuggestionSelect = null,
+  onSuggestionWheel = null,
 } = {}) {
   const safeHeight = height === undefined ? null : Math.max(4, Number(height) || 4);
   const innerRows = safeHeight === null ? Math.max(2, suggestions.length + 1) : Math.max(1, safeHeight - 2);
@@ -409,7 +419,7 @@ export function SuggestionsPanel({
       const description = suggestion.description ?? '';
       const row = ` ${pointer} ${label.padEnd(18)} ${detail.padEnd(Math.max(12, Math.floor(columns * 0.34)))} ${description}`;
       const rowWidth = Math.max(1, columns - 4);
-      rows.push(Text(color(theme, selected ? 'selected' : 'suggestion', fit(truncateVisible(row, rowWidth, '…'), rowWidth)), { wrap: false }));
+      rows.push(Text(color(theme, selected ? 'selected' : 'suggestion', fit(truncateVisible(row, rowWidth, '…'), rowWidth)), { wrap: false, pointerId: `chat-suggestion:${originalIndex}`, pointerData: { suggestionIndex: originalIndex }, onClick: typeof onSuggestionSelect === 'function' ? () => onSuggestionSelect(suggestion, originalIndex) : null }));
     });
   }
   while (rows.length < innerRows) rows.push(Text('', { wrap: false }));
@@ -422,10 +432,12 @@ export function SuggestionsPanel({
     padding: { left: 1, right: 1 },
     title,
     ...(safeHeight !== null ? { height: safeHeight } : {}),
+    pointerId: 'chat-suggestions',
+    onWheel: onSuggestionWheel,
   }, ...rows);
 }
 
-export function PalettePanel({ columns = 80, rows = 24, palette = null, theme = null } = {}) {
+export function PalettePanel({ columns = 80, rows = 24, palette = null, theme = null, onPaletteSelect = null, onPaletteWheel = null } = {}) {
   if (!palette) return Lines([]);
   const safeWidth = Math.max(32, Number(columns) || 68);
   const height = Math.min(16, Math.max(8, Number(rows) - 8));
@@ -452,7 +464,7 @@ export function PalettePanel({ columns = 80, rows = 24, palette = null, theme = 
     const titleWidth = Math.max(8, safeWidth - 4 - 1 - 13 - 1 - 18 - 3);
     const title = truncateVisible(item.title, titleWidth, '…');
     const line = `${marker} ${category.padEnd(13)} ${id.padEnd(18)} ${title}`;
-    rowsOut.push(Text(color(theme, item.disabled ? 'textMuted' : selected ? 'selected' : 'text', fit(line, safeWidth - 4)), { wrap: false }));
+    rowsOut.push(Text(color(theme, item.disabled ? 'textMuted' : selected ? 'selected' : 'text', fit(line, safeWidth - 4)), { wrap: false, pointerId: `chat-palette:${item.id}`, pointerData: { paletteIndex: index, itemId: item.id }, pointerEvents: item.disabled ? 'none' : 'auto', onClick: !item.disabled && typeof onPaletteSelect === 'function' ? () => onPaletteSelect(item, index) : null }));
   });
   while (rowsOut.length < innerRows - 2) rowsOut.push(Text('', { wrap: false }));
   const selected = matches[palette.selectedIndex];
@@ -465,6 +477,8 @@ export function PalettePanel({ columns = 80, rows = 24, palette = null, theme = 
     padding: { left: 1, right: 1 },
     title: ' Command Palette ',
     height,
+    pointerId: 'chat-palette',
+    onWheel: onPaletteWheel,
   }, ...rowsOut);
 }
 
@@ -555,7 +569,7 @@ function renderWelcomeLines({ columns, height = 10, theme }) {
         '',
         color(theme, 'textMuted', 'Type a message and press Enter.'),
         color(theme, 'textMuted', 'Use / for commands · Ctrl+P for the palette.'),
-        color(theme, 'textMuted', 'Ctrl+J adds a line · PgUp/PgDn reads history.'),
+        color(theme, 'textMuted', 'Wheel or Shift+↑/↓ reads history · Ctrl+T enables text selection.'),
       ]
     : [
         color(theme, 'title', `Welcome to ${packageDisplayName}`),
@@ -565,12 +579,12 @@ function renderWelcomeLines({ columns, height = 10, theme }) {
         color(theme, 'textMuted', '• Type a message and press Enter.'),
         color(theme, 'textMuted', '• Type / to browse commands with inline completion.'),
         color(theme, 'textMuted', '• Press Ctrl+P for the searchable action palette.'),
-        color(theme, 'textMuted', '• Use Ctrl+J for multiline input and PgUp/PgDn to read older output.'),
+        color(theme, 'textMuted', '• Use the wheel or Shift+↑/↓ to read; Ctrl+T enables native text selection.'),
       ];
   return items.flatMap((line) => line ? wrapText(line, width, '  ') : ['']);
 }
 
-function chatOverlayManager({ mode, palette, overlays, theme, rows = 24, columns = 80 }) {
+function chatOverlayManager({ mode, palette, overlays, theme, rows = 24, columns = 80, onPaletteSelect = null, onPaletteWheel = null }) {
   const base = overlays ?? { toasts: [], top: () => null };
   return {
     toasts: base.toasts ?? [],
@@ -579,7 +593,7 @@ function chatOverlayManager({ mode, palette, overlays, theme, rows = 24, columns
         return {
           id: 'chat.palette',
           type: 'custom',
-          node: PalettePanel({ columns: Math.max(32, columns - 2), rows, palette, theme }),
+          node: PalettePanel({ columns: Math.max(32, columns - 2), rows, palette, theme, onPaletteSelect, onPaletteWheel }),
           width: Math.max(32, columns - 2),
           shadow: false,
           opaqueRows: true,

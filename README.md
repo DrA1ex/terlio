@@ -7,18 +7,9 @@ Use it for full-screen CLI applications, AI and agent consoles, internal tools, 
 <img width="1280" alt="UI" src="https://github.com/user-attachments/assets/674cd5e9-f155-4a40-bbcf-fa2f3a18c84a" />
 
 
-## Highlights
-
-- Declarative primitives: `Text`, `Box`, `Row`, `Column`, `Panel`, `Grid` and `SplitPane`.
-- Product-level composition: `WorkspaceShell`, `WorkspacePane`, `WorkspaceFooter`, `Docked` and `RequireViewport`.
-- Efficient rendering through fixed virtual frames and row-level ANSI patches.
-- Stateful interaction helpers for lists, scrolling, focus, modes, text editing and command palettes.
-- Blocking modals and confirmations plus non-blocking toast overlays.
-- Unicode-aware measurement and clipping for emoji, CJK and styled ANSI text.
-- Structured response blocks for text, code, diffs, commands, warnings and tool results.
-- No runtime dependencies; Node.js built-ins only.
-
 ## Install
+
+Create or open a Node.js project, then install Terlio.js:
 
 ```bash
 npm install terlio.js
@@ -42,7 +33,7 @@ console.log(renderToString(screen, { width: 48, height: 8 }));
 
 ## Run packaged examples
 
-The npm package includes all examples and a small launcher. They remain available after installation from the registry:
+After installing `terlio.js` in the current Node.js project, use its bundled launcher:
 
 ```bash
 npx terlio.js list
@@ -62,6 +53,18 @@ npx terlio.js chat
 npx terlio.js palette
 npx terlio.js components
 ```
+
+## Highlights
+
+- Declarative primitives: `Text`, `Box`, `Row`, `Column`, `Panel`, `Grid` and `SplitPane`.
+- Product-level composition: `WorkspaceShell`, `WorkspacePane`, `WorkspaceFooter`, `Docked` and `RequireViewport`.
+- Efficient rendering through fixed virtual frames and row-level ANSI patches.
+- Stateful interaction helpers for lists, scrolling, focus, modes, text editing and command palettes.
+- Pointer input with SGR 1006 mouse reporting, wheel/touchpad events, clicks, coordinates and component hit-testing.
+- Blocking modals and confirmations plus non-blocking toast overlays.
+- Unicode-aware measurement and clipping for emoji, CJK and styled ANSI text.
+- Structured response blocks for text, code, diffs, commands, warnings and tool results.
+- No runtime dependencies; Node.js built-ins only.
 
 ## Repository development
 
@@ -130,6 +133,46 @@ const app = createWorkspaceApp({
 app.start();
 ```
 
+
+## Pointer input
+
+`createWorkspaceApp()` can own mouse reporting together with raw keyboard input. In the default `pointer: 'auto'` mode, Terlio enables SGR 1006 reporting when the rendered tree contains pointer handlers or the runtime has a global `onPointer` handler, then disables it during cleanup.
+
+```js
+import { ScrollPane, createWorkspaceApp, scrollBy } from 'terlio.js';
+
+const state = {
+  lines: Array.from({ length: 100 }, (_, index) => `row ${index + 1}`),
+  scroll: 0,
+};
+
+const app = createWorkspaceApp({
+  state,
+  render: ({ height }) => ScrollPane({
+    title: ' History ',
+    lines: state.lines,
+    height,
+    scroll: state.scroll,
+    pointerId: 'history',
+    onWheel: (event) => {
+      const max = Math.max(0, state.lines.length - height + 3);
+      state.scroll = scrollBy(state.scroll, event.deltaY, max);
+    },
+    onClick: (event) => {
+      // event.localY can be mapped to a custom scrollbar thumb or track.
+    },
+  }),
+});
+
+app.start();
+```
+
+Pointer events expose zero-based screen coordinates as `x` and `y`, original one-based terminal coordinates as `column` and `row`, wheel deltas, modifiers, button information, and hit-tested `target`, `currentTarget`, `localX`, and `localY` fields. Touchpad scrolling is reported by terminals through the same `wheel-up`, `wheel-down`, `wheel-left`, and `wheel-right` events.
+
+Because mouse reporting can consume native drag selection, applications with copyable text should provide a temporary selection mode by disabling pointer reporting and restoring it afterward. The packaged chat demo uses `Ctrl+T` so user and assistant transcript text remains selectable.
+
+Any node can define `onPointer`, `onClick`, `onWheel`, `onDrag`, `onMove`, or `onRelease`. Use `PointerRegion()` to wrap a component that does not expose pointer props directly.
+
 ## Documentation
 
 - [Getting started](docs/getting-started.md)
@@ -159,7 +202,7 @@ Use the `terlio.js` CLI rather than importing an interactive example when the go
 
 ## Project status
 
-Terlio.js 1.0 provides a stable initial public API. Public exports are covered by tests.
+Terlio.js 1.1 adds pointer input and mouse-enabled examples while preserving the stable 1.0 keyboard and rendering APIs. Public exports are covered by tests.
 
 ## License
 

@@ -1,5 +1,5 @@
 import { color, visibleLength, truncateVisible } from '../../ansi/text.js';
-import { Box, Text, createNode } from '../node.js';
+import { Box, Row, Text, createNode } from '../node.js';
 
 export function fitInline(value, width) {
   const safeWidth = Math.max(0, Number(width) || 0);
@@ -19,16 +19,35 @@ export function Chip({ label = '', active = false, tone = 'muted', variant = act
   return Badge({ label, tone: active ? tone : 'muted', variant, theme });
 }
 
-export function SectionTabs({ tabs = [], active = '', getLabel = (tab) => tab.label ?? tab.id ?? String(tab), gap = 2, theme = null } = {}) {
-  const parts = tabs.map((tab) => {
+export function SectionTabs({
+  tabs = [],
+  active = '',
+  getLabel = (tab) => tab.label ?? tab.id ?? String(tab),
+  gap = 2,
+  theme = null,
+  onSelect = null,
+  pointerId = 'section-tabs',
+} = {}) {
+  const parts = tabs.map((tab, index) => {
     const id = tab.id ?? tab.value ?? String(tab);
     const label = getLabel(tab);
     const icon = tab.icon ? `${tab.icon} ` : '';
     const text = id === active ? `▣ ${icon}${label}` : `□ ${icon}${label}`;
-    if (!theme) return text;
-    return id === active ? color(theme, 'selected', text) : color(theme, 'textMuted', text);
+    const rendered = !theme
+      ? text
+      : id === active
+        ? color(theme, 'selected', text)
+        : color(theme, 'textMuted', text);
+    return Text(rendered, {
+      wrap: false,
+      pointerId: `${pointerId}:${id}`,
+      pointerData: { kind: 'tab', id, index, tab },
+      onClick: typeof onSelect === 'function'
+        ? (event) => onSelect(id, tab, index, event)
+        : null,
+    });
   });
-  return Text(parts.join(' '.repeat(gap)), { wrap: false });
+  return Row({ gap }, ...parts);
 }
 
 export function CommandBar({ value = '', suggestions = [], mode = 'COMMAND', hint = 'TAB next', prompt = '/', theme = null } = {}) {
@@ -76,15 +95,32 @@ export function PropertyRows({ title = ' Properties ', rows = [], theme = null }
   );
 }
 
-export function ChipLine({ label = '', chips = [], active = '', getLabel = (chip) => chip.label ?? chip.id ?? String(chip), theme = null, tone = 'info', variant = 'subtle' } = {}) {
-  const parts = chips.map((chip) => {
+export function ChipLine({
+  label = '',
+  chips = [],
+  active = '',
+  getLabel = (chip) => chip.label ?? chip.id ?? String(chip),
+  theme = null,
+  tone = 'info',
+  variant = 'subtle',
+  onSelect = null,
+  pointerId = 'chip-line',
+} = {}) {
+  const parts = chips.map((chip, index) => {
     const id = chip.id ?? chip.value ?? String(chip);
     const name = getLabel(chip);
     const selected = id === active;
     const raw = selected ? `[${name}]` : ` ${name} `;
-    return theme ? color(theme, selected ? toneToken(tone) : 'textMuted', raw) : raw;
+    return Text(theme ? color(theme, selected ? toneToken(tone) : 'textMuted', raw) : raw, {
+      wrap: false,
+      pointerId: `${pointerId}:${id}`,
+      pointerData: { kind: 'chip', id, index, chip },
+      onClick: typeof onSelect === 'function'
+        ? (event) => onSelect(id, chip, index, event)
+        : null,
+    });
   });
-  return Text(`${label}${label ? ' ' : ''}${parts.join('  ')}`, { wrap: false });
+  return Row({ gap: 2 }, label ? Text(label, { wrap: false }) : null, ...parts);
 }
 
 function toneToken(tone) {

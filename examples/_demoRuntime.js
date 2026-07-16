@@ -1,9 +1,25 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ansi, parseKey, renderToFrame, TerminalRenderer } from '../src/lib/index.js';
+import {
+  TerminalInputDecoder,
+  TerminalRenderer,
+  ansi,
+  mouseReportingSequence,
+  renderToFrame,
+} from '../src/lib/index.js';
 
 export class InteractiveRuntime {
-  constructor({ title, state = {}, render, onKey, onTick = null, tickMs = 0, onStop = null }) {
+  constructor({
+    title,
+    state = {},
+    render,
+    onKey,
+    onPointer = null,
+    pointer = 'auto',
+    onTick = null,
+    tickMs = 0,
+    onStop = null,
+  }) {
     this.title = title;
     this.state = {
       keyLog: [],
@@ -12,6 +28,9 @@ export class InteractiveRuntime {
     };
     this.renderView = render;
     this.onKey = onKey;
+    this.onPointer = typeof onPointer === 'function' ? onPointer : null;
+    this.pointerOptions = normalizePointerOptions(pointer);
+    this.pointerActive = false;
     this.onTick = onTick;
     this.tickMs = Number(tickMs) || 0;
     this.onStop = typeof onStop === 'function' ? onStop : null;
@@ -20,6 +39,7 @@ export class InteractiveRuntime {
     this.input = process.stdin;
     this.output = process.stdout;
     this.renderer = new TerminalRenderer({ output: this.output });
+    this.inputDecoder = new TerminalInputDecoder();
     this.running = false;
     this.boundOnData = this.handleData.bind(this);
     this.boundOnResize = this.handleResize.bind(this);
@@ -57,8 +77,10 @@ export class InteractiveRuntime {
     }
     this.input.off('data', this.boundOnData);
     this.output.off('resize', this.boundOnResize);
+    this.setPointerActive(false);
     if (this.input.isTTY) this.input.setRawMode(false);
     this.input.pause();
+    this.inputDecoder.reset();
     if (!this.stopNotified) {
       this.stopNotified = true;
       try { this.onStop?.({ state: this.state, runtime: this }); } catch {}
@@ -88,6 +110,7 @@ export class InteractiveRuntime {
     const frame = renderToFrame(view, { width, height });
     this.renderer.renderFrame(frame);
     this.output.write(ansi.reset);
+    this.syncPointerMode();
   }
 
   invalidate() {
@@ -100,21 +123,67 @@ export class InteractiveRuntime {
   }
 
   handleData(data) {
-    const key = parseKey(data);
-    this.logKey(key);
+    for (const event of this.inputDecoder.write(data)) {
+      if (event?.type === 'pointer') {
+        this.handlePointer(event);
+        continue;
+      }
 
-    if (key.name === 'ctrl-c') {
-      this.exit(130);
-      return;
+      const key = event;
+      this.logKey(key);
+
+      if (key.name === 'ctrl-c') {
+        this.exit(130);
+        return;
+      }
+
+      if (key.name === 'ctrl-d') {
+        this.exit(0);
+        return;
+      }
+
+      this.onKey?.({ key, state: this.state, runtime: this });
+      this.render();
     }
+  }
 
-    if (key.name === 'ctrl-d') {
-      this.exit(0);
-      return;
+  handlePointer(pointer) {
+    const routed = this.renderer.dispatchPointer(pointer, {
+      pointer,
+      state: this.state,
+      runtime: this,
+    });
+    const event = routed.event;
+    if (!event.propagationStopped && this.onPointer) {
+      const result = this.onPointer({ pointer: event, state: this.state, runtime: this });
+      if (result !== false) event.handled = true;
     }
+    if (event.handled) this.render();
+    return event;
+  }
 
-    this.onKey?.({ key, state: this.state, runtime: this });
-    this.render();
+  setPointerEnabled(value) {
+    this.pointerOptions.enabled = value === 'auto' ? 'auto' : Boolean(value);
+    this.syncPointerMode();
+    return this.pointerOptions.enabled;
+  }
+
+  syncPointerMode() {
+    if (!this.running) return false;
+    const enabled = this.pointerOptions.enabled === true || (
+      this.pointerOptions.enabled === 'auto'
+      && (Boolean(this.onPointer) || this.renderer.pointerRegions.length > 0)
+    );
+    this.setPointerActive(enabled);
+    return enabled;
+  }
+
+  setPointerActive(enabled) {
+    const next = Boolean(enabled);
+    if (next === this.pointerActive) return false;
+    this.pointerActive = next;
+    this.output.write(mouseReportingSequence(next, this.pointerOptions));
+    return true;
   }
 }
 
@@ -159,4 +228,20 @@ export function fit(value, width) {
   const text = String(value ?? '');
   if (text.length > width) return text.slice(0, Math.max(0, width - 1)) + '…';
   return text.padEnd(width, ' ');
+}
+
+function normalizePointerOptions(pointer) {
+  if (pointer && typeof pointer === 'object') {
+    const requested = pointer.enabled ?? 'auto';
+    return {
+      enabled: requested === 'auto' ? 'auto' : Boolean(requested),
+      drag: pointer.drag !== false,
+      motion: Boolean(pointer.motion),
+    };
+  }
+  return {
+    enabled: pointer === undefined || pointer === 'auto' ? 'auto' : Boolean(pointer),
+    drag: true,
+    motion: false,
+  };
 }

@@ -18,7 +18,14 @@ import {
   themes,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
-import { EXAMPLE_THEME, scrollOffset, scrollToVisible, visibleScrollableRows } from './_workspaceExampleUtils.js';
+import {
+  EXAMPLE_THEME,
+  isShiftLineScroll,
+  scrollOffset,
+  scrollToVisible,
+  visibleScrollableRows,
+  wheelScrollDelta,
+} from './_workspaceExampleUtils.js';
 
 export const BLOCK_SCENARIOS = [
   {
@@ -268,6 +275,11 @@ export function handleBlocksGalleryKey({ key, state }) {
   if (key.name === ']' || (key.printable && key.text === ']')) return changeScenario(state, 1);
   if (key.printable && key.text === '?') return openHelp(state);
 
+  if (isShiftLineScroll(key) && state.focus === 'response') {
+    scrollResponse(state, key.name);
+    return;
+  }
+
   if (state.focus === 'map') {
     if (key.name === 'up') return selectBlock(state, state.selectedIndex - 1);
     if (key.name === 'down') return selectBlock(state, state.selectedIndex + 1);
@@ -305,6 +317,12 @@ function responseMapPane(state, scenario, width, height) {
     active: state.focus === 'map',
     height,
     theme: EXAMPLE_THEME,
+    pointerId: 'blocks:map',
+    onClick: () => { state.focus = 'map'; },
+    onWheel: (event) => {
+      selectBlock(state, state.selectedIndex + (event.deltaY < 0 ? -1 : 1));
+      event.preventDefault();
+    },
     children: [
       Text(color(EXAMPLE_THEME, 'title', scenario.title), { wrap: false }),
       Text(color(EXAMPLE_THEME, 'textMuted', scenario.summary), { wrap: true }),
@@ -319,6 +337,15 @@ function responseMapPane(state, scenario, width, height) {
         rowLines: 2,
         reserveItemLines: true,
         theme: EXAMPLE_THEME,
+        pointerId: 'blocks:list',
+        onSelect: (_block, index) => {
+          state.focus = 'map';
+          selectBlock(state, index);
+        },
+        onWheel: (event) => {
+          selectBlock(state, state.selectedIndex + (event.deltaY < 0 ? -1 : 1));
+          event.preventDefault();
+        },
       }),
     ],
   });
@@ -360,6 +387,19 @@ function renderedResponsePane(state, scenario, width, height) {
     active: state.focus === 'response',
     height,
     theme: EXAMPLE_THEME,
+    pointerId: 'blocks:response',
+    onClick: () => { state.focus = 'response'; },
+    onWheel: (event) => {
+      state.responseScroll = scrollOffset(
+        state.responseScroll,
+        wheelScrollDelta(event),
+        state.responseMetrics.total,
+        state.responseMetrics.visible,
+      );
+      state.revealSelection = false;
+      state.focus = 'response';
+      event.preventDefault();
+    },
     children: window.rows.map((line) => Text(line, { wrap: false })),
   });
 }
@@ -520,7 +560,7 @@ function contextHelp(state, block) {
     ];
   }
   const hints = [
-    ['↑/↓', 'scroll line'],
+    ['Shift+↑/↓', 'scroll line'],
     ['PgUp/PgDn', 'scroll page'],
     ['Home/End', 'top/bottom'],
     ['Esc', state.isolated ? 'full response' : 'response map'],

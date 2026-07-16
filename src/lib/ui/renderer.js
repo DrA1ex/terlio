@@ -1,3 +1,4 @@
+import { dispatchPointerEvent, hitTestPointerRegions } from '../pointer.js';
 import { patchFrames } from './diff.js';
 import { layout } from './layout/index.js';
 
@@ -13,6 +14,7 @@ export class TerminalRenderer {
   constructor({ output } = {}) {
     this.output = output;
     this.previousFrame = null;
+    this.pointerRegions = [];
   }
 
   renderLines(lines, options) {
@@ -31,10 +33,20 @@ export class TerminalRenderer {
     const patch = patchFrames(this.previousFrame, frame);
     if (this.output && patch) this.output.write(patch);
     this.previousFrame = frame;
+    this.pointerRegions = Array.isArray(frame?.pointerRegions) ? frame.pointerRegions : [];
     return patch;
+  }
+
+  hitTestPointer(x, y, options = {}) {
+    return hitTestPointerRegions(this.pointerRegions, x, y, options);
+  }
+
+  dispatchPointer(pointer, context = {}) {
+    return dispatchPointerEvent(pointer, this.pointerRegions, context);
   }
 
   reset() {
     this.previousFrame = null;
+    this.pointerRegions = [];
   }
 }

@@ -17,19 +17,24 @@ import {
   wrapText,
 } from '../src/lib/index.js';
 import { formatKey, isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
-import { EXAMPLE_THEME, visibleScrollableRows } from './_workspaceExampleUtils.js';
+import { EXAMPLE_THEME, scrollOffset, visibleScrollableRows, wheelScrollDelta } from './_workspaceExampleUtils.js';
 
 export function createKeyInspectorState() {
   return {
     editor: new InputEditor('press keys here'),
     inspected: [],
     recentScroll: 0,
+    selectedEventIndex: null,
+    recentVisibleRows: 6,
     status: 'Press keys to compare normalized input, raw bytes and InputEditor behavior.',
   };
 }
 
 export function createKeyInspectorView({ state, width = 100, height = 28 } = {}) {
-  const last = state.inspected.at(-1);
+  const selectedIndex = Number.isInteger(state.selectedEventIndex)
+    ? Math.max(0, Math.min(state.inspected.length - 1, state.selectedEventIndex))
+    : state.inspected.length - 1;
+  const last = state.inspected[selectedIndex];
   const layout = splitWorkspaceColumns(width);
   const stats = [
     { label: 'Events', value: state.inspected.length },
@@ -89,11 +94,23 @@ export function createKeyInspectorView({ state, width = 100, height = 28 } = {})
 export function handleKeyInspectorKey({ key, state }) {
   const before = state.editor.value;
   const beforeCursor = state.editor.cursor;
-  const action = applyEditorKey(state.editor, key);
+  let action;
+  if (key.shift && (key.name === 'up' || key.name === 'down')) {
+    scrollRecent(state, key.name === 'up' ? -1 : 1);
+    action = `scroll recent events ${key.name}`;
+  } else if (key.name === 'page-up' || key.name === 'page-down') {
+    scrollRecent(state, (key.name === 'page-up' ? -1 : 1) * Math.max(1, state.recentVisibleRows - 1));
+    action = `scroll recent events ${key.name}`;
+  } else {
+    action = applyEditorKey(state.editor, key);
+  }
   const inspected = { key, action, before, beforeCursor, after: state.editor.value, afterCursor: state.editor.cursor };
   state.inspected.push(inspected);
   if (state.inspected.length > 120) state.inspected = state.inspected.slice(-120);
-  state.recentScroll = Math.max(0, state.inspected.length - 10);
+  state.selectedEventIndex = state.inspected.length - 1;
+  if (!key.shift && key.name !== 'page-up' && key.name !== 'page-down') {
+    state.recentScroll = Math.max(0, state.inspected.length - state.recentVisibleRows);
+  }
   state.status = `${formatKey(key)} → ${action}`;
 }
 
@@ -150,6 +167,8 @@ function editorPane(state, width, height) {
     active: true,
     height,
     theme: EXAMPLE_THEME,
+    pointerId: 'keys:editor',
+    onClick: () => { state.status = 'Editor capture remains active.'; },
     children: [
       TextEditorView({
         title: ' InputEditor buffer ',
@@ -170,8 +189,11 @@ function recentPane(state, width, height) {
   const rows = state.inspected.length
     ? state.inspected.map((item, index) => `${String(index + 1).padStart(3)}  ${formatInspected(item)}`)
     : ['No key events yet.'];
+  const visibleRows = Math.max(1, height - 3);
+  state.recentVisibleRows = visibleRows;
+  state.recentScroll = scrollOffset(state.recentScroll, 0, rows.length, visibleRows);
   const window = visibleScrollableRows(rows, {
-    scroll: Math.max(0, rows.length - Math.max(1, height - 3)),
+    scroll: state.recentScroll,
     height: Math.max(3, height - 2),
     width: Math.max(20, width - 4),
     footer: rows.length > Math.max(3, height - 3),
@@ -181,8 +203,32 @@ function recentPane(state, width, height) {
     title: ' RECENT EVENTS ',
     height,
     theme: EXAMPLE_THEME,
-    children: window.rows.map((line) => Text(line, { wrap: false })),
+    pointerId: 'keys:recent',
+    onWheel: (event) => {
+      scrollRecent(state, wheelScrollDelta(event));
+      event.preventDefault();
+    },
+    children: window.rows.map((line, visibleIndex) => {
+      const absoluteIndex = window.scroll + visibleIndex;
+      const selectable = absoluteIndex < state.inspected.length;
+      return Text(line, {
+        wrap: false,
+        pointerId: selectable ? `keys:event:${absoluteIndex}` : undefined,
+        pointerWidth: 'fill',
+        onClick: selectable ? () => {
+          state.selectedEventIndex = absoluteIndex;
+          state.status = `Inspecting event ${absoluteIndex + 1}/${state.inspected.length}.`;
+        } : null,
+      });
+    }),
   });
+}
+
+function scrollRecent(state, delta) {
+  const total = Math.max(1, state.inspected.length);
+  const visible = Math.max(1, state.recentVisibleRows || 6);
+  state.recentScroll = scrollOffset(state.recentScroll, delta, total, visible);
+  state.status = `Recent events scrolled to ${state.recentScroll + 1}/${total}.`;
 }
 
 function formatInspected(item) {

@@ -17,7 +17,18 @@ import {
   resolveWorkspaceShellLayout,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
-import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, scrollOffset, scrollToVisible, visibleScrollableRows } from './_workspaceExampleUtils.js';
+import {
+  EXAMPLE_THEME,
+  cycleTab,
+  isShiftLineScroll,
+  responsiveTabHint,
+  responsiveTabs,
+  scrollOffset,
+  scrollToVisible,
+  shiftLineScrollDelta,
+  visibleScrollableRows,
+  wheelScrollDelta,
+} from './_workspaceExampleUtils.js';
 
 const TABS = [
   { id: 'editor', label: 'Editor' },
@@ -96,6 +107,10 @@ export function createEditorLabView({ state, width = 92, height = 28 } = {}) {
     focus: state.activeTab,
     tabs: visibleTabs,
     activeTab: state.activeTab,
+    onTabSelect: (id) => {
+      state.activeTab = id;
+      state.status = `Focus moved to ${id}.`;
+    },
     tabHint,
     main,
     activity,
@@ -163,6 +178,11 @@ export function handleEditorLabKey({ key, state }) {
 
   if (key.name === 'page-up' || key.name === 'page-down') {
     scrollActivePane(state, key.name === 'page-up' ? -1 : 1);
+    return;
+  }
+
+  if (isShiftLineScroll(key)) {
+    scrollActivePaneByLines(state, shiftLineScrollDelta(key));
     return;
   }
 
@@ -286,6 +306,11 @@ function editorPane(state, width, height) {
     title: ` ${state.activeTab === 'editor' ? '▶' : ' '} LIVE EDITOR `,
     active: state.activeTab === 'editor',
     height,
+    pointerId: 'editor-lab:editor',
+    onClick: () => {
+      state.activeTab = 'editor';
+      state.status = 'Editor focused.';
+    },
     children: [
       TextEditorView({
         title: ' Draft buffer ',
@@ -320,6 +345,15 @@ function diagnosticsPane(state, width, height) {
     title: ` ${state.activeTab === 'diagnostics' ? '▶' : ' '} DIAGNOSTICS `,
     active: state.activeTab === 'diagnostics',
     height,
+    pointerId: 'editor-lab:diagnostics',
+    onClick: () => {
+      state.activeTab = 'diagnostics';
+      state.status = 'Diagnostics focused.';
+    },
+    onWheel: (event) => {
+      scrollPaneByLines(state, 'diagnostics', wheelScrollDelta(event));
+      event.preventDefault();
+    },
     children: window.rows.map((line) => Text(line, { wrap: false })),
   });
 }
@@ -344,11 +378,40 @@ function historyPane(state, width, height) {
     width: innerWidth,
   });
   state.paneScroll.history = window.scroll;
+  const firstVisible = window.scroll;
   return WorkspacePane({
     title: ` ${state.activeTab === 'history' ? '▶' : ' '} HISTORY `,
     active: state.activeTab === 'history',
     height,
-    children: window.rows.map((line) => Text(line, { wrap: false })),
+    pointerId: 'editor-lab:history',
+    onClick: () => {
+      state.activeTab = 'history';
+      state.status = 'History focused.';
+    },
+    onWheel: (event) => {
+      scrollPaneByLines(state, 'history', wheelScrollDelta(event));
+      event.preventDefault();
+    },
+    children: window.rows.map((line, visibleIndex) => {
+      const absoluteRow = firstVisible + visibleIndex;
+      const itemIndex = absoluteRow - 1;
+      const selectable = itemIndex >= 0 && itemIndex <= state.history.length;
+      return Text(line, {
+        wrap: false,
+        pointerId: selectable ? `editor-lab:history:${itemIndex}` : undefined,
+        pointerWidth: 'fill',
+        onClick: selectable
+          ? () => {
+              state.activeTab = 'history';
+              state.historySelection = itemIndex;
+              state.ensureHistoryVisible = true;
+              state.status = itemIndex === state.history.length
+                ? 'Selected new draft slot.'
+                : `Selected saved draft ${itemIndex + 1}/${state.history.length}.`;
+            }
+          : null,
+      });
+    }),
   });
 }
 
@@ -472,6 +535,23 @@ function scrollActivePane(state, direction) {
   state.status = `${id === 'history' ? 'History' : 'Diagnostics'} scrolled ${direction < 0 ? 'up' : 'down'}.`;
 }
 
+function scrollActivePaneByLines(state, delta) {
+  const id = state.activeTab === 'diagnostics' ? 'diagnostics' : state.activeTab === 'history' ? 'history' : null;
+  if (!id) {
+    state.status = 'Shift+↑/↓ scrolls History or Diagnostics; the editor keeps normal cursor movement.';
+    return;
+  }
+  scrollPaneByLines(state, id, delta);
+}
+
+function scrollPaneByLines(state, id, delta) {
+  if (!state.paneScroll) state.paneScroll = { diagnostics: 0, history: 0 };
+  const total = state.paneTotals?.[id] ?? (id === 'history' ? historyDetailLines(state, 80).length : diagnosticsRows(state, 80).length);
+  const visibleRows = Math.max(1, state.paneRows?.[id] ?? 6);
+  state.paneScroll[id] = scrollOffset(state.paneScroll[id] ?? 0, delta, total, visibleRows);
+  state.status = `${id === 'history' ? 'History' : 'Diagnostics'} scrolled one line ${delta < 0 ? 'up' : 'down'}.`;
+}
+
 function contextHelpHints(state, height = 28) {
   if (height < 19) return [];
   if (state.activeTab === 'editor') {
@@ -487,6 +567,7 @@ function contextHelpHints(state, height = 28) {
   if (state.activeTab === 'history') {
     return [
       ['↑/↓', 'select history item'],
+      ['Shift+↑/↓', 'scroll one line'],
       ['PgUp/PgDn', 'scroll history'],
       ['Home/End', 'first / add another'],
       ['Enter', 'load draft / add another'],
@@ -497,6 +578,7 @@ function contextHelpHints(state, height = 28) {
   }
   if (state.activeTab === 'diagnostics') {
     return [
+      ['Shift+↑/↓', 'scroll one line'],
       ['PgUp/PgDn', 'scroll diagnostics'],
       ['Tab', 'switch tab'],
       ['↑/↓', 'disabled here'],

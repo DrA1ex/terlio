@@ -647,6 +647,16 @@ function paletteOverlayNode(state, width, height, theme) {
       return `${item.category} · ${keys}`;
     },
     getDisabled: (item) => item.disabled,
+    pointerId: 'release:palette-list',
+    onSelect: (_item, index) => {
+      state.palette.selectedIndex = index;
+      state.status = `Selected command ${index + 1}/${matches.length}. Press Enter to execute.`;
+    },
+    onWheel: (event) => {
+      const delta = event.deltaY < 0 ? -1 : 1;
+      state.palette.selectedIndex = Math.max(0, Math.min(matches.length - 1, state.palette.selectedIndex + delta));
+      event.preventDefault();
+    },
   });
   const detail = selectedCommandPane(state, selected, theme, detailWidth, listHeight * (compact ? 1 : 2) + 2);
 
@@ -661,7 +671,7 @@ function paletteOverlayNode(state, width, height, theme) {
       : color(theme, 'success', 'Mission complete. Explore rollback, appearance and scenario commands.')),
     search,
     Row({ gap: 2, widths: [listWidth, detailWidth] }, list, detail),
-    Text(color(theme, 'textMuted', 'Type to filter · ↑/↓ move · PgUp/PgDn page · Enter execute · Esc clear/close')),
+    Text(color(theme, 'textMuted', 'Type to filter · wheel or Shift+↑/↓ move · PgUp/PgDn page · Enter execute · Esc clear/close')),
   );
 }
 
@@ -897,7 +907,24 @@ function openIntroHelp(state) {
       Text(''),
       Text('Mission path: checks → release notes → approval → staging deploy.'),
       Text(''),
-      Text('Press Enter to open the palette and begin. Esc closes this introduction.'),
+      Text(color(themes[state.themeName] ?? themes.ocean, 'selected', '› Click here or press Enter to open the palette and begin.'), {
+        wrap: false,
+        pointerId: 'release:intro:start',
+        pointerWidth: 'fill',
+        onClick: () => {
+          state.overlays.pop();
+          openPalette(state);
+        },
+      }),
+      Text(color(themes[state.themeName] ?? themes.ocean, 'textMuted', '  Click here or press Esc to close this introduction.'), {
+        wrap: false,
+        pointerId: 'release:intro:close',
+        pointerWidth: 'fill',
+        onClick: () => {
+          state.overlays.pop();
+          state.status = 'Introduction closed. Press / or Ctrl+P to start the mission.';
+        },
+      }),
     ],
     onAccept: () => openPalette(state),
     onCancel: () => {
@@ -996,7 +1023,17 @@ function missionStepLine(state, step, index, theme) {
   const current = nextMissionStep(state)?.id === step.id;
   const marker = complete ? '✓' : current ? '›' : '·';
   const token = complete ? 'success' : current ? 'textAccent' : 'textMuted';
-  return Text(color(theme, token, `${marker} ${index + 1}. ${step.label}`), { wrap: false });
+  return Text(color(theme, token, `${marker} ${index + 1}. ${step.label}`), {
+    wrap: false,
+    pointerId: `release:mission:${step.id}`,
+    pointerWidth: 'fill',
+    onClick: () => {
+      openPalette(state);
+      state.palette.editor.set(step.query);
+      state.palette.selectedIndex = 0;
+      state.status = `Palette opened for ${step.label}.`;
+    },
+  });
 }
 
 function disabledReason(id, state) {

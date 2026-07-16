@@ -21,7 +21,15 @@ import {
   splitWorkspaceColumns,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
-import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs, visibleScrollableRows } from './_workspaceExampleUtils.js';
+import {
+  EXAMPLE_THEME,
+  cycleTab,
+  isShiftLineScroll,
+  responsiveTabHint,
+  responsiveTabs,
+  visibleScrollableRows,
+  wheelScrollDelta,
+} from './_workspaceExampleUtils.js';
 
 const TABS = [
   { id: 'prompt', label: 'Prompt' },
@@ -101,6 +109,10 @@ export function createStreamingWorkbenchView({ state, width = 100, height = 30 }
     focus: state.activeTab,
     tabs: visibleTabs,
     activeTab: state.activeTab,
+    onTabSelect: (id) => {
+      state.activeTab = id;
+      state.status = `Focus moved to ${id}.`;
+    },
     tabHint,
     activity,
     footer,
@@ -130,6 +142,10 @@ export function createStreamingWorkbenchView({ state, width = 100, height = 30 }
     focus: state.activeTab,
     tabs: visibleTabs,
     activeTab: state.activeTab,
+    onTabSelect: (id) => {
+      state.activeTab = id;
+      state.status = `Focus moved to ${id}.`;
+    },
     tabHint,
     main,
     activity,
@@ -172,6 +188,11 @@ export function handleStreamingWorkbenchKey({ key, state, runtime }) {
 
   if (key.name === 'page-up' || key.name === 'page-down') {
     scrollActivePane(state, key.name);
+    return;
+  }
+
+  if (isShiftLineScroll(key) && state.activeTab !== 'prompt') {
+    scrollActivePane(state, key.name, { lineStep: 1 });
     return;
   }
 
@@ -361,7 +382,7 @@ function loadSamplePrompt(state, delta) {
   state.status = delta < 0 ? 'Loaded previous template.' : 'Loaded next template.';
 }
 
-function scrollActivePane(state, keyName) {
+function scrollActivePane(state, keyName, { lineStep = 1 } = {}) {
   if (state.activeTab === 'transcript') {
     const metrics = state.scrollMetrics?.transcript ?? {};
     const total = Math.max(1, metrics.totalRows || state.transcriptRowCount || transcriptLines(state, 80).length || 1);
@@ -373,6 +394,7 @@ function scrollActivePane(state, keyName) {
       visibleRows,
       previousTotalRows: state.transcriptRowCount || total,
       sticky: state.transcriptAutoscroll,
+      lineStep,
     });
     if (!next.handled) {
       state.status = 'Transcript is read-only.';
@@ -392,7 +414,7 @@ function scrollActivePane(state, keyName) {
       totalRows: total,
       visibleRows,
       sticky: false,
-      lineStep: visibleRows,
+      lineStep,
     });
     if (!next.handled) {
       state.status = 'Control is read-only.';
@@ -456,6 +478,11 @@ function promptPane(state, width, height) {
     title: ` ${state.activeTab === 'prompt' ? '▶' : ' '} PROMPT `,
     active: state.activeTab === 'prompt',
     height,
+    pointerId: 'stream:prompt',
+    onClick: () => {
+      state.activeTab = 'prompt';
+      state.status = 'Prompt focused.';
+    },
     children,
   });
 }
@@ -472,6 +499,12 @@ function transcriptPane(state, width, height) {
       title: ` ${state.activeTab === 'transcript' ? '▶' : ' '} TRANSCRIPT `,
       active: state.activeTab === 'transcript',
       height,
+      pointerId: 'stream:transcript',
+      onClick: () => { state.activeTab = 'transcript'; },
+      onWheel: (event) => {
+        scrollActivePaneByDelta(state, 'transcript', wheelScrollDelta(event));
+        event.preventDefault();
+      },
       children: [Panel(' Empty transcript ', Text('No messages yet. Switch to Prompt and press Enter to start a stream.'))],
     });
   }
@@ -500,6 +533,12 @@ function transcriptPane(state, width, height) {
     title: ` ${state.activeTab === 'transcript' ? '▶' : ' '} TRANSCRIPT `,
     active: state.activeTab === 'transcript',
     height,
+    pointerId: 'stream:transcript',
+    onClick: () => { state.activeTab = 'transcript'; },
+    onWheel: (event) => {
+      scrollActivePaneByDelta(state, 'transcript', wheelScrollDelta(event));
+      event.preventDefault();
+    },
     children: window.rows.map((line) => Text(line, { wrap: false })),
   });
 }
@@ -533,6 +572,12 @@ function controlPane(state, width, height) {
     title: ` ${state.activeTab === 'control' ? '▶' : ' '} CONTROL `,
     active: state.activeTab === 'control',
     height,
+    pointerId: 'stream:control',
+    onClick: () => { state.activeTab = 'control'; },
+    onWheel: (event) => {
+      scrollActivePaneByDelta(state, 'control', wheelScrollDelta(event));
+      event.preventDefault();
+    },
     children: window.rows.map((line) => Text(line, { wrap: false })),
   });
 }
@@ -621,10 +666,19 @@ function controlLineCount() {
   return 20;
 }
 
+function scrollActivePaneByDelta(state, pane, delta) {
+  const previous = state.activeTab;
+  state.activeTab = pane;
+  const direction = delta < 0 ? 'up' : 'down';
+  const steps = Math.max(1, Math.abs(delta));
+  for (let index = 0; index < steps; index += 1) scrollActivePane(state, direction, { lineStep: 1 });
+  state.activeTab = pane || previous;
+}
+
 function contextHelpHints(state) {
   if (state.activeTab === 'transcript') {
     return [
-      ['↑/↓', 'line scroll'],
+      ['Shift+↑/↓', 'line scroll'],
       ['PgUp/PgDn', 'page scroll'],
       ['Enter', 'jump to newest'],
       ['Esc', 'cancel stream'],
@@ -634,6 +688,7 @@ function contextHelpHints(state) {
   if (state.activeTab === 'control') {
     return [
       ['Enter', 'cancel if streaming'],
+      ['Shift+↑/↓', 'scroll control'],
       ['PgUp/PgDn', 'scroll control'],
       ['Esc', 'cancel stream'],
       ['Tab', 'switch pane'],
@@ -680,8 +735,27 @@ function selectedAddRow(state) {
 
 function templateRows(state, width) {
   const inner = Math.max(18, width - 8);
-  const rows = state.templates.map((item, index) => Text(`${index === state.replyIndex ? '›' : ' '} ${fitInline(item.prompt, inner)}`, { wrap: false }));
-  rows.push(Text(`${selectedAddRow(state) ? '›' : ' '} + Add new one`, { wrap: false }));
+  const rows = state.templates.map((item, index) => Text(`${index === state.replyIndex ? '›' : ' '} ${fitInline(item.prompt, inner)}`, {
+    wrap: false,
+    pointerId: `stream:template:${index}`,
+    pointerWidth: 'fill',
+    onClick: () => {
+      state.replyIndex = index;
+      state.prompt.set(item.prompt);
+      state.activeTab = 'prompt';
+      state.status = `Selected template ${index + 1}/${state.templates.length}.`;
+    },
+  }));
+  rows.push(Text(`${selectedAddRow(state) ? '›' : ' '} + Add new one`, {
+    wrap: false,
+    pointerId: 'stream:template:add',
+    pointerWidth: 'fill',
+    onClick: () => {
+      state.replyIndex = state.templates.length;
+      state.activeTab = 'prompt';
+      state.status = '+ Add new one selected. Enter creates a template from the current prompt.';
+    },
+  }));
   return rows;
 }
 

@@ -1,5 +1,5 @@
-import { ansi } from './ansi/codes.js';
-import { parseKey } from './keyParser.js';
+import { ansi, mouseReportingSequence } from './ansi/codes.js';
+import { TerminalInputDecoder } from './inputParser.js';
 import { renderToFrame, TerminalRenderer } from './ui/renderer.js';
 import { createActionRegistry } from './actionRegistry.js';
 import { createOverlayManager } from './overlayHost.js';
@@ -10,7 +10,7 @@ export function createWorkspaceApp(config = {}) {
 }
 
 export class WorkspaceApp {
-  constructor({ title = 'Workspace App', state = {}, render, actions = [], overlays = null, onKey = null, tick = null, tickMs = 0, input = process.stdin, output = process.stdout, onExit = null } = {}) {
+  constructor({ title = 'Workspace App', state = {}, render, actions = [], overlays = null, onKey = null, onPointer = null, pointer = 'auto', tick = null, tickMs = 0, input = process.stdin, output = process.stdout, onExit = null } = {}) {
     if (typeof render !== 'function') throw new Error('createWorkspaceApp requires a render function.');
     this.title = title;
     this.state = state;
@@ -18,12 +18,16 @@ export class WorkspaceApp {
     this.actions = actions?.handleKey ? actions : createActionRegistry(actions);
     this.overlays = overlays ?? createOverlayManager();
     this.onKey = typeof onKey === 'function' ? onKey : null;
+    this.onPointer = typeof onPointer === 'function' ? onPointer : null;
+    this.pointerOptions = normalizePointerOptions(pointer);
+    this.pointerActive = false;
     this.onTick = tick;
     this.tickMs = Number(tickMs) || 0;
     this.input = input;
     this.output = output;
     this.onExit = typeof onExit === 'function' ? onExit : null;
     this.renderer = new TerminalRenderer({ output });
+    this.inputDecoder = new TerminalInputDecoder();
     this.running = false;
     this.dirty = true;
     this.lastSnapshot = '';
@@ -62,8 +66,10 @@ export class WorkspaceApp {
     this.output.off('resize', this.boundResize);
     process.off('uncaughtException', this.boundFatal);
     process.off('unhandledRejection', this.boundFatal);
+    this.setPointerActive(false);
     if (this.input.isTTY) this.input.setRawMode(false);
     this.input.pause();
+    this.inputDecoder.reset();
     this.renderer.reset();
     this.output.write(ansi.showCursor + ansi.normalScreen + ansi.reset + '\n');
   }
@@ -91,12 +97,15 @@ export class WorkspaceApp {
     const frame = renderToFrame(view, { width, height });
     const snapshot = frame.toString();
     if (snapshot === this.lastSnapshot) {
+      this.renderer.pointerRegions = frame.pointerRegions;
+      this.syncPointerMode();
       this.dirty = false;
       return false;
     }
     this.lastSnapshot = snapshot;
     this.renderer.renderFrame(frame);
     this.output.write(ansi.reset);
+    this.syncPointerMode();
     this.dirty = false;
     return true;
   }
@@ -110,7 +119,17 @@ export class WorkspaceApp {
   }
 
   handleData(data) {
-    const key = parseKey(data);
+    for (const event of this.inputDecoder.write(data)) this.handleInputEvent(event);
+  }
+
+  handleInputEvent(event) {
+    if (event?.type === 'pointer') {
+      this.handlePointer(event);
+      this.invalidate();
+      return;
+    }
+
+    const key = event;
     if (key.name === 'ctrl-c') return this.exit(130);
     if (key.name === 'ctrl-d') return this.exit(0);
     const ctx = this.context({ key });
@@ -120,6 +139,40 @@ export class WorkspaceApp {
       if (!actionResult || actionResult.type === 'unhandled') this.onKey?.({ key, ...ctx });
     }
     this.invalidate();
+  }
+
+  handlePointer(pointer) {
+    const baseContext = this.context({ pointer });
+    const routed = this.renderer.dispatchPointer(pointer, baseContext);
+    const event = routed.event;
+    if (!event.propagationStopped && this.onPointer) {
+      const result = this.onPointer({ pointer: event, ...this.context({ pointer: event }) });
+      if (result !== false) event.handled = true;
+    }
+    return event;
+  }
+
+  setPointerEnabled(value) {
+    this.pointerOptions.enabled = value === 'auto' ? 'auto' : Boolean(value);
+    this.syncPointerMode();
+    return this.pointerOptions.enabled;
+  }
+
+  syncPointerMode() {
+    if (!this.running) return false;
+    const enabled = this.pointerOptions.enabled === true || (
+      this.pointerOptions.enabled === 'auto' && (Boolean(this.onPointer) || this.renderer.pointerRegions.length > 0)
+    );
+    this.setPointerActive(enabled);
+    return enabled;
+  }
+
+  setPointerActive(enabled) {
+    const next = Boolean(enabled);
+    if (next === this.pointerActive) return false;
+    this.pointerActive = next;
+    this.output.write(mouseReportingSequence(next, this.pointerOptions));
+    return true;
   }
 
   context(extra = {}) {
@@ -132,4 +185,20 @@ export class WorkspaceApp {
     process.exitCode = 1;
     this.onExit?.(1, error);
   }
+}
+
+function normalizePointerOptions(pointer) {
+  if (pointer && typeof pointer === 'object') {
+    const requested = pointer.enabled ?? 'auto';
+    return {
+      enabled: requested === 'auto' ? 'auto' : Boolean(requested),
+      drag: pointer.drag !== false,
+      motion: Boolean(pointer.motion),
+    };
+  }
+  return {
+    enabled: pointer === undefined || pointer === 'auto' ? 'auto' : Boolean(pointer),
+    drag: true,
+    motion: false,
+  };
 }

@@ -276,7 +276,7 @@ Render a multi-line editor view or its raw lines.
 
 ```js
 visibleWindowLines(lines, { height, scroll, tail, autoscroll, previousTotalRows, sticky })
-ScrollPane({ title, lines, width, height, scroll, border, footer, autoscroll, previousTotalRows, sticky })
+ScrollPane({ title, lines, width, height, scroll, border, footer, autoscroll, previousTotalRows, sticky, pointerId, pointerData, pointerWidth, pointerEvents, onPointer, onClick, onWheel, onDrag, onMove, onRelease })
 resolveAutoScrollOffset({ scroll, previousTotalRows, totalRows, visibleRows, sticky })
 resolveScrollKeyOffset({ keyName, scroll, totalRows, visibleRows, sticky })
 scrollLine(scroll, direction, max, step)
@@ -489,6 +489,43 @@ isPrintable(value)
 ```
 
 Normalize raw TTY data and detect printable text.
+
+
+### PointerRegion
+
+```js
+PointerRegion({ pointerId, pointerData, pointerWidth, pointerEvents, onPointer, onClick, onWheel, onDrag, onMove, onRelease }, child)
+```
+
+Creates a layout-transparent hit region around its children. The same pointer props may be attached directly to any node. `pointerWidth` accepts a positive cell count or `'fill'`; without it, hit width follows rendered non-trailing content.
+
+### parsePointer / input decoding
+
+```js
+parsePointer(data)
+parseInputEvent(data)
+parseInputEvents(data)
+new TerminalInputDecoder()
+```
+
+`parsePointer()` decodes SGR 1006 sequences. `TerminalInputDecoder.write(data)` preserves incomplete SGR and bracketed-paste sequences across chunks and returns an ordered array of normalized keyboard and pointer events.
+
+### hitTestPointerRegions / dispatchPointerEvent
+
+```js
+hitTestPointerRegions(regions, x, y, { all })
+dispatchPointerEvent(pointer, regions, context)
+```
+
+Rendered frames expose `pointerRegions`. Hit-testing uses zero-based screen coordinates and returns the innermost matching region first. Dispatch adds target and local coordinates, invokes action-specific handlers followed by `onPointer`, and supports propagation control.
+
+### mouseReportingSequence
+
+```js
+mouseReportingSequence(enabled, { drag = true, motion = false })
+```
+
+Returns the terminal control sequence for enabling or disabling basic mouse tracking, optional drag or all-motion tracking, and SGR 1006 coordinates.
 
 ## Focus and modes
 

@@ -26,7 +26,14 @@ import {
   wrapText,
 } from '../src/lib/index.js';
 import { isDirectRun, runInteractiveDemo } from './_demoRuntime.js';
-import { EXAMPLE_THEME, cycleTab, responsiveTabHint, responsiveTabs } from './_workspaceExampleUtils.js';
+import {
+  EXAMPLE_THEME,
+  cycleTab,
+  isShiftLineScroll,
+  responsiveTabHint,
+  responsiveTabs,
+  wheelScrollDelta,
+} from './_workspaceExampleUtils.js';
 import { createInitialLiveDelay, createNextLiveDelay, LIVE_COMMENT_TEMPLATES, PULL_REQUESTS } from './code-review/data.js';
 
 const TABS = [
@@ -121,6 +128,10 @@ export function createCodeReviewView({ state, width = 110, height = 32 } = {}) {
     focus: narrow ? '' : focus,
     tabs: visibleTabs,
     activeTab: state.activeTab,
+    onTabSelect: (id) => {
+      state.activeTab = id;
+      state.status = `Focus moved to ${id}.`;
+    },
     tabHint,
     activity: help,
     footer: statusFooter,
@@ -137,6 +148,10 @@ export function createCodeReviewView({ state, width = 110, height = 32 } = {}) {
     focus: narrow ? '' : focus,
     tabs: visibleTabs,
     activeTab: state.activeTab,
+    onTabSelect: (id) => {
+      state.activeTab = id;
+      state.status = `Focus moved to ${id}.`;
+    },
     tabHint,
     main,
     activity: help,
@@ -188,6 +203,11 @@ export function handleCodeReviewKey({ key, state, runtime = { exit() {} } }) {
   // navigation must not steal focus while the user is writing a review note.
   if (state.activeTab === 'comments' && state.commentMode === 'editor') {
     return handleCommentsKey({ key, state });
+  }
+
+  if (isShiftLineScroll(key)) {
+    scrollPaneByKey(state, state.activeTab, key.name);
+    return;
   }
 
   if (key.name === 'tab') {
@@ -375,6 +395,15 @@ function pullRequestPicker(state, width, height = undefined) {
     rowLines: compact ? 1 : 2,
     reserveItemLines: !compact,
     theme: EXAMPLE_THEME,
+    pointerId: 'code-review:pr-picker',
+    onSelect: (_pr, index) => {
+      state.selectedPrIndex = index;
+      state.status = `Selected PR ${index + 1}/${state.pullRequests.length}. Press Enter to open.`;
+    },
+    onWheel: (event) => {
+      state.selectedPrIndex = clampIndex(state.selectedPrIndex + (event.deltaY < 0 ? -1 : 1), state.pullRequests.length);
+      event.preventDefault();
+    },
   }));
   if (selected && !compact) {
     const detailWidth = Math.max(20, width - 10);
@@ -527,6 +556,12 @@ function commentsPane(state, width, height, { showEditor = state.commentMode ===
     title: ` COMMENTS ${state.pr.comments.length}${showEditor ? ' · writing' : ''} `,
     active: state.activeTab === 'comments',
     height,
+    pointerId: 'code-review:comments',
+    onClick: () => { state.activeTab = 'comments'; },
+    onWheel: (event) => {
+      scrollPaneByDelta(state, 'comments', wheelScrollDelta(event));
+      event.preventDefault();
+    },
     footer: `${modeHelp} · ${state.paneScroll.comments}/${max}`,
     children: [
       ScrollPane({
@@ -639,6 +674,11 @@ function commentDetailModal(state, width, height) {
     title: ` READ COMMENT ${state.selectedCommentIndex + 1}/${state.pr.comments.length} `,
     active: true,
     height,
+    pointerId: 'code-review:comment-detail',
+    onWheel: (event) => {
+      scrollCommentDetailByDelta(state, wheelScrollDelta(event));
+      event.preventDefault();
+    },
     footer: `↑/↓ line · PgUp/PgDn page · Home/End edges · Enter/Esc back · ${state.commentDetailScroll}/${max}`,
     children: [
       ScrollPane({
@@ -670,6 +710,12 @@ function scrollablePane({ title, pane, state, lines, width, height, active, foot
     title,
     active,
     height,
+    pointerId: `code-review:${pane}`,
+    onClick: () => { state.activeTab = pane; },
+    onWheel: (event) => {
+      scrollPaneByDelta(state, pane, wheelScrollDelta(event));
+      event.preventDefault();
+    },
     footer: `${footerLabel} · ${state.paneScroll[pane] ?? 0}/${result.maxScroll}`,
     children: [
       ScrollPane({
@@ -845,6 +891,7 @@ function handleCommentEditorKey(key, state) {
     return;
   }
   if (key.name === 'page-up' || key.name === 'page-down') return scrollPaneByKey(state, 'comments', key.name);
+  if (isShiftLineScroll(key)) return scrollPaneByKey(state, 'comments', key.name);
   if (key.name === 'tab') {
     if (!key.shift) state.commentEditor.insert('  ');
     state.commentsSticky = true;
@@ -884,6 +931,19 @@ function scrollPaneByKey(state, pane, keyName) {
   state.paneScroll[pane] = result.scroll;
   if (pane === 'comments') state.commentsSticky = result.atBottom;
   state.status = result.maxScroll ? `${pane} scroll ${result.scroll}/${result.maxScroll}.` : `${pane} fits without scrolling.`;
+}
+
+function scrollPaneByDelta(state, pane, delta) {
+  const steps = Math.max(1, Math.abs(delta));
+  const keyName = delta < 0 ? 'up' : 'down';
+  for (let index = 0; index < steps; index += 1) scrollPaneByKey(state, pane, keyName);
+}
+
+function scrollCommentDetailByDelta(state, delta) {
+  const metrics = state.commentDetailMetrics ?? { totalRows: 0, visibleRows: 1 };
+  const max = scrollMax(metrics.totalRows, metrics.visibleRows);
+  state.commentDetailScroll = Math.max(0, Math.min(max, (state.commentDetailScroll ?? 0) + delta));
+  state.status = max ? `comment scroll ${state.commentDetailScroll}/${max}.` : 'Comment fits without scrolling.';
 }
 
 function openPullRequestPicker(state) {
@@ -1060,13 +1120,13 @@ function contextHelpHints(state) {
     return [['↑/↓', 'line'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['Enter/Esc', 'back'], ['Ctrl+C', 'exit']];
   }
   if (state.activeTab === 'general') {
-    return [['↑/↓', 'line'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['Enter', 'read-only'], ['Ctrl+O', 'PRs'], ['Tab', 'pane']];
+    return [['Shift+↑/↓', 'line'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['Enter', 'read-only'], ['Ctrl+O', 'PRs'], ['Tab', 'pane']];
   }
   if (state.activeTab === 'commits') {
     return [['↑/↓', 'commit'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['Enter', 'diff'], ['Ctrl+O', 'PRs'], ['Tab', 'pane']];
   }
   if (state.activeTab === 'diff') {
-    return [['↑/↓', 'line'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['[/]', 'commit'], ['Esc', 'commits'], ['Tab', 'pane']];
+    return [['Shift+↑/↓', 'line'], ['PgUp/PgDn', 'page'], ['Home/End', 'edges'], ['[/]', 'commit'], ['Esc', 'commits'], ['Tab', 'pane']];
   }
   if (state.commentMode === 'editor') {
     return [['Enter', 'review post'], ['Ctrl+J', 'newline'], ['Tab', 'indent'], ['PgUp/PgDn', 'thread'], ['Esc', 'draft'], ['Ctrl+O', 'PRs']];

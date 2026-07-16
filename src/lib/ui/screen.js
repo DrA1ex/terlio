@@ -1,10 +1,11 @@
 import { stripAnsi, visibleLength } from '../ansi/text.js';
 
 export class Frame {
-  constructor(lines, { width, height }) {
+  constructor(lines, { width, height, pointerRegions = [] }) {
     this.width = Math.max(1, Number(width) || 1);
     this.height = Math.max(1, Number(height) || 1);
     this.lines = normalizeLines(lines, this.width, this.height);
+    this.pointerRegions = Array.isArray(pointerRegions) ? pointerRegions : [];
   }
 
   toLines() {

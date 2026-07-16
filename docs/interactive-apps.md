@@ -43,6 +43,96 @@ Printable input returns `printable: true` and `text` set to the typed text.
 
 The parser recognizes common modified arrow and enter escape sequences, including Shift, Alt/Meta, Ctrl, and some macOS Command-arrow forms.
 
+For read-only panes, a useful convention is to reserve `Shift+↑/↓` for one-row scrolling while leaving unmodified arrows available to lists, editors, or other locally focused controls. Keep `Page Up/Page Down` for larger jumps:
+
+```js
+if (key.shift && key.name === 'up') scrollByLines(-1);
+else if (key.shift && key.name === 'down') scrollByLines(1);
+else if (key.name === 'page-up') scrollByPages(-1);
+else if (key.name === 'page-down') scrollByPages(1);
+```
+
+## Pointer input
+
+Use `parsePointer(data)` to decode SGR 1006 mouse sequences directly, or `TerminalInputDecoder` / `parseInputEvents(data)` when a raw TTY chunk may contain several keyboard and pointer events.
+
+```js
+import { TerminalInputDecoder } from 'terlio.js';
+
+const decoder = new TerminalInputDecoder();
+process.stdin.on('data', (chunk) => {
+  for (const event of decoder.write(chunk)) {
+    if (event.type === 'pointer') console.log(event.name, event.x, event.y);
+  }
+});
+```
+
+Pointer names are:
+
+- `wheel-up`, `wheel-down`, `wheel-left`, `wheel-right`
+- `click` for a button press
+- `release`
+- `drag`
+- `move`
+
+A normalized pointer event includes:
+
+```js
+{
+  type: 'pointer',
+  name: 'wheel-down',
+  action: 'wheel',
+  x: 12,             // zero-based screen coordinate
+  y: 7,
+  column: 13,        // original one-based terminal coordinate
+  row: 8,
+  button: 'none',
+  deltaX: 0,
+  deltaY: 1,
+  ctrl: false,
+  meta: false,
+  shift: false
+}
+```
+
+### Runtime mouse ownership
+
+`createWorkspaceApp()` and `RichTerminalApp` accept a `pointer` option:
+
+- `'auto'` (default) enables reporting while a global or rendered component handler exists.
+- `true` always enables reporting while the runtime is running.
+- `false` leaves mouse reporting disabled.
+- `{ enabled, drag, motion }` controls reporting explicitly. `drag` defaults to `true`; all-motion reporting defaults to `false`.
+
+The runtime enables basic mouse tracking plus SGR 1006 encoding and automatically restores terminal modes in `stop()`, `exit()`, and fatal cleanup paths. Call `app.setPointerEnabled(true | false | 'auto')` to change the mode while running.
+
+Mouse reporting consumes ordinary drag gestures in many terminal emulators. Applications that display copyable text should expose a temporary selection mode that calls `setPointerEnabled(false)`, then restores the previous preference when selection is finished. The packaged chat demo uses `Ctrl+T` for this: pointer reporting pauses so user and assistant transcript text can be selected natively, while keyboard scrolling remains available.
+
+### Component hit-testing
+
+Pointer handlers may be attached to any declarative node:
+
+```js
+Box({
+  border: true,
+  pointerId: 'history',
+  pointerData: { pane: 'transcript' },
+  pointerWidth: 'fill',
+  onWheel: (event, ctx) => {
+    ctx.state.scroll += event.deltaY;
+  },
+  onClick: (event) => {
+    console.log(event.localX, event.localY);
+  },
+}, Text('Scrollable content'))
+```
+
+Use `PointerRegion(props, child)` around components whose factory does not forward pointer props. `ScrollPane()` forwards pointer props directly and defaults its hit width to the full assigned width.
+
+Hit-testing is generated from the actual rendered layout. Routed events contain `target`, `currentTarget`, `localX`, and `localY`. Nested regions bubble from the innermost region outward; handlers can call `stopPropagation()`, `stopImmediatePropagation()`, or `preventDefault()`.
+
+Low-level consumers can use `hitTestPointerRegions()` and `dispatchPointerEvent()` with the `pointerRegions` array stored on a rendered `Frame` or `TerminalRenderer`.
+
 ## InputEditor
 
 `InputEditor` owns a string value and a cursor measured in Unicode code points.

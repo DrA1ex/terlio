@@ -21,7 +21,6 @@ export function formatExampleCatalog({ command = packageNpxCommand } = {}) {
     lines.push('');
   }
 
-  lines.push('Repository checkout aliases remain available through `npm run example:*` and `npm run demo:*`.');
   return lines.join('\n');
 }
 

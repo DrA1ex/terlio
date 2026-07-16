@@ -80,6 +80,21 @@ export function scrollOffset(current = 0, delta = 0, totalRows = 0, visibleRows 
   return Math.max(0, Math.min(max, (Number(current) || 0) + (Number(delta) || 0)));
 }
 
+export function wheelScrollDelta(event, step = 3) {
+  const delta = Number(event?.deltaY) || 0;
+  if (!delta) return 0;
+  return (delta < 0 ? -1 : 1) * Math.max(1, Number(step) || 1);
+}
+
+export function isShiftLineScroll(key) {
+  return Boolean(key?.shift && (key.name === 'up' || key.name === 'down'));
+}
+
+export function shiftLineScrollDelta(key) {
+  if (!isShiftLineScroll(key)) return 0;
+  return key.name === 'up' ? -1 : 1;
+}
+
 export function scrollToVisible(current = 0, index = 0, visibleRows = 1, totalRows = 0) {
   const safeVisible = Math.max(1, Number(visibleRows) || 1);
   const safeIndex = Math.max(0, Number(index) || 0);

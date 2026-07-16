@@ -14,7 +14,7 @@ Terlio.js is a dependency-free declarative terminal UI framework for Node.js. It
 npm install terlio.js
 ```
 
-List the examples included in the installed package:
+After installing the package in the current Node.js project, list its bundled examples:
 
 ```bash
 npx terlio.js list
@@ -30,17 +30,6 @@ npx terlio.js example:components
 ```
 
 Interactive examples require a real terminal. `example:components` writes a deterministic Component Composition Snapshot to stdout and does not require raw input.
-
-## Work from the repository
-
-```bash
-npm ci
-npm run check
-npm test
-npm run test:package
-```
-
-The repository keeps `npm run demo:*` and `npm run example:*` aliases for development. End users should prefer `npx terlio.js <id>` because npm does not expose dependency scripts to consuming projects.
 
 ## First static render
 
@@ -120,6 +109,17 @@ app.start();
 ```
 
 The runtime restores the terminal on `Ctrl+C`, `Ctrl+D`, normal stop and unexpected errors, and recalculates layout after resize.
+
+## Work from the repository
+
+```bash
+npm ci
+npm run check
+npm test
+npm run test:package
+```
+
+The repository keeps `npm run demo:*` and `npm run example:*` aliases for development. End users should prefer `npx terlio.js <id>` because npm does not expose dependency scripts to consuming projects.
 
 ## Choose the right layer
 
