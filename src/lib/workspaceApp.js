@@ -27,6 +27,7 @@ export class WorkspaceApp {
     this.tickMs = Number(tickMs) || 0;
     this.animationMs = Math.max(0, Number(animationMs) || 0);
     this.animationFrame = 0;
+    this.animationRequested = false;
     this.input = input;
     this.output = output;
     this.onExit = typeof onExit === 'function' ? onExit : null;
@@ -37,6 +38,7 @@ export class WorkspaceApp {
     this.lastSnapshot = '';
     this.timer = null;
     this.animationTimer = null;
+    this.inputBatchDepth = 0;
     this.boundData = (data) => this.handleData(data);
     this.boundResize = () => this.handleResize();
     this.boundFatal = (error) => this.handleFatal(error);
@@ -54,14 +56,6 @@ export class WorkspaceApp {
     this.output.on('resize', this.boundResize);
     process.once('uncaughtException', this.boundFatal);
     process.once('unhandledRejection', this.boundFatal);
-    if (this.animationMs > 0) {
-      this.animationTimer = setInterval(() => {
-        if (!this.running) return;
-        this.animationFrame = (this.animationFrame + 1) % Number.MAX_SAFE_INTEGER;
-        this.invalidate();
-      }, this.animationMs);
-      this.animationTimer.unref?.();
-    }
     if (this.onTick && this.tickMs > 0) {
       this.timer = setInterval(() => { if (this.onTick(this.context()) !== false) this.invalidate(); }, this.tickMs);
       this.timer.unref?.();
@@ -75,7 +69,7 @@ export class WorkspaceApp {
     this.running = false;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
-    if (this.animationTimer) clearInterval(this.animationTimer);
+    if (this.animationTimer) clearTimeout(this.animationTimer);
     this.animationTimer = null;
     this.input.off('data', this.boundData);
     this.output.off('resize', this.boundResize);
@@ -101,6 +95,7 @@ export class WorkspaceApp {
 
   invalidate() {
     this.dirty = true;
+    if (this.inputBatchDepth > 0) return false;
     return this.render();
   }
 
@@ -108,13 +103,15 @@ export class WorkspaceApp {
     if (!this.running || !this.dirty) return false;
     const width = Math.max(1, Number(this.output.columns) || 90);
     const height = Math.max(1, Number(this.output.rows) || 28);
-    const view = this.renderView({ ...this.context(), width, height });
+    this.animationRequested = false;
+    const view = this.renderView(this.context({ width, height }, { trackAnimation: true }));
     const frame = renderToFrame(view, { width, height });
     const snapshot = frame.toString();
     if (snapshot === this.lastSnapshot) {
       this.renderer.pointerRegions = frame.pointerRegions;
       this.syncPointerMode();
       this.dirty = false;
+      this.syncAnimationTimer();
       return false;
     }
     this.lastSnapshot = snapshot;
@@ -122,6 +119,7 @@ export class WorkspaceApp {
     this.output.write(ansi.reset);
     this.syncPointerMode();
     this.dirty = false;
+    this.syncAnimationTimer();
     return true;
   }
 
@@ -134,7 +132,13 @@ export class WorkspaceApp {
   }
 
   handleData(data) {
-    for (const event of this.inputDecoder.write(data)) this.handleInputEvent(event);
+    this.inputBatchDepth += 1;
+    try {
+      for (const event of this.inputDecoder.write(data)) this.handleInputEvent(event);
+    } finally {
+      this.inputBatchDepth = Math.max(0, this.inputBatchDepth - 1);
+      if (this.inputBatchDepth === 0 && this.dirty) this.render();
+    }
   }
 
   handleInputEvent(event) {
@@ -206,8 +210,47 @@ export class WorkspaceApp {
     return true;
   }
 
-  context(extra = {}) {
-    return { app: this, state: this.state, actions: this.actions, overlays: this.overlays, runtime: this, animationFrame: this.animationFrame, exit: (code) => this.exit(code), invalidate: () => this.invalidate(), ...extra };
+  context(extra = {}, { trackAnimation = false } = {}) {
+    const context = {
+      app: this,
+      state: this.state,
+      actions: this.actions,
+      overlays: this.overlays,
+      runtime: this,
+      exit: (code) => this.exit(code),
+      invalidate: () => this.invalidate(),
+      requestAnimationFrame: () => {
+        if (trackAnimation) this.animationRequested = true;
+        return this.animationFrame;
+      },
+      ...extra,
+    };
+    Object.defineProperty(context, 'animationFrame', {
+      enumerable: true,
+      get: () => {
+        if (trackAnimation) this.animationRequested = true;
+        return this.animationFrame;
+      },
+    });
+    return context;
+  }
+
+  syncAnimationTimer() {
+    const shouldRun = this.running && this.animationMs > 0 && this.animationRequested;
+    if (!shouldRun) {
+      if (this.animationTimer) clearTimeout(this.animationTimer);
+      this.animationTimer = null;
+      return false;
+    }
+    if (this.animationTimer) return true;
+    this.animationTimer = setTimeout(() => {
+      this.animationTimer = null;
+      if (!this.running) return;
+      this.animationFrame = (this.animationFrame + 1) % Number.MAX_SAFE_INTEGER;
+      this.invalidate();
+    }, this.animationMs);
+    this.animationTimer.unref?.();
+    return true;
   }
 
   handleFatal(error) {

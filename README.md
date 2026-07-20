@@ -41,6 +41,7 @@ npx terlio.js demo:chat
 npx terlio.js demo:support-desk
 npx terlio.js example:palette
 npx terlio.js example:themes
+npx terlio.js example:long-text
 npx terlio.js example:components
 ```
 
@@ -58,7 +59,7 @@ npx terlio.js components
 
 - Declarative primitives: `Text`, `Box`, `Row`, `Column`, `Panel`, `Grid` and `SplitPane`.
 - Product-level composition: `WorkspaceShell`, `WorkspacePane`, `WorkspaceFooter`, `Docked` and `RequireViewport`.
-- Efficient rendering through fixed virtual frames and row-level ANSI patches.
+- Efficient rendering through fixed virtual frames, viewport-only long-text formatting, input batching and row-level ANSI patches.
 - Stateful interaction helpers for lists, scrolling, focus, modes, text editing and command palettes.
 - Pointer input with SGR 1006 mouse reporting, wheel/touchpad events, clicks, coordinates and component hit-testing.
 - Blocking modals and confirmations, non-blocking toast overlays, and bottom-anchored popups that do not consume layout rows.
@@ -89,6 +90,7 @@ npm run demo:code-review
 npm run example:editor
 npm run example:palette
 npm run example:stream
+npm run example:long-text
 npm run example:kit
 npm run example:keys
 npm run example:themes
@@ -133,7 +135,7 @@ const app = createWorkspaceApp({
 app.start();
 ```
 
-The render context also includes an automatically advancing `animationFrame`, suitable for `Spinner({ frame: animationFrame })`. Configure its cadence with `animationMs` or set it to `0` for a completely static runtime.
+The render context also includes a demand-driven `animationFrame`, suitable for `Spinner({ frame: animationFrame })`. The runtime starts its animation clock only when the current render reads `animationFrame` (or calls `requestAnimationFrame()`), and suspends it as soon as the render becomes static. Configure the active cadence with `animationMs`, or set it to `0` to disable animation entirely.
 
 
 ## Pointer input
@@ -175,6 +177,8 @@ Pointer events expose zero-based screen coordinates as `x` and `y`, original one
 Set `pointerAutoEnable: false` on a passive region when its handlers should remain registered without enabling global mouse reporting by themselves. Such regions become active whenever another component enables pointer reporting or the application temporarily forces it with `app.setPointerOverride(true)`.
 
 For text that must stay selectable while wheel input remains active, use `SelectableText` or `ScrollPane({ selection })`. Dragging creates an in-app selection in content coordinates, so it remains visible and valid while the pane scrolls. Clicking inside the highlighted range invokes `onCopy`; a successful copy clears the selection, while a failed copy keeps it for retry. Clicking elsewhere clears the selection without copying. `Ctrl+C` always keeps its terminal meaning (`SIGINT`). `Ctrl+T` remains an exceptional fallback for temporarily disabling mouse reporting and using the terminal emulator's native selection.
+
+`ScrollPane` virtualizes line preparation: only rows inside the current viewport are converted, ANSI-clipped and rendered. A 10,000-row array therefore has the same per-wheel formatting cost as a short source with the same viewport height. For generated data, `lines` may also be an array-like object or a line source created with `createTextLineSource()`. Run `npx terlio.js example:long-text` to exercise wheel scrolling and multi-viewport selection against 10,000 rows.
 
 Any node can define `onPointer`, `onClick`, `onWheel`, `onDrag`, `onMove`, or `onRelease`. Use `PointerRegion()` to wrap a component that does not expose pointer props directly. Call `app.togglePointerOverride()` or `app.setPointerOverride(true | false | null)` to temporarily override automatic ownership without changing the configured pointer preference.
 

@@ -2,6 +2,20 @@ import { spawnSync as nodeSpawnSync } from 'node:child_process';
 import { ansi } from './ansi/codes.js';
 import { stripAnsi, visibleLength, wcwidth } from './ansi/text.js';
 
+const TEXT_LINE_SOURCE = Symbol('terlio.textLineSource');
+
+export function createTextLineSource(lines = [], { transform = null } = {}) {
+  const source = asTextLineSource(lines);
+  if (typeof transform !== 'function') return source;
+  return {
+    [TEXT_LINE_SOURCE]: true,
+    length: source.length,
+    getLine(index) {
+      return String(transform(source.getLine(index), index) ?? '');
+    },
+  };
+}
+
 export function createTextSelectionState(initial = {}) {
   return {
     anchor: normalizePoint(initial.anchor),
@@ -58,12 +72,12 @@ export function completeTextSelection(state, point, lines = [], options = {}) {
 }
 
 export function selectedText(lines = [], state = null) {
-  const range = normalizeSelectionRange(state, lines);
+  const source = asTextLineSource(lines);
+  const range = normalizeSelectionRange(state, source);
   if (!range) return '';
-  const plain = Array.from(lines ?? [], (line) => stripAnsi(String(line ?? '')));
   const output = [];
   for (let row = range.start.y; row <= range.end.y; row += 1) {
-    const line = plain[row] ?? '';
+    const line = stripAnsi(source.getLine(row));
     const start = row === range.start.y ? range.start.x : 0;
     const end = row === range.end.y ? range.end.x : visibleLength(line);
     output.push(sliceVisiblePlain(line, start, end));
@@ -78,7 +92,7 @@ export function renderTextSelectionLines(lines = [], state = null, {
   rowOffset = 0,
 } = {}) {
   const visible = Array.from(lines ?? [], (line) => String(line ?? ''));
-  const source = Array.from(sourceLines ?? [], (line) => String(line ?? ''));
+  const source = asTextLineSource(sourceLines);
   const range = normalizeSelectionRange(state, source);
   if (!range) return visible;
   const offset = Math.trunc(Number(rowOffset) || 0);
@@ -92,27 +106,28 @@ export function renderTextSelectionLines(lines = [], state = null, {
 }
 
 export function selectionContainsPoint(state, point, lines = []) {
-  const source = Array.from(lines ?? [], (line) => String(line ?? ''));
+  const source = asTextLineSource(lines);
   const range = normalizeSelectionRange(state, source);
   if (!range || !point) return false;
   const y = Math.trunc(Number(point.y));
   const x = Math.trunc(Number(point.x));
   if (!Number.isFinite(x) || !Number.isFinite(y) || y < 0 || y >= source.length) return false;
-  const width = visibleLength(source[y]);
+  const width = visibleLength(source.getLine(y));
   if (x < 0 || x >= width) return false;
   const candidate = { x, y };
   return comparePoints(candidate, range.start) >= 0 && comparePoints(candidate, range.end) < 0;
 }
 
 export function normalizeSelectionRange(state, lines = []) {
-  if (!state?.anchor || !state?.focus || !Array.isArray(lines) || lines.length === 0) return null;
-  const anchor = clampSelectionPoint(state.anchor, lines);
-  const focus = clampSelectionPoint(state.focus, lines);
+  const source = asTextLineSource(lines);
+  if (!state?.anchor || !state?.focus || source.length === 0) return null;
+  const anchor = clampSelectionPoint(state.anchor, source);
+  const focus = clampSelectionPoint(state.focus, source);
   if (anchor.x === focus.x && anchor.y === focus.y) return null;
   const forward = comparePoints(anchor, focus) <= 0;
   const start = forward ? anchor : focus;
   const last = forward ? focus : anchor;
-  const end = state.includeFocusCell === false ? last : advanceSelectionPoint(last, lines);
+  const end = state.includeFocusCell === false ? last : advanceSelectionPoint(last, source);
   return { start, end };
 }
 
@@ -242,20 +257,51 @@ function runClipboardCommand(candidate, value, { spawnSync, timeout }) {
   }
 }
 
+function asTextLineSource(lines) {
+  if (lines?.[TEXT_LINE_SOURCE] && typeof lines.getLine === 'function') return lines;
+
+  if (lines && typeof lines.getLine === 'function' && Number.isFinite(Number(lines.length))) {
+    return {
+      [TEXT_LINE_SOURCE]: true,
+      length: normalizeLength(lines.length),
+      getLine(index) { return String(lines.getLine(index) ?? ''); },
+    };
+  }
+
+  if (Array.isArray(lines) || (lines != null && Number.isFinite(Number(lines.length)))) {
+    return {
+      [TEXT_LINE_SOURCE]: true,
+      length: normalizeLength(lines?.length),
+      getLine(index) { return String(lines?.[index] ?? ''); },
+    };
+  }
+
+  const materialized = Array.from(lines ?? []);
+  return {
+    [TEXT_LINE_SOURCE]: true,
+    length: materialized.length,
+    getLine(index) { return String(materialized[index] ?? ''); },
+  };
+}
+
+function normalizeLength(value) {
+  return Math.max(0, Math.trunc(Number(value) || 0));
+}
+
 function clampSelectionPoint(point, lines) {
-  const source = Array.from(lines ?? [], (line) => String(line ?? ''));
+  const source = asTextLineSource(lines);
   if (!source.length) return { x: 0, y: 0 };
   const y = Math.max(0, Math.min(Math.trunc(Number(point?.y) || 0), source.length - 1));
-  const width = visibleLength(source[y]);
+  const width = visibleLength(source.getLine(y));
   const x = Math.max(0, Math.min(Math.trunc(Number(point?.x) || 0), width));
   return { x, y };
 }
 
 function advanceSelectionPoint(point, lines) {
-  const source = Array.from(lines ?? [], (line) => String(line ?? ''));
+  const source = asTextLineSource(lines);
   if (!source.length) return { x: 0, y: 0 };
   const next = clampSelectionPoint(point, source);
-  const width = visibleLength(source[next.y]);
+  const width = visibleLength(source.getLine(next.y));
   return { ...next, x: Math.min(width, next.x + 1) };
 }
 

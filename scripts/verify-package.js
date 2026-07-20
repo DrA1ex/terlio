@@ -57,6 +57,7 @@ try {
     'examples/chat.js',
     'examples/command-palette.js',
     'examples/components-showcase.js',
+    'examples/long-text.js',
     'docs/getting-started.md',
     'docs/publishing.md',
   ];
@@ -100,12 +101,12 @@ try {
   const packageSpecifier = JSON.stringify(packageName);
   const exampleSpecifier = JSON.stringify(`${packageName}/examples/components-showcase`);
   const importSmoke = run(process.execPath, ['--input-type=module', '-e', [
-    `const { BottomOverlay, Box, Modal, OverlayHost, SelectList, Text, SelectableText, createOverlayManager, createTextSelectionState, renderToString } = await import(${packageSpecifier});`,
+    `const { BottomOverlay, Box, Modal, OverlayHost, SelectList, Text, SelectableText, createOverlayManager, createTextLineSource, createTextSelectionState, renderToString } = await import(${packageSpecifier});`,
     `const { createComponentsShowcaseView } = await import(${exampleSpecifier});`,
     "const output = renderToString(Box({ border: true }, Text('published import works')), { width: 32, height: 3 });",
     "if (!output.includes('published import works')) throw new Error('package import smoke failed');",
     "if (typeof BottomOverlay !== 'function') throw new Error('bottom overlay export smoke failed');",
-    "if (typeof SelectableText !== 'function' || typeof createTextSelectionState !== 'function') throw new Error('selection export smoke failed');",
+    "if (typeof SelectableText !== 'function' || typeof createTextSelectionState !== 'function' || typeof createTextLineSource !== 'function') throw new Error('selection export smoke failed');",
     "const listOutput = renderToString(SelectList({ items: [{ kind: 'heading', label: 'Group' }, { label: 'Ready' }], selectedIndex: 0 }), { width: 32, height: 6 });",
     "if (!listOutput.includes('Group') || !listOutput.includes('Ready')) throw new Error('presentation list smoke failed');",
     "const overlays = createOverlayManager();",
@@ -127,6 +128,7 @@ try {
   assert.match(listOutput, new RegExp(`${packageDisplayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} examples`));
   assert.match(listOutput, /demo:chat/);
   assert.match(listOutput, /example:components/);
+  assert.match(listOutput, /example:long-text/);
 
   const oneShot = run(process.execPath, [cli, 'example:components'], { cwd: consumer });
   assert.match(oneShot, /Component Composition Snapshot/);

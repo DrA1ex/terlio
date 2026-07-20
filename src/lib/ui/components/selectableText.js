@@ -3,6 +3,7 @@ import {
   beginTextSelection,
   clearTextSelection,
   completeTextSelection,
+  createTextLineSource,
   renderTextSelectionLines,
   selectionContainsPoint,
   updateTextSelection,
@@ -28,7 +29,7 @@ export function SelectableText({
   nativeSelectionModifier = false,
 } = {}) {
   const visible = Array.from(lines ?? [], (line) => String(line ?? ''));
-  const source = Array.from(selectionLines ?? [], (line) => String(line ?? ''));
+  const source = createTextLineSource(selectionLines);
   const offsetX = Math.trunc(Number(selectionOffsetX) || 0);
   const offsetY = Math.trunc(Number(selectionOffsetY) || 0);
   const rendered = renderTextSelectionLines(visible, selection, {

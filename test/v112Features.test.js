@@ -105,7 +105,7 @@ test('list state skips presentation rows without classifying them as disabled', 
   assert.equal(disabledChecks.includes(4), false);
 });
 
-test('WorkspaceApp provides an automatically advancing animationFrame context', async () => {
+test('WorkspaceApp advances animationFrame while the render requests it', async () => {
   const input = new FakeInput();
   const output = new FakeOutput();
   const seen = [];
@@ -129,6 +129,53 @@ test('WorkspaceApp provides an automatically advancing animationFrame context', 
   assert.equal(app.animationTimer, null);
 });
 
+test('WorkspaceApp does not run the animation clock when render does not read animationFrame', async () => {
+  const input = new FakeInput();
+  const output = new FakeOutput();
+  let renders = 0;
+  const app = createWorkspaceApp({
+    title: 'static animation',
+    input,
+    output,
+    animationMs: 5,
+    render: () => {
+      renders += 1;
+      return Text('static');
+    },
+  });
+
+  app.start();
+  await delay(30);
+  assert.equal(app.animationFrame, 0);
+  assert.equal(app.animationTimer, null);
+  assert.equal(renders, 1);
+  app.stop();
+});
+
+test('WorkspaceApp suspends animation after the render stops requesting animationFrame', async () => {
+  const input = new FakeInput();
+  const output = new FakeOutput();
+  const state = { animated: true };
+  const app = createWorkspaceApp({
+    title: 'conditional animation',
+    input,
+    output,
+    state,
+    animationMs: 5,
+    render: (context) => Text(context.state.animated ? `frame:${context.animationFrame}` : 'paused'),
+  });
+
+  app.start();
+  await waitFor(() => app.animationFrame >= 2, 1000);
+  state.animated = false;
+  app.invalidate();
+  const stoppedAt = app.animationFrame;
+  await delay(30);
+  assert.equal(app.animationFrame, stoppedAt);
+  assert.equal(app.animationTimer, null);
+  app.stop();
+});
+
 test('dynamic blocking modals rerender from current available dimensions', () => {
   const manager = createOverlayManager();
   const calls = [];
@@ -150,6 +197,10 @@ test('dynamic blocking modals rerender from current available dimensions', () =>
   assert.match(second, /Dynamic/);
   assert.equal(manager.hasBlocking(), true);
 });
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function waitFor(predicate, timeoutMs) {
   const started = Date.now();

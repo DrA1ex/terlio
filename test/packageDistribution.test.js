@@ -47,6 +47,7 @@ test('packaged example catalog resolves full ids and short names', () => {
   assert.equal(findExample('demo:chat')?.file, 'examples/chat.js');
   assert.equal(findExample('chat')?.id, 'demo:chat');
   assert.equal(findExample('palette')?.id, 'example:palette');
+  assert.equal(findExample('long-text')?.id, 'example:long-text');
   assert.equal(findExample('components')?.interactive, false);
   assert.equal(findExample('does-not-exist'), null);
 
@@ -54,4 +55,5 @@ test('packaged example catalog resolves full ids and short names', () => {
   assert.match(output, new RegExp(`${escapeRegExp(packageDisplayName)} examples`));
   assert.match(output, new RegExp(`npx ${escapeRegExp(packageBinName)} demo:chat`));
   assert.match(output, new RegExp(`npx ${escapeRegExp(packageBinName)} example:components`));
+  assert.match(output, new RegExp(`npx ${escapeRegExp(packageBinName)} example:long-text`));
 });

@@ -70,6 +70,8 @@ export class RichTerminalApp {
     this.overlays = createOverlayManager();
     this.tickTimer = null;
     this.animationTimer = null;
+    this.renderBatchDepth = 0;
+    this.renderPending = false;
     this.renderer = new TerminalRenderer({ output: this.output });
     this.inputDecoder = new TerminalInputDecoder();
 
@@ -120,14 +122,6 @@ export class RichTerminalApp {
       if (this.overlays.tick(0.25)) this.render();
     }, 250);
     this.tickTimer.unref?.();
-    if (this.animationMs > 0) {
-      this.animationTimer = setInterval(() => {
-        this.animationFrame = (this.animationFrame + 1) % Number.MAX_SAFE_INTEGER;
-        this.frame = this.animationFrame;
-        this.render();
-      }, this.animationMs);
-      this.animationTimer.unref?.();
-    }
     this.render();
     return this;
   }
@@ -146,7 +140,7 @@ export class RichTerminalApp {
       this.tickTimer = null;
     }
     if (this.animationTimer) {
-      clearInterval(this.animationTimer);
+      clearTimeout(this.animationTimer);
       this.animationTimer = null;
     }
 
@@ -424,13 +418,19 @@ export class RichTerminalApp {
   }
 
   onData(data) {
-    for (const event of this.inputDecoder.write(data)) {
-      if (event?.type === 'pointer') {
-        this.handlePointer(event);
-        continue;
+    this.renderBatchDepth += 1;
+    try {
+      for (const event of this.inputDecoder.write(data)) {
+        if (event?.type === 'pointer') {
+          this.handlePointer(event);
+          continue;
+        }
+        this.logDebug('key', formatDebugKey(event));
+        routeRichTerminalKey(this, event);
       }
-      this.logDebug('key', formatDebugKey(event));
-      routeRichTerminalKey(this, event);
+    } finally {
+      this.renderBatchDepth = Math.max(0, this.renderBatchDepth - 1);
+      if (this.renderBatchDepth === 0 && this.renderPending) this.render();
     }
   }
 
@@ -659,6 +659,11 @@ export class RichTerminalApp {
 
   render() {
     if (!this.running) return;
+    if (this.renderBatchDepth > 0) {
+      this.renderPending = true;
+      return;
+    }
+    this.renderPending = false;
 
     const columns = Math.max(1, this.output.columns || 80);
     const rows = Math.max(1, this.output.rows || 24);
@@ -750,6 +755,26 @@ export class RichTerminalApp {
       this.renderer.renderNode(refreshed.node, { width: columns, height: rows });
       this.output.write(ansi.reset);
     }
+    this.syncAnimationTimer(this.messages.some((message) => message?.status === 'streaming'));
+  }
+
+  syncAnimationTimer(active = false) {
+    const shouldRun = this.running && this.animationMs > 0 && Boolean(active);
+    if (!shouldRun) {
+      if (this.animationTimer) clearTimeout(this.animationTimer);
+      this.animationTimer = null;
+      return false;
+    }
+    if (this.animationTimer) return true;
+    this.animationTimer = setTimeout(() => {
+      this.animationTimer = null;
+      if (!this.running) return;
+      this.animationFrame = (this.animationFrame + 1) % Number.MAX_SAFE_INTEGER;
+      this.frame = this.animationFrame;
+      this.render();
+    }, this.animationMs);
+    this.animationTimer.unref?.();
+    return true;
   }
 
 }

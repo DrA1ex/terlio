@@ -38,10 +38,13 @@ export class InteractiveRuntime {
     this.tickMs = Number(tickMs) || 0;
     this.animationMs = Math.max(0, Number(animationMs) || 0);
     this.animationFrame = 0;
+    this.animationRequested = false;
     this.onStop = typeof onStop === 'function' ? onStop : null;
     this.stopNotified = false;
     this.tickTimer = null;
     this.animationTimer = null;
+    this.renderBatchDepth = 0;
+    this.renderPending = false;
     this.input = process.stdin;
     this.output = process.stdout;
     this.renderer = new TerminalRenderer({ output: this.output });
@@ -64,14 +67,6 @@ export class InteractiveRuntime {
     this.input.resume();
     this.input.on('data', this.boundOnData);
     this.output.on('resize', this.boundOnResize);
-    if (this.animationMs > 0) {
-      this.animationTimer = setInterval(() => {
-        if (!this.running) return;
-        this.animationFrame = (this.animationFrame + 1) % Number.MAX_SAFE_INTEGER;
-        this.render();
-      }, this.animationMs);
-      this.animationTimer.unref?.();
-    }
     if (this.onTick && this.tickMs > 0) {
       this.tickTimer = setInterval(() => {
         if (!this.running) return;
@@ -90,7 +85,7 @@ export class InteractiveRuntime {
       this.tickTimer = null;
     }
     if (this.animationTimer) {
-      clearInterval(this.animationTimer);
+      clearTimeout(this.animationTimer);
       this.animationTimer = null;
     }
     this.input.off('data', this.boundOnData);
@@ -122,13 +117,37 @@ export class InteractiveRuntime {
 
   render() {
     if (!this.running) return;
+    if (this.renderBatchDepth > 0) {
+      this.renderPending = true;
+      return;
+    }
+    this.renderPending = false;
     const width = Math.max(1, this.output.columns || 90);
     const height = Math.max(1, this.output.rows || 28);
-    const view = this.renderView({ state: this.state, runtime: this, animationFrame: this.animationFrame, width, height });
+    this.animationRequested = false;
+    const context = {
+      state: this.state,
+      runtime: this,
+      width,
+      height,
+      requestAnimationFrame: () => {
+        this.animationRequested = true;
+        return this.animationFrame;
+      },
+    };
+    Object.defineProperty(context, 'animationFrame', {
+      enumerable: true,
+      get: () => {
+        this.animationRequested = true;
+        return this.animationFrame;
+      },
+    });
+    const view = this.renderView(context);
     const frame = renderToFrame(view, { width, height });
     this.renderer.renderFrame(frame);
     this.output.write(ansi.reset);
     this.syncPointerMode();
+    this.syncAnimationTimer();
   }
 
   invalidate() {
@@ -141,32 +160,38 @@ export class InteractiveRuntime {
   }
 
   handleData(data) {
-    for (const event of this.inputDecoder.write(data)) {
-      if (event?.type === 'pointer') {
-        this.handlePointer(event);
-        continue;
+    this.renderBatchDepth += 1;
+    try {
+      for (const event of this.inputDecoder.write(data)) {
+        if (event?.type === 'pointer') {
+          this.handlePointer(event);
+          continue;
+        }
+
+        const key = event;
+        this.logKey(key);
+
+        if (key.name === 'ctrl-c') {
+          this.exit(130);
+          return;
+        }
+
+        if (key.name === 'ctrl-d') {
+          this.exit(0);
+          return;
+        }
+
+        if (key.ctrl && key.name === 't') {
+          this.togglePointerOverride();
+          continue;
+        }
+
+        this.onKey?.({ key, state: this.state, runtime: this, animationFrame: this.animationFrame });
+        this.render();
       }
-
-      const key = event;
-      this.logKey(key);
-
-      if (key.name === 'ctrl-c') {
-        this.exit(130);
-        return;
-      }
-
-      if (key.name === 'ctrl-d') {
-        this.exit(0);
-        return;
-      }
-
-      if (key.ctrl && key.name === 't') {
-        this.togglePointerOverride();
-        continue;
-      }
-
-      this.onKey?.({ key, state: this.state, runtime: this, animationFrame: this.animationFrame });
-      this.render();
+    } finally {
+      this.renderBatchDepth = Math.max(0, this.renderBatchDepth - 1);
+      if (this.renderBatchDepth === 0 && this.renderPending) this.render();
     }
   }
 
@@ -184,6 +209,24 @@ export class InteractiveRuntime {
     }
     if (event.handled) this.render();
     return event;
+  }
+
+  syncAnimationTimer() {
+    const shouldRun = this.running && this.animationMs > 0 && this.animationRequested;
+    if (!shouldRun) {
+      if (this.animationTimer) clearTimeout(this.animationTimer);
+      this.animationTimer = null;
+      return false;
+    }
+    if (this.animationTimer) return true;
+    this.animationTimer = setTimeout(() => {
+      this.animationTimer = null;
+      if (!this.running) return;
+      this.animationFrame = (this.animationFrame + 1) % Number.MAX_SAFE_INTEGER;
+      this.render();
+    }, this.animationMs);
+    this.animationTimer.unref?.();
+    return true;
   }
 
   setPointerEnabled(value) {

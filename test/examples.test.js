@@ -16,6 +16,7 @@ test('package exposes runnable example scripts', async () => {
   assert.equal(pkg.scripts['example:editor'], 'node examples/editor-lab.js');
   assert.equal(pkg.scripts['example:palette'], 'node examples/command-palette.js');
   assert.equal(pkg.scripts['example:stream'], 'node examples/streaming-workbench.js');
+  assert.equal(pkg.scripts['example:long-text'], 'node examples/long-text.js');
   assert.equal(pkg.scripts['example:components'], 'node examples/components-showcase.js');
   assert.equal(pkg.scripts['example:kit'], 'node examples/interaction-kit.js');
 });

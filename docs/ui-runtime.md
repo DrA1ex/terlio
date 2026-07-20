@@ -232,10 +232,12 @@ The runtime:
 - traps input in the top blocking overlay;
 - ignores duplicate `start()` calls;
 - redraws on resize and skips identical frames;
-- provides `ctx.animationFrame` on an internal animation clock (`animationMs: 80` by default);
+- provides a demand-driven `ctx.animationFrame` clock (`animationMs: 80` by default) that runs only while the current render reads it or calls `requestAnimationFrame()`;
 - removes timers and listeners during `stop()` or fatal cleanup.
 
 Pointer regions normally activate automatic SGR mouse reporting. For text that must remain selectable while wheel input stays active, use `SelectableText` or pass a `createTextSelectionState()` value to `ScrollPane({ selection })`; the component renders its own in-app selection in content coordinates. Wheel and keyboard scrolling preserve the range. A click inside the highlight can invoke `onCopy`; a successful copy clears the selection, while a failed copy keeps it for retry. A click outside clears it without copying. `Ctrl+C` is never reassigned and remains `SIGINT`. `copyTextToClipboard()` is available for explicit actions and uses the native platform clipboard when available, with OSC 52 as a remote-terminal fallback. Set `pointerAutoEnable: false` only for unusual passive regions. `setPointerOverride(true | false | null)` remains a manual escape hatch for forced pointer input, native terminal selection, or automatic behavior.
+
+`ScrollPane` keeps wheel cost tied to viewport height rather than source length. It reads and clips only the visible line window, and the interactive runtimes batch multiple decoded pointer events from the same input chunk before rendering. The packaged `example:long-text` demo uses 10,000 rows to make regressions visible.
 
 ## Declarative actions and overlays
 

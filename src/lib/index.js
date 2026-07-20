@@ -15,7 +15,7 @@ export { createSkillState, enabledSkillNames, formatSkillList, getSkill, skills 
 export { appendMessageBlock, appendMessageChunk, completeMessage, createMessage, lastAssistantMessage, lastUserMessage, normalizeMessages, setMessageBlocks, trimMessages, visibleConversationMessages } from './state.js';
 export { BLOCK_TYPES, appendBlockContent, blockToText, blocksToText, createBlock, ensureTextBlock, normalizeBlock, normalizeBlocks } from './blocks.js';
 export { wrapText } from './wrap.js';
-export { createTextSelectionState, clearTextSelection, beginTextSelection, updateTextSelection, completeTextSelection, selectedText, renderTextSelectionLines, selectionContainsPoint, normalizeSelectionRange, styleVisibleRange, osc52ClipboardSequence, copyTextToClipboard, writeClipboardText } from './textSelection.js';
+export { createTextLineSource, createTextSelectionState, clearTextSelection, beginTextSelection, updateTextSelection, completeTextSelection, selectedText, renderTextSelectionLines, selectionContainsPoint, normalizeSelectionRange, styleVisibleRange, osc52ClipboardSequence, copyTextToClipboard, writeClipboardText } from './textSelection.js';
 
 export { Box, Column, Panel, PointerRegion, Row, Text, createNode, normalizeChildren } from './ui/node.js';
 export { createWorkspaceApp, WorkspaceApp } from './workspaceApp.js';

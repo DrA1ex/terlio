@@ -5,6 +5,7 @@ import { isScrollAtBottom, resolveAutoScrollOffset } from '../../scrollState.js'
 import { clamp } from './utils.js';
 import { fit } from '../layout/utils.js';
 import { SelectableText } from './selectableText.js';
+import { createTextLineSource } from '../../textSelection.js';
 
 export function renderTextEditorLines({
   value = '',
@@ -67,23 +68,25 @@ export function visibleWindowLines(lines = [], {
   previousTotalRows = undefined,
   sticky = undefined,
 } = {}) {
-  const safeLines = Array.from(lines, (line) => String(line ?? ''));
+  const source = createTextLineSource(lines);
   const safeHeight = Math.max(1, Number(height) || 1);
-  const maxScroll = Math.max(0, safeLines.length - safeHeight);
+  const maxScroll = Math.max(0, source.length - safeHeight);
   const resolvedScroll = autoscroll
     ? resolveAutoScrollOffset({
         scroll,
-        totalRows: safeLines.length,
-        previousTotalRows: previousTotalRows ?? safeLines.length,
+        totalRows: source.length,
+        previousTotalRows: previousTotalRows ?? source.length,
         visibleRows: safeHeight,
         sticky,
       })
     : scroll;
   const safeScroll = clamp(Number(resolvedScroll) || 0, 0, maxScroll);
-  const start = tail ? Math.max(0, safeLines.length - safeHeight - safeScroll) : safeScroll;
-  const visible = safeLines.slice(start, start + safeHeight);
+  const start = tail ? Math.max(0, source.length - safeHeight - safeScroll) : safeScroll;
+  const visible = [];
+  const end = Math.min(source.length, start + safeHeight);
+  for (let index = start; index < end; index += 1) visible.push(source.getLine(index));
   while (visible.length < safeHeight) visible.push('');
-  return { lines: visible, scroll: safeScroll, maxScroll, start, atBottom: isScrollAtBottom(safeScroll, safeLines.length, safeHeight) };
+  return { lines: visible, scroll: safeScroll, maxScroll, start, atBottom: isScrollAtBottom(safeScroll, source.length, safeHeight) };
 }
 
 export function ScrollPane({
@@ -119,7 +122,9 @@ export function ScrollPane({
   const chromeRows = (border ? 2 : 0) + (footer ? 1 : 0);
   const innerHeight = Math.max(1, (Number(height) || 1) - chromeRows);
   const contentWidth = Math.max(1, width - (border ? 4 : 0));
-  const sourceLines = Array.from(lines ?? [], (line) => takeVisibleAnsi(String(line ?? ''), contentWidth));
+  const sourceLines = createTextLineSource(lines, {
+    transform: (line) => takeVisibleAnsi(line, contentWidth),
+  });
   const window = visibleWindowLines(sourceLines, { height: Math.max(1, innerHeight), scroll, autoscroll, previousTotalRows, sticky });
   const bodyLines = window.lines.map((line) => fit(line, contentWidth));
   const rows = selection

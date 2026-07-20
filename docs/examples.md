@@ -67,6 +67,14 @@ npx terlio.js example:stream
 
 A streaming workspace with clickable templates and panes, wheel/trackpad scrolling and focused `↑/↓` navigation, multiline prompt editing, templates, sticky transcript autoscroll, scrollback preservation, runtime progress, cancellation and timer cleanup.
 
+### Long Text Performance Lab — `example:long-text`
+
+```bash
+npx terlio.js example:long-text
+```
+
+A selectable 10,000-row viewport for checking wheel and touchpad responsiveness, keyboard paging, persistent selection across multiple screens, and click-to-copy behavior. `ScrollPane` formats only the visible rows, while pointer bursts received in one input chunk are applied before a single render pass. Use `--lines=50000` to exercise a larger source.
+
 ## UI mechanics
 
 ### Component Studio — `example:kit`
@@ -135,6 +143,7 @@ npm run demo:code-review
 npm run example:editor
 npm run example:palette
 npm run example:stream
+npm run example:long-text
 npm run example:kit
 npm run example:keys
 npm run example:themes

@@ -260,7 +260,7 @@ Renders a text progress bar.
 Spinner({ frame, label })
 ```
 
-Renders a spinner frame. Workspace render callbacks receive `ctx.animationFrame`, so `Spinner({ frame: animationFrame })` animates without an application-owned timer. Set the runtime `animationMs` option to control the cadence or to `0` to disable it.
+Renders a spinner frame. Workspace render callbacks receive `ctx.animationFrame`, so `Spinner({ frame: animationFrame })` animates without an application-owned timer. The clock is demand-driven: it runs only while the current render reads `animationFrame` or calls `requestAnimationFrame()`, then suspends when the rendered view becomes static. Set `animationMs` to control the active cadence or to `0` to disable it.
 
 ### HelpOverlay
 
@@ -295,6 +295,7 @@ Render a multi-line editor view or its raw lines.
 visibleWindowLines(lines, { height, scroll, tail, autoscroll, previousTotalRows, sticky })
 ScrollPane({ title, lines, width, height, scroll, border, footer, autoscroll, previousTotalRows, sticky, pointerId, pointerData, pointerWidth, pointerEvents, pointerAutoEnable, onPointer, onClick, onWheel, onDrag, onMove, onRelease, selection, onSelectionChange, onCopy, copyOnRelease, copyOnSelectionClick, clearSelectionOnWheel, nativeSelectionModifier })
 SelectableText({ lines, selectionLines, selectionOffsetX, selectionOffsetY, selection, pointerId, pointerData, pointerWidth, pointerAutoEnable, onWheel, onSelectionChange, onCopy, copyOnRelease, copyOnSelectionClick, clearOnWheel, nativeSelectionModifier })
+createTextLineSource(lines, { transform })
 createTextSelectionState(initial)
 clearTextSelection(state)
 beginTextSelection(state, point, lines)
@@ -311,7 +312,7 @@ isScrollAtBottom(scroll, totalRows, visibleRows)
 scrollMax(totalRows, visibleRows)
 ```
 
-Render or calculate a scroll window. Pass a state from `createTextSelectionState()` as `selection` to make text drag-selectable without disabling mouse reporting. `SelectableText` can be used directly for non-scrolling text. For virtualized or scrolling content, pass the complete content as `selectionLines` and the first visible content row as `selectionOffsetY`; `ScrollPane` does this automatically. The selection remains in content coordinates across wheel, keyboard, and page scrolling, including while a drag is active. A short click inside the highlighted range calls `onCopy`; returning `true` or `{ copied: true }` clears the range, while a failed result keeps it for retry. A short click outside clears the range without copying. Set `copyOnSelectionClick: false` to disable that behavior, or `copyOnRelease: true` only when immediate copy after dragging is intentionally desired. `Ctrl+C` remains `SIGINT`. `nativeSelectionModifier` is disabled by default but can explicitly reserve a modifier for terminal-specific native selection. `copyTextToClipboard()` first uses the native platform clipboard when available (`pbcopy`, `wl-copy`, `xclip`/`xsel`, or the Windows clipboard) and falls back to OSC 52 for remote terminals. `writeClipboardText()` is the low-level boolean OSC 52 writer and always writes to the supplied terminal output stream.
+Render or calculate a scroll window. Long sources are viewport-virtualized: `ScrollPane` converts and ANSI-clips only the visible rows instead of remapping the entire source on every wheel event. Arrays, array-like values, and `createTextLineSource()` objects are accepted. Pass a state from `createTextSelectionState()` as `selection` to make text drag-selectable without disabling mouse reporting. `SelectableText` can be used directly for non-scrolling text. For virtualized or scrolling content, pass the complete content as `selectionLines` and the first visible content row as `selectionOffsetY`; `ScrollPane` does this automatically. The selection remains in content coordinates across wheel, keyboard, and page scrolling, including while a drag is active. A short click inside the highlighted range calls `onCopy`; returning `true` or `{ copied: true }` clears the range, while a failed result keeps it for retry. A short click outside clears the range without copying. Set `copyOnSelectionClick: false` to disable that behavior, or `copyOnRelease: true` only when immediate copy after dragging is intentionally desired. `Ctrl+C` remains `SIGINT`. `nativeSelectionModifier` is disabled by default but can explicitly reserve a modifier for terminal-specific native selection. `copyTextToClipboard()` first uses the native platform clipboard when available (`pbcopy`, `wl-copy`, `xclip`/`xsel`, or the Windows clipboard) and falls back to OSC 52 for remote terminals. `writeClipboardText()` is the low-level boolean OSC 52 writer and always writes to the supplied terminal output stream.
 
 Use `resolveAutoScrollOffset()` for log/transcript panes that should follow new output only while the user is already at the bottom. Use `resolveScrollKeyOffset()` for read-only panes that should handle `up`, `down`, `page-up`, and `page-down` consistently. Once the user scrolls up, keep `sticky: false`; when they scroll or page back to the bottom, set it to `true` again.
 
@@ -606,7 +607,7 @@ createWorkspaceApp({
 })
 ```
 
-The runtime owns alternate-screen setup, raw input, resize redraws, overlay focus trapping, optional mouse reporting and terminal cleanup. `render` receives the actual viewport width and height together with an automatically advancing `animationFrame`. `animationMs` controls its cadence and can be set to `0` when an application has no animated surfaces. Calling `start()` more than once is safe. `onExit(code)` is optional; without it, `exit()` restores the terminal and terminates the process.
+The runtime owns alternate-screen setup, raw input, resize redraws, overlay focus trapping, optional mouse reporting and terminal cleanup. `render` receives the actual viewport width and height together with a demand-driven `animationFrame`. The animation clock runs only while the current render reads that value or calls `requestAnimationFrame()`. `animationMs` controls the active cadence and can be set to `0` to disable animation. Calling `start()` more than once is safe. `onExit(code)` is optional; without it, `exit()` restores the terminal and terminates the process.
 
 Pointer ownership methods:
 

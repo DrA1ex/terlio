@@ -48,6 +48,7 @@
     "example:editor": "node examples/editor-lab.js",
     "example:palette": "node examples/command-palette.js",
     "example:stream": "node examples/streaming-workbench.js",
+    "example:long-text": "node examples/long-text.js",
     "example:components": "node examples/components-showcase.js",
     "example:kit": "node examples/interaction-kit.js",
     "example:keys": "node examples/keys.js",

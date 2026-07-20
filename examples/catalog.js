@@ -51,6 +51,13 @@ export const EXAMPLE_GROUPS = [
         interactive: true,
         description: 'Streaming workbench with multiline prompts, sticky scrollback, templates and timer cleanup.',
       },
+      {
+        id: 'example:long-text',
+        name: 'long-text',
+        file: 'examples/long-text.js',
+        interactive: true,
+        description: '10,000-row virtualized text viewport for wheel, selection and renderer performance testing.',
+      },
     ],
   },
   {
