@@ -209,7 +209,7 @@ import { createWorkspaceApp, Text } from 'terlio.js';
 const app = createWorkspaceApp({
   title: 'Example',
   state: { count: 0 },
-  render: ({ state, width, height }) => Text(`${state.count} at ${width}x${height}`),
+  render: ({ state, width, height, animationFrame }) => Text(`${state.count} at ${width}x${height} · frame ${animationFrame}`),
   onKey: ({ key, state, invalidate }) => {
     if (key.name === 'up') {
       state.count += 1;
@@ -232,6 +232,7 @@ The runtime:
 - traps input in the top blocking overlay;
 - ignores duplicate `start()` calls;
 - redraws on resize and skips identical frames;
+- provides `ctx.animationFrame` on an internal animation clock (`animationMs: 80` by default);
 - removes timers and listeners during `stop()` or fatal cleanup.
 
 Pointer regions normally activate automatic SGR mouse reporting. For text that must remain selectable while wheel input stays active, use `SelectableText` or pass a `createTextSelectionState()` value to `ScrollPane({ selection })`; the component renders its own in-app selection in content coordinates. Wheel and keyboard scrolling preserve the range. A click inside the highlight can invoke `onCopy`; a successful copy clears the selection, while a failed copy keeps it for retry. A click outside clears it without copying. `Ctrl+C` is never reassigned and remains `SIGINT`. `copyTextToClipboard()` is available for explicit actions and uses the native platform clipboard when available, with OSC 52 as a remote-terminal fallback. Set `pointerAutoEnable: false` only for unusual passive regions. `setPointerOverride(true | false | null)` remains a manual escape hatch for forced pointer input, native terminal selection, or automatic behavior.
@@ -240,6 +241,17 @@ Pointer regions normally activate automatic SGR mouse reporting. For text that m
 
 `createActionRegistry()` keeps key bindings, help text, footer hints and command-palette items derived from the same action definitions. A callback-valued `disabled` property is evaluated against the current context everywhere, including generated help and footer output.
 
-`createOverlayManager()` owns blocking overlays and transient toasts. Its `tick(delta)` method returns `true` only when the visible toast stack changes, so applications do not repaint merely because an invisible TTL value changed. Toasts rendered by `OverlayHost` dismiss immediately on click.
+`createOverlayManager()` owns blocking overlays and transient toasts. A blocking surface can be responsive without application-side resize bookkeeping:
+
+```js
+overlays.modal({
+  render: ({ width, height }) => Modal({
+    title: ' Details ',
+    children: [`Available modal body: ${width}×${height}`],
+  }),
+});
+```
+
+The callback runs for every overlay render and receives the current inner dimensions. The manager's `tick(delta)` method returns `true` only when the visible toast stack changes, so applications do not repaint merely because an invisible TTL value changed. Toasts rendered by `OverlayHost` dismiss immediately on click.
 
 For layout-local popups such as autocomplete, use `BottomOverlay` instead of a blocking overlay. It composes the popup after the underlying frame has been laid out, anchors it above a configurable bottom inset, and preserves pointer markers from both trees. The popup wins hit-testing only in covered cells; the rest of the application remains interactive. Removing or resizing it is handled by ordinary frame diffs over the affected rows.

@@ -22,6 +22,7 @@ export { createWorkspaceApp, WorkspaceApp } from './workspaceApp.js';
 export { ActionRegistry, createActionRegistry, normalizeAction, keyMatches, parseKeySpec } from './actionRegistry.js';
 export { OverlayManager, OverlayHost, createOverlayManager } from './overlayHost.js';
 export { createListState, updateListItems, handleListKey, getListWindow } from './listState.js';
+export { PRESENTATION_LIST_KINDS, getListItemKind, isPresentationListItem, isSelectableListItem } from './listItems.js';
 export { createScrollState, updateScrollState, handleScrollKey, appendScrollRows } from './smartScrollState.js';
 export { layout, renderNode, measureNodeHeight } from './ui/layout/index.js';
 export { SplitPane, resolvePaneSizes } from './ui/layout/splitPane.js';

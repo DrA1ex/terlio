@@ -1,7 +1,7 @@
-import { PointerRegion, Text, createNode } from '../node.js';
+import { PointerRegion, Text, createNode, Box } from '../node.js';
 import { color, truncateVisible, visibleLength } from '../../ansi/text.js';
+import { getListItemKind, isPresentationListItem } from '../../listItems.js';
 import { clamp } from './utils.js';
-import { Box } from '../node.js';
 import { renderBox } from '../layout/box.js';
 import { fit, wrapPlain } from '../layout/utils.js';
 
@@ -14,6 +14,9 @@ export function SelectList({
   getLabel = defaultLabel,
   getDescription = defaultDescription,
   getDisabled = defaultDisabled,
+  getKind = defaultKind,
+  disabledIndicator = '×',
+  getDisabledIndicator = null,
   theme = null,
   wrapItems = true,
   maxItemLines = 3,
@@ -35,6 +38,9 @@ export function SelectList({
     getLabel,
     getDescription,
     getDisabled,
+    getKind,
+    disabledIndicator,
+    getDisabledIndicator,
     theme,
     wrapItems,
     maxItemLines,
@@ -53,7 +59,7 @@ export function renderSelectList(node, width, renderNode) {
   const props = node.props || {};
   const theme = props.theme ?? null;
   const normalized = Array.from(props.items ?? []).map((item, index) => normalizeItem(item, index, props));
-  const selected = clamp(props.selectedIndex, 0, Math.max(0, normalized.length - 1));
+  const selected = resolveSelectedIndex(normalized, props.selectedIndex);
   const itemCount = Math.max(1, Number(props.windowSize) || 1);
   const maxItemLines = Math.max(1, Number(props.rowLines ?? props.maxItemLines) || 3);
   const wrapItems = props.wrapItems !== false;
@@ -70,6 +76,12 @@ export function renderSelectList(node, width, renderNode) {
   const window = resolveListWindow({ total: normalized.length, selected, rows: itemCount, start: props.windowStart });
   for (let absolute = window.start; absolute < window.end; absolute += 1) {
     const item = normalized[absolute];
+    if (item.presentation) {
+      const presentationRows = formatPresentationRows({ item, theme, width: innerWidth, wrapItems, maxItemLines, reserveItemLines });
+      rows.push(...presentationRows.map((line) => Text(line, { wrap: false })));
+      continue;
+    }
+
     const selectedItem = absolute === selected;
     const token = item.disabled ? 'textMuted' : selectedItem ? 'selected' : 'text';
     const itemRows = formatItemRows({ item, selected: selectedItem, theme, token, width: innerWidth, wrapItems, maxItemLines, reserveItemLines });
@@ -93,7 +105,9 @@ export function renderSelectList(node, width, renderNode) {
   while (rows.length < minRows) rows.push(Text('', { wrap: false }));
 
   const more = [window.above > 0 ? `↑${window.above}` : '', window.below > 0 ? `↓${window.below}` : ''].filter(Boolean).join(' ');
-  const suffix = `${selected + 1}/${normalized.length}${more ? ` · ${more}` : ''}`;
+  const selectable = normalized.filter((item) => !item.presentation);
+  const selectedOrdinal = selected < 0 ? 0 : normalized.slice(0, selected + 1).filter((item) => !item.presentation).length;
+  const suffix = `${selectedOrdinal}/${selectable.length}${more ? ` · ${more}` : ''}`;
   return renderBox(Box({
     border: true,
     borderColor: theme?.border ?? undefined,
@@ -108,11 +122,29 @@ export function renderSelectList(node, width, renderNode) {
 
 function formatItemRows({ item, selected, theme, token, width, wrapItems, maxItemLines, reserveItemLines }) {
   const marker = selected ? '›' : ' ';
-  const disabled = item.disabled ? ' ×' : '';
+  const indicator = item.disabled ? item.disabledIndicator : '';
+  const disabled = indicator ? ` ${indicator}` : '';
   const description = item.description ? ` — ${item.description}` : '';
   const content = `${item.label}${description}${disabled}`;
-  const prefix = `${marker} `;
-  const continuationPrefix = '  ';
+  return formatWrappedRows({ content, prefix: `${marker} `, continuationPrefix: '  ', theme, token, width, wrapItems, maxItemLines, reserveItemLines });
+}
+
+function formatPresentationRows({ item, theme, width, wrapItems, maxItemLines, reserveItemLines }) {
+  if (item.kind === 'separator') {
+    const label = item.label.trim();
+    const raw = label ? `── ${label} ` : '';
+    const fill = '─'.repeat(Math.max(0, width - visibleLength(raw)));
+    const line = fit(`${raw}${fill}`, width);
+    return [theme ? color(theme, 'borderMuted', line) : line];
+  }
+
+  const token = item.kind === 'heading' ? 'textAccent' : 'textMuted';
+  const description = item.description ? `${item.kind === 'stat' ? ': ' : ' — '}${item.description}` : '';
+  const content = `${item.label}${description}`;
+  return formatWrappedRows({ content, prefix: '  ', continuationPrefix: '  ', theme, token, width, wrapItems, maxItemLines, reserveItemLines });
+}
+
+function formatWrappedRows({ content, prefix, continuationPrefix, theme, token, width, wrapItems, maxItemLines, reserveItemLines }) {
   const contentWidth = Math.max(1, width - visibleLength(prefix));
   const allRows = wrapItems ? wrapPlain(content, contentWidth) : [fit(content, contentWidth)];
   const truncated = allRows.length > maxItemLines;
@@ -129,11 +161,21 @@ function resolveListWindow({ total, selected, rows, start = null }) {
   const safeRows = Math.max(1, Number(rows) || 1);
   if (total <= safeRows) return { start: 0, end: total, above: 0, below: 0 };
   const maxStart = Math.max(0, total - safeRows);
+  const anchor = selected >= 0 ? selected : 0;
   const resolvedStart = start === null || start === undefined
-    ? clamp(selected - Math.floor(safeRows / 2), 0, maxStart)
+    ? clamp(anchor - Math.floor(safeRows / 2), 0, maxStart)
     : clamp(Number(start) || 0, 0, maxStart);
   const end = Math.min(total, resolvedStart + safeRows);
   return { start: resolvedStart, end, above: resolvedStart, below: Math.max(0, total - end) };
+}
+
+function resolveSelectedIndex(items, selectedIndex) {
+  if (!items.length) return -1;
+  const requested = clamp(selectedIndex, 0, items.length - 1);
+  if (!items[requested].presentation) return requested;
+  for (let index = requested + 1; index < items.length; index += 1) if (!items[index].presentation) return index;
+  for (let index = requested - 1; index >= 0; index -= 1) if (!items[index].presentation) return index;
+  return -1;
 }
 
 function ellipsizeRow(value, width) {
@@ -143,24 +185,37 @@ function ellipsizeRow(value, width) {
   return truncateVisible(text, safeWidth - 1, '') + '…';
 }
 
-function normalizeItem(item, index, { getLabel, getDescription, getDisabled }) {
+function normalizeItem(item, index, { getLabel, getDescription, getDisabled, getKind, disabledIndicator, getDisabledIndicator }) {
+  const kind = getListItemKind(item, index, getKind);
+  const presentation = isPresentationListItem(item, index, getKind);
+  const disabled = presentation ? false : Boolean(typeof getDisabled === 'function' ? getDisabled(item, index) : defaultDisabled(item));
+  const indicator = disabled
+    ? String((typeof getDisabledIndicator === 'function' ? getDisabledIndicator(item, index) : disabledIndicator) ?? '')
+    : '';
   return {
     raw: item,
     index,
+    kind,
+    presentation,
     label: String((typeof getLabel === 'function' ? getLabel(item, index) : defaultLabel(item)) ?? ''),
     description: String((typeof getDescription === 'function' ? getDescription(item, index) : defaultDescription(item)) ?? ''),
-    disabled: Boolean(typeof getDisabled === 'function' ? getDisabled(item, index) : defaultDisabled(item)),
+    disabled,
+    disabledIndicator: indicator,
   };
+}
+
+function defaultKind(item) {
+  return item?.kind ?? 'item';
 }
 
 function defaultLabel(item) {
   if (typeof item === 'string') return item;
-  return item?.label ?? item?.title ?? item?.id ?? String(item ?? '');
+  return item?.label ?? item?.title ?? item?.id ?? (item?.kind ? '' : String(item ?? ''));
 }
 
 function defaultDescription(item) {
   if (typeof item === 'string') return '';
-  return item?.description ?? item?.detail ?? '';
+  return item?.description ?? item?.detail ?? item?.value ?? '';
 }
 
 function defaultDisabled(item) {

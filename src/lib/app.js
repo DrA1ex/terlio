@@ -24,7 +24,7 @@ const SUGGESTION_WINDOW_SIZE = 7;
 export { createAppPaletteItems };
 
 export class RichTerminalApp {
-  constructor({ input = process.stdin, output = process.stdout, onExit = null, onPointer = null, pointer = 'auto', sessionStore = new SessionStore() } = {}) {
+  constructor({ input = process.stdin, output = process.stdout, onExit = null, onPointer = null, pointer = 'auto', animationMs = 80, sessionStore = new SessionStore() } = {}) {
     this.input = input;
     this.output = output;
     this.onExit = onExit;
@@ -61,12 +61,15 @@ export class RichTerminalApp {
     this.transcriptTotalRows = 0;
     this.lastViewportWidth = null;
     this.frame = 0;
+    this.animationFrame = 0;
+    this.animationMs = Math.max(0, Number(animationMs) || 0);
     this.debug = { enabled: false, events: [] };
     this.focus = new FocusManager(['input', 'suggestions', 'transcript', 'debug']);
     this.modes = new ModeManager('input');
     this.palette = createCommandPaletteState({ items: createAppPaletteItems(this), windowSize: 7 });
     this.overlays = createOverlayManager();
     this.tickTimer = null;
+    this.animationTimer = null;
     this.renderer = new TerminalRenderer({ output: this.output });
     this.inputDecoder = new TerminalInputDecoder();
 
@@ -117,6 +120,14 @@ export class RichTerminalApp {
       if (this.overlays.tick(0.25)) this.render();
     }, 250);
     this.tickTimer.unref?.();
+    if (this.animationMs > 0) {
+      this.animationTimer = setInterval(() => {
+        this.animationFrame = (this.animationFrame + 1) % Number.MAX_SAFE_INTEGER;
+        this.frame = this.animationFrame;
+        this.render();
+      }, this.animationMs);
+      this.animationTimer.unref?.();
+    }
     this.render();
     return this;
   }
@@ -133,6 +144,10 @@ export class RichTerminalApp {
     if (this.tickTimer) {
       clearInterval(this.tickTimer);
       this.tickTimer = null;
+    }
+    if (this.animationTimer) {
+      clearInterval(this.animationTimer);
+      this.animationTimer = null;
     }
 
     this.input.off('data', this.boundOnData);
@@ -647,8 +662,6 @@ export class RichTerminalApp {
 
     const columns = Math.max(1, this.output.columns || 80);
     const rows = Math.max(1, this.output.rows || 24);
-    this.frame += 1;
-
     const buildScreen = (scrollOffset = this.scrollOffset) => createChatScreen({
       columns,
       rows,
@@ -677,7 +690,7 @@ export class RichTerminalApp {
       pointerOverride: this.pointerOverride,
       scrollOffset,
       transcriptSelection: this.transcriptSelection,
-      frame: this.frame,
+      frame: this.animationFrame,
       onTranscriptWheel: (event) => {
         this.scrollOffset = Math.max(0, this.scrollOffset - event.deltaY);
         event.preventDefault();

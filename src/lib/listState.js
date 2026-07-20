@@ -1,5 +1,7 @@
-export function createListState({ items = [], selectedIndex = 0, windowSize = 8, skipDisabled = true, getDisabled = (item) => Boolean(item?.disabled) } = {}) {
-  const state = { items: Array.from(items), selectedIndex: 0, windowSize: Math.max(1, Number(windowSize) || 8), skipDisabled, getDisabled };
+import { isSelectableListItem } from './listItems.js';
+
+export function createListState({ items = [], selectedIndex = 0, windowSize = 8, skipDisabled = true, getDisabled = (item) => Boolean(item?.disabled), getSelectable = defaultSelectable } = {}) {
+  const state = { items: Array.from(items), selectedIndex: 0, windowSize: Math.max(1, Number(windowSize) || 8), skipDisabled, getDisabled, getSelectable };
   state.selectedIndex = normalizeSelection(state, selectedIndex, 1);
   return state;
 }
@@ -27,7 +29,8 @@ export function handleListKey(state, key) {
   }
   if (!handled) return { handled: false, selectedIndex: state.selectedIndex };
   state.selectedIndex = normalizeSelection(state, next, next >= state.selectedIndex ? 1 : -1);
-  return { handled: true, selectedIndex: state.selectedIndex, item: state.items[state.selectedIndex] ?? null };
+  const item = canSelect(state, state.selectedIndex) ? state.items[state.selectedIndex] ?? null : null;
+  return { handled: true, selectedIndex: state.selectedIndex, item };
 }
 
 export function getListWindow(state) {
@@ -44,14 +47,27 @@ export function getListWindow(state) {
 function normalizeSelection(state, index, direction) {
   const size = state.items.length;
   if (!size) return 0;
-  let next = Math.max(0, Math.min(Number(index) || 0, size - 1));
-  if (!state.skipDisabled) return next;
-  if (!state.getDisabled(state.items[next], next)) return next;
-  for (let i = next; i >= 0 && i < size; i += direction >= 0 ? 1 : -1) {
-    if (!state.getDisabled(state.items[i], i)) return i;
+  const next = Math.max(0, Math.min(Number(index) || 0, size - 1));
+  if (canSelect(state, next)) return next;
+  const forward = direction >= 0 ? 1 : -1;
+  for (let i = next; i >= 0 && i < size; i += forward) {
+    if (canSelect(state, i)) return i;
   }
-  for (let i = next; i >= 0 && i < size; i += direction >= 0 ? -1 : 1) {
-    if (!state.getDisabled(state.items[i], i)) return i;
+  for (let i = next; i >= 0 && i < size; i -= forward) {
+    if (canSelect(state, i)) return i;
   }
   return next;
+}
+
+function canSelect(state, index) {
+  const item = state.items[index];
+  const selectable = typeof state.getSelectable === 'function'
+    ? state.getSelectable(item, index)
+    : defaultSelectable(item, index);
+  if (!selectable) return false;
+  return !state.skipDisabled || !state.getDisabled(item, index);
+}
+
+function defaultSelectable(item, index) {
+  return isSelectableListItem(item, index);
 }

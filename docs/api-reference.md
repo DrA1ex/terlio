@@ -205,6 +205,9 @@ SelectList({
   getLabel,
   getDescription,
   getDisabled,
+  getKind,
+  disabledIndicator = '×',
+  getDisabledIndicator,
   wrapItems = true,
   maxItemLines = 3,
   reserveItemLines = false,
@@ -216,6 +219,8 @@ SelectList({
 ```
 
 Renders a scroll-windowed selectable list. Items use one terminal row when their label and description fit, then grow only as needed up to `maxItemLines`. Content that still does not fit is clipped with an ellipsis on the final row. `windowStart` lets scrolling move the visible item window independently from `selectedIndex`; this is useful when wheel scrolling should not change selection until the selected item leaves the viewport. `rowLines` remains a compatibility alias for `maxItemLines`, while `reserveItemLines: true` opts into fixed-height rows.
+
+Rows with `kind: 'heading'`, `kind: 'stat'`, or `kind: 'separator'` are presentation-only. Keyboard navigation and pointer focus skip them, they never inherit disabled styling, and they do not render the disabled marker. A stat row uses `label` with `value`, `description`, or `detail`. Set `disabledIndicator: ''` to hide the marker globally, or provide `getDisabledIndicator(item, index)` for per-item text.
 
 ### ConfirmPrompt
 
@@ -255,7 +260,7 @@ Renders a text progress bar.
 Spinner({ frame, label })
 ```
 
-Renders a spinner frame.
+Renders a spinner frame. Workspace render callbacks receive `ctx.animationFrame`, so `Spinner({ frame: animationFrame })` animates without an application-owned timer. Set the runtime `animationMs` option to control the cadence or to `0` to disable it.
 
 ### HelpOverlay
 
@@ -594,13 +599,14 @@ createWorkspaceApp({
   pointer,
   tick,
   tickMs,
+  animationMs = 80,
   input,
   output,
   onExit,
 })
 ```
 
-The runtime owns alternate-screen setup, raw input, resize redraws, overlay focus trapping, optional mouse reporting and terminal cleanup. `render` receives the actual viewport width and height. Calling `start()` more than once is safe. `onExit(code)` is optional; without it, `exit()` restores the terminal and terminates the process.
+The runtime owns alternate-screen setup, raw input, resize redraws, overlay focus trapping, optional mouse reporting and terminal cleanup. `render` receives the actual viewport width and height together with an automatically advancing `animationFrame`. `animationMs` controls its cadence and can be set to `0` when an application has no animated surfaces. Calling `start()` more than once is safe. `onExit(code)` is optional; without it, `exit()` restores the terminal and terminates the process.
 
 Pointer ownership methods:
 
@@ -628,7 +634,7 @@ Exports:
 - `OverlayManager`
 - `OverlayHost(props)`
 
-Blocking overlays trap keys until closed. Toast TTL updates do not request redraws until the visible toast stack changes.
+Blocking overlays trap keys until closed. Toast TTL updates do not request redraws until the visible toast stack changes. `overlays.modal({ render: ({ width, height }) => node })` creates a dynamic blocking modal whose render callback is evaluated on every frame and resize using the currently available modal body dimensions.
 
 ## Command palette
 

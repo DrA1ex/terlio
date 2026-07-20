@@ -91,7 +91,7 @@ export function renderOverlayHost(node, width, renderNode) {
     const overlayWidth = Math.max(20, Math.min(width, Number.isFinite(requestedWidth) ? requestedWidth : defaultWidth));
     lines = overlayCentered(
       lines,
-      renderNode(renderBlockingOverlay(blocking, theme, overlayWidth), overlayWidth),
+      renderNode(renderBlockingOverlay(blocking, theme, overlayWidth, Math.max(1, height - 2)), overlayWidth),
       width,
       height,
       { opaqueRows: blocking.opaqueRows === true },
@@ -195,7 +195,7 @@ function fitLines(source, width, height) {
   return lines;
 }
 
-function renderBlockingOverlay(overlay, theme, width = 80) {
+function renderBlockingOverlay(overlay, theme, width = 80, height = 22) {
   const shadowColor = theme?.borderMuted ?? theme?.border ?? '\x1b[38;5;238m';
   const wrapShadow = (node) => createNode('shadowOverlay', {
     width,
@@ -205,6 +205,12 @@ function renderBlockingOverlay(overlay, theme, width = 80) {
     offsetY: 1,
     shadowColor,
   }, [node]);
+  if (typeof overlay.render === 'function') {
+    const childWidth = Math.max(1, width - (overlay.shadow === false ? 0 : 2));
+    const childHeight = Math.max(1, height - (overlay.shadow === false ? 0 : 1));
+    const rendered = normalizeDynamicOverlayContent(overlay.render({ width: childWidth, height: childHeight }));
+    return overlay.shadow === false ? rendered : wrapShadow(rendered);
+  }
   if (overlay.node) return overlay.shadow === false ? overlay.node : wrapShadow(overlay.node);
   if (overlay.type === 'confirm') {
     return wrapShadow(ConfirmPrompt({
@@ -222,6 +228,14 @@ function renderBlockingOverlay(overlay, theme, width = 80) {
     return wrapShadow(Box({ border: true, borderColor: theme?.borderActive ?? theme?.accent ?? theme?.border, padding: { left: 1, right: 1 }, title: overlay.title ?? ' Palette ' }, ...(overlay.children ?? [])));
   }
   return wrapShadow(Modal({ title: overlay.title ?? ' Modal ', children: overlay.children ?? [overlay.message ?? ''], footer: overlay.footer ?? 'Esc close · Enter accept' }));
+}
+
+
+function normalizeDynamicOverlayContent(value) {
+  if (value && typeof value === 'object' && value.type) return value;
+  if (Array.isArray(value)) return Modal({ children: value });
+  if (value === null || value === undefined) return Modal({ children: [] });
+  return Modal({ children: [String(value)] });
 }
 
 function handleConfirmKey(manager, overlay, key, ctx) {

@@ -11,7 +11,7 @@ export function createWorkspaceApp(config = {}) {
 }
 
 export class WorkspaceApp {
-  constructor({ title = 'Workspace App', state = {}, render, actions = [], overlays = null, onKey = null, onPointer = null, pointer = 'auto', tick = null, tickMs = 0, input = process.stdin, output = process.stdout, onExit = null } = {}) {
+  constructor({ title = 'Workspace App', state = {}, render, actions = [], overlays = null, onKey = null, onPointer = null, pointer = 'auto', tick = null, tickMs = 0, animationMs = 80, input = process.stdin, output = process.stdout, onExit = null } = {}) {
     if (typeof render !== 'function') throw new Error('createWorkspaceApp requires a render function.');
     this.title = title;
     this.state = state;
@@ -25,6 +25,8 @@ export class WorkspaceApp {
     this.pointerActive = false;
     this.onTick = tick;
     this.tickMs = Number(tickMs) || 0;
+    this.animationMs = Math.max(0, Number(animationMs) || 0);
+    this.animationFrame = 0;
     this.input = input;
     this.output = output;
     this.onExit = typeof onExit === 'function' ? onExit : null;
@@ -34,6 +36,7 @@ export class WorkspaceApp {
     this.dirty = true;
     this.lastSnapshot = '';
     this.timer = null;
+    this.animationTimer = null;
     this.boundData = (data) => this.handleData(data);
     this.boundResize = () => this.handleResize();
     this.boundFatal = (error) => this.handleFatal(error);
@@ -51,6 +54,14 @@ export class WorkspaceApp {
     this.output.on('resize', this.boundResize);
     process.once('uncaughtException', this.boundFatal);
     process.once('unhandledRejection', this.boundFatal);
+    if (this.animationMs > 0) {
+      this.animationTimer = setInterval(() => {
+        if (!this.running) return;
+        this.animationFrame = (this.animationFrame + 1) % Number.MAX_SAFE_INTEGER;
+        this.invalidate();
+      }, this.animationMs);
+      this.animationTimer.unref?.();
+    }
     if (this.onTick && this.tickMs > 0) {
       this.timer = setInterval(() => { if (this.onTick(this.context()) !== false) this.invalidate(); }, this.tickMs);
       this.timer.unref?.();
@@ -64,6 +75,8 @@ export class WorkspaceApp {
     this.running = false;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    if (this.animationTimer) clearInterval(this.animationTimer);
+    this.animationTimer = null;
     this.input.off('data', this.boundData);
     this.output.off('resize', this.boundResize);
     process.off('uncaughtException', this.boundFatal);
@@ -194,7 +207,7 @@ export class WorkspaceApp {
   }
 
   context(extra = {}) {
-    return { app: this, state: this.state, actions: this.actions, overlays: this.overlays, runtime: this, exit: (code) => this.exit(code), invalidate: () => this.invalidate(), ...extra };
+    return { app: this, state: this.state, actions: this.actions, overlays: this.overlays, runtime: this, animationFrame: this.animationFrame, exit: (code) => this.exit(code), invalidate: () => this.invalidate(), ...extra };
   }
 
   handleFatal(error) {

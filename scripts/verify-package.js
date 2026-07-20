@@ -100,12 +100,18 @@ try {
   const packageSpecifier = JSON.stringify(packageName);
   const exampleSpecifier = JSON.stringify(`${packageName}/examples/components-showcase`);
   const importSmoke = run(process.execPath, ['--input-type=module', '-e', [
-    `const { BottomOverlay, Box, Text, SelectableText, createTextSelectionState, renderToString } = await import(${packageSpecifier});`,
+    `const { BottomOverlay, Box, Modal, OverlayHost, SelectList, Text, SelectableText, createOverlayManager, createTextSelectionState, renderToString } = await import(${packageSpecifier});`,
     `const { createComponentsShowcaseView } = await import(${exampleSpecifier});`,
     "const output = renderToString(Box({ border: true }, Text('published import works')), { width: 32, height: 3 });",
     "if (!output.includes('published import works')) throw new Error('package import smoke failed');",
     "if (typeof BottomOverlay !== 'function') throw new Error('bottom overlay export smoke failed');",
     "if (typeof SelectableText !== 'function' || typeof createTextSelectionState !== 'function') throw new Error('selection export smoke failed');",
+    "const listOutput = renderToString(SelectList({ items: [{ kind: 'heading', label: 'Group' }, { label: 'Ready' }], selectedIndex: 0 }), { width: 32, height: 6 });",
+    "if (!listOutput.includes('Group') || !listOutput.includes('Ready')) throw new Error('presentation list smoke failed');",
+    "const overlays = createOverlayManager();",
+    "overlays.modal({ render: ({ width, height }) => Modal({ title: 'Dynamic', children: [String(width) + 'x' + String(height)] }) });",
+    "const modalOutput = renderToString(OverlayHost({ content: Text('base'), manager: overlays, width: 40, height: 10 }), { width: 40, height: 10 });",
+    "if (!modalOutput.includes('Dynamic')) throw new Error('dynamic modal smoke failed');",
     "if (typeof createComponentsShowcaseView !== 'function') throw new Error('example export smoke failed');",
   ].join('\n')], { cwd: consumer });
   assert.equal(importSmoke, '');

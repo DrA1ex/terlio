@@ -133,6 +133,8 @@ const app = createWorkspaceApp({
 app.start();
 ```
 
+The render context also includes an automatically advancing `animationFrame`, suitable for `Spinner({ frame: animationFrame })`. Configure its cadence with `animationMs` or set it to `0` for a completely static runtime.
+
 
 ## Pointer input
 
@@ -175,6 +177,31 @@ Set `pointerAutoEnable: false` on a passive region when its handlers should rema
 For text that must stay selectable while wheel input remains active, use `SelectableText` or `ScrollPane({ selection })`. Dragging creates an in-app selection in content coordinates, so it remains visible and valid while the pane scrolls. Clicking inside the highlighted range invokes `onCopy`; a successful copy clears the selection, while a failed copy keeps it for retry. Clicking elsewhere clears the selection without copying. `Ctrl+C` always keeps its terminal meaning (`SIGINT`). `Ctrl+T` remains an exceptional fallback for temporarily disabling mouse reporting and using the terminal emulator's native selection.
 
 Any node can define `onPointer`, `onClick`, `onWheel`, `onDrag`, `onMove`, or `onRelease`. Use `PointerRegion()` to wrap a component that does not expose pointer props directly. Call `app.togglePointerOverride()` or `app.setPointerOverride(true | false | null)` to temporarily override automatic ownership without changing the configured pointer preference.
+
+## Bottom-anchored overlays
+
+`BottomOverlay` places a non-modal surface over the bottom portion of an existing frame without reducing the space assigned to the underlying content. Pointer regions rendered inside the overlay participate in normal hit-testing and take precedence over covered regions, while uncovered background components remain interactive.
+
+```js
+import { BottomOverlay, Box, Column, Text } from 'terlio.js';
+
+const screen = BottomOverlay({
+  content: Column(
+    Text('Transcript row 1'),
+    Text('Transcript row 2'),
+    Text('Transcript row 3'),
+  ),
+  overlay: Box(
+    { border: true, pointerId: 'autocomplete' },
+    Text('› /help', { pointerId: 'autocomplete:help', onClick: acceptHelp }),
+    Text('  /theme', { pointerId: 'autocomplete:theme', onClick: acceptTheme }),
+  ),
+  height: terminalRows,
+  bottom: composerHeight,
+});
+```
+
+Use `bottom` to reserve fixed chrome below the popup, and `left`, `right`, `width`, and `align` to position narrower surfaces. Closing the overlay returns to the normal row-diff renderer; no full-screen repaint is required. The packaged chat demo uses this component for slash-command autocomplete, so suggestions physically cover the latest transcript rows instead of shrinking the transcript viewport.
 
 ## Documentation
 

@@ -197,6 +197,9 @@ SelectList({
   getLabel,
   getDescription,
   getDisabled,
+  getKind,
+  disabledIndicator = '×',
+  getDisabledIndicator,
   wrapItems = true,
   maxItemLines = 3,
   reserveItemLines = false,
@@ -208,6 +211,8 @@ SelectList({
 ```
 
 Renders a scroll-windowed selectable list. Items use one terminal row when their label and description fit, then grow only as needed up to `maxItemLines`. Content that still does not fit is clipped with an ellipsis on the final row. `windowStart` lets scrolling move the visible item window independently from `selectedIndex`; this is useful when wheel scrolling should not change selection until the selected item leaves the viewport. `rowLines` remains a compatibility alias for `maxItemLines`, while `reserveItemLines: true` opts into fixed-height rows.
+
+Rows with `kind: 'heading'`, `kind: 'stat'`, or `kind: 'separator'` are presentation-only. Keyboard navigation and pointer focus skip them, they never inherit disabled styling, and they do not render the disabled marker. A stat row uses `label` with `value`, `description`, or `detail`. Set `disabledIndicator: ''` to hide the marker globally, or provide `getDisabledIndicator(item, index)` for per-item text.
 
 ### BottomOverlay
 
@@ -267,7 +272,7 @@ Renders a text progress bar.
 Spinner({ frame, label })
 ```
 
-Renders a spinner frame.
+Renders a spinner frame. Workspace render callbacks receive `ctx.animationFrame`, so `Spinner({ frame: animationFrame })` animates without an application-owned timer. Set the runtime `animationMs` option to control the cadence or to `0` to disable it.
 
 ### HelpOverlay
 

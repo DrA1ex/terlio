@@ -19,6 +19,7 @@ export class InteractiveRuntime {
     pointer = 'auto',
     onTick = null,
     tickMs = 0,
+    animationMs = 80,
     onStop = null,
   }) {
     this.title = title;
@@ -35,9 +36,12 @@ export class InteractiveRuntime {
     this.pointerActive = false;
     this.onTick = onTick;
     this.tickMs = Number(tickMs) || 0;
+    this.animationMs = Math.max(0, Number(animationMs) || 0);
+    this.animationFrame = 0;
     this.onStop = typeof onStop === 'function' ? onStop : null;
     this.stopNotified = false;
     this.tickTimer = null;
+    this.animationTimer = null;
     this.input = process.stdin;
     this.output = process.stdout;
     this.renderer = new TerminalRenderer({ output: this.output });
@@ -60,10 +64,18 @@ export class InteractiveRuntime {
     this.input.resume();
     this.input.on('data', this.boundOnData);
     this.output.on('resize', this.boundOnResize);
+    if (this.animationMs > 0) {
+      this.animationTimer = setInterval(() => {
+        if (!this.running) return;
+        this.animationFrame = (this.animationFrame + 1) % Number.MAX_SAFE_INTEGER;
+        this.render();
+      }, this.animationMs);
+      this.animationTimer.unref?.();
+    }
     if (this.onTick && this.tickMs > 0) {
       this.tickTimer = setInterval(() => {
         if (!this.running) return;
-        this.onTick({ state: this.state, runtime: this });
+        this.onTick({ state: this.state, runtime: this, animationFrame: this.animationFrame });
         this.render();
       }, this.tickMs);
     }
@@ -76,6 +88,10 @@ export class InteractiveRuntime {
     if (this.tickTimer) {
       clearInterval(this.tickTimer);
       this.tickTimer = null;
+    }
+    if (this.animationTimer) {
+      clearInterval(this.animationTimer);
+      this.animationTimer = null;
     }
     this.input.off('data', this.boundOnData);
     this.output.off('resize', this.boundOnResize);
@@ -108,7 +124,7 @@ export class InteractiveRuntime {
     if (!this.running) return;
     const width = Math.max(1, this.output.columns || 90);
     const height = Math.max(1, this.output.rows || 28);
-    const view = this.renderView({ state: this.state, runtime: this, width, height });
+    const view = this.renderView({ state: this.state, runtime: this, animationFrame: this.animationFrame, width, height });
     const frame = renderToFrame(view, { width, height });
     this.renderer.renderFrame(frame);
     this.output.write(ansi.reset);
@@ -149,7 +165,7 @@ export class InteractiveRuntime {
         continue;
       }
 
-      this.onKey?.({ key, state: this.state, runtime: this });
+      this.onKey?.({ key, state: this.state, runtime: this, animationFrame: this.animationFrame });
       this.render();
     }
   }
@@ -159,10 +175,11 @@ export class InteractiveRuntime {
       pointer,
       state: this.state,
       runtime: this,
+      animationFrame: this.animationFrame,
     });
     const event = routed.event;
     if (!event.propagationStopped && this.onPointer) {
-      const result = this.onPointer({ pointer: event, state: this.state, runtime: this });
+      const result = this.onPointer({ pointer: event, state: this.state, runtime: this, animationFrame: this.animationFrame });
       if (result !== false) event.handled = true;
     }
     if (event.handled) this.render();
