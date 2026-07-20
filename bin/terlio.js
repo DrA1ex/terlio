@@ -15,7 +15,7 @@ const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const args = process.argv.slice(2);
 
 function printHelp() {
-  console.log(`${packageDisplayName} ${packageVersion}\n\nUsage:\n  ${packageBinName} list\n  ${packageBinName} <demo:chat|example:palette|name> [-- example args]\n  ${packageBinName} run <id> [-- example args]\n\nExamples:\n  ${packageNpxCommand} demo:chat\n  ${packageNpxCommand} example:palette\n  ${packageNpxCommand} components\n\nInteractive examples require a real TTY.\n`);
+  console.log(`${packageDisplayName} ${packageVersion}\n\nUsage:\n  ${packageBinName} examples\n  ${packageBinName} <demo:chat|example:palette|name> [-- example args]\n  ${packageBinName} run <id> [-- example args]\n\nExamples:\n  ${packageNpxCommand} demo:chat\n  ${packageNpxCommand} example:palette\n  ${packageNpxCommand} example:long-text\n  ${packageNpxCommand} components\n\nInteractive examples require a real TTY.\n`);
 }
 
 function resolveRequest(argv) {

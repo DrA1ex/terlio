@@ -12,6 +12,8 @@ import {
 } from '../src/lib/packageMetadata.js';
 
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+const readme = await readFile(new URL('../README.md', import.meta.url), 'utf8');
+const examplesDocumentation = await readFile(new URL('../docs/examples.md', import.meta.url), 'utf8');
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -40,6 +42,25 @@ test('package metadata is ready for public distribution', async () => {
 
   await access(new URL(`../${packageBinPath}`, import.meta.url));
   await access(new URL('../LICENSE', import.meta.url));
+});
+
+
+test('README keeps usage documentation separate from release history', () => {
+  assert.match(readme, /npx terlio\.js examples/);
+  assert.match(readme, /npx terlio\.js example:long-text/);
+  assert.match(readme, /npm run examples/);
+  assert.doesNotMatch(readme, /^## Project status$/m);
+  assert.doesNotMatch(readme, /Terlio\.js 1\.1 adds/);
+});
+
+test('long-text uses the shared packaged example catalog and documentation', () => {
+  const entry = findExample('example:long-text');
+  assert.equal(entry?.id, 'example:long-text');
+  assert.equal(entry?.file, 'examples/long-text.js');
+  assert.equal(entry?.interactive, true);
+  assert.match(formatExampleCatalog(), /example:long-text/);
+  assert.match(examplesDocumentation, /### Long Text Performance Lab — `example:long-text`/);
+  assert.match(examplesDocumentation, /npx terlio\.js example:long-text --lines=50000/);
 });
 
 test('packaged example catalog resolves full ids and short names', () => {

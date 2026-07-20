@@ -36,7 +36,7 @@ console.log(renderToString(screen, { width: 48, height: 8 }));
 After installing `terlio.js` in the current Node.js project, use its bundled launcher:
 
 ```bash
-npx terlio.js list
+npx terlio.js examples
 npx terlio.js demo:chat
 npx terlio.js demo:support-desk
 npx terlio.js example:palette
@@ -45,7 +45,7 @@ npx terlio.js example:long-text
 npx terlio.js example:components
 ```
 
-Interactive examples require a real TTY. `example:components` is a one-shot stdout example and can be used in CI or redirected to a file.
+The `examples` command prints the complete grouped catalog, including `example:long-text`. Interactive examples require a real TTY. `example:components` is a one-shot stdout example and can be used in CI or redirected to a file.
 
 The launcher accepts short names too:
 
@@ -81,9 +81,10 @@ npm run test:package
 
 `npm run test:coverage` runs the black-box suite through the public API and enforces at least 80% line, branch, and function coverage for `src/lib`.
 
-Repository-only npm aliases are also available:
+Repository-only npm aliases are also available. Run `npm run examples` for the same grouped catalog used by the packaged launcher.
 
 ```bash
+npm run examples
 npm run demo:chat
 npm run demo:support-desk
 npm run demo:code-review
@@ -233,10 +234,6 @@ import { createComponentsShowcaseView } from 'terlio.js/examples/components-show
 ```
 
 Use the `terlio.js` CLI rather than importing an interactive example when the goal is to run it.
-
-## Project status
-
-Terlio.js 1.1 adds pointer input, mouse-enabled examples, and bottom-anchored non-modal overlays while preserving the stable 1.0 keyboard and rendering APIs. Public exports are covered by tests.
 
 ## License
 

@@ -124,11 +124,14 @@ try {
   assert.ok(cliRelativePath, 'package.json must declare at least one bin entry');
 
   const cli = path.join(consumer, 'node_modules', ...packageName.split('/'), cliRelativePath);
-  const listOutput = run(process.execPath, [cli, 'list'], { cwd: consumer });
-  assert.match(listOutput, new RegExp(`${packageDisplayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} examples`));
-  assert.match(listOutput, /demo:chat/);
-  assert.match(listOutput, /example:components/);
-  assert.match(listOutput, /example:long-text/);
+  const examplesOutput = run(process.execPath, [cli, 'examples'], { cwd: consumer });
+  assert.match(examplesOutput, new RegExp(`${packageDisplayName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} examples`));
+  assert.match(examplesOutput, /demo:chat/);
+  assert.match(examplesOutput, /example:components/);
+  assert.match(examplesOutput, /example:long-text/);
+
+  const listAliasOutput = run(process.execPath, [cli, 'list'], { cwd: consumer });
+  assert.equal(listAliasOutput, examplesOutput);
 
   const oneShot = run(process.execPath, [cli, 'example:components'], { cwd: consumer });
   assert.match(oneShot, /Component Composition Snapshot/);

@@ -3,10 +3,10 @@
 Terlio.js ships every example in the npm package. Install it in a Node.js project, then use the bundled launcher:
 
 ```bash
-npx terlio.js list
+npx terlio.js examples
 ```
 
-The same ids work through a project dependency, a global installation, or `npx`:
+The `examples` command prints the complete grouped catalog. The same ids work through a project dependency, a global installation, or `npx`:
 
 ```bash
 npx terlio.js demo:chat
@@ -73,7 +73,13 @@ A streaming workspace with clickable templates and panes, wheel/trackpad scrolli
 npx terlio.js example:long-text
 ```
 
-A selectable 10,000-row viewport for checking wheel and touchpad responsiveness, keyboard paging, persistent selection across multiple screens, and click-to-copy behavior. `ScrollPane` formats only the visible rows, while pointer bursts received in one input chunk are applied before a single render pass. Use `--lines=50000` to exercise a larger source.
+A selectable 10,000-row viewport for checking wheel and touchpad responsiveness, keyboard paging, persistent selection across multiple screens, and click-to-copy behavior. It appears in the shared `examples` catalog like the other packaged examples. `ScrollPane` formats only the visible rows, while pointer bursts received in one input chunk are applied before a single render pass.
+
+Use a larger source when needed:
+
+```bash
+npx terlio.js example:long-text --lines=50000
+```
 
 ## UI mechanics
 
