@@ -4,3 +4,5 @@ export { Badge, Chip, SectionTabs, CommandBar, FooterStatusBar, Grid, PropertyRo
 export { TextEditorView, renderTextEditorLines, renderCursorCell, visibleWindowLines, ScrollPane } from './editor.js';
 
 export { SelectableText } from './selectableText.js';
+
+export { SyntaxText } from './syntax.js';

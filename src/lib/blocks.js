@@ -2,13 +2,15 @@ let nextBlockId = 1;
 
 export const BLOCK_TYPES = new Set(['text', 'code', 'diff', 'command', 'warning', 'tool_result']);
 
-export function createBlock({ id = null, type = 'text', content = '', language = '', title = '', command = '', name = '', status = '', meta = {} } = {}) {
+export function createBlock({ id = null, type = 'text', content = '', language = '', filename = '', syntaxHighlight = undefined, title = '', command = '', name = '', status = '', meta = {} } = {}) {
   const safeType = BLOCK_TYPES.has(type) ? type : 'text';
   return {
     id: id ?? `b_${String(nextBlockId++).padStart(5, '0')}`,
     type: safeType,
     content: String(content ?? ''),
     language: String(language ?? ''),
+    filename: String(filename ?? ''),
+    syntaxHighlight: typeof syntaxHighlight === 'boolean' ? syntaxHighlight : undefined,
     title: String(title ?? ''),
     command: String(command ?? ''),
     name: String(name ?? ''),
@@ -68,13 +70,15 @@ export function ensureTextBlock(message) {
 
 
 function blockView(block) {
-  if (typeof block === 'string') return { type: 'text', content: block, language: '', title: '', command: '', name: '', status: '' };
+  if (typeof block === 'string') return { type: 'text', content: block, language: '', filename: '', syntaxHighlight: undefined, title: '', command: '', name: '', status: '' };
   const raw = block && typeof block === 'object' ? block : {};
   const type = BLOCK_TYPES.has(raw.type) ? raw.type : 'text';
   return {
     type,
     content: String(raw.content ?? ''),
     language: String(raw.language ?? ''),
+    filename: String(raw.filename ?? ''),
+    syntaxHighlight: typeof raw.syntaxHighlight === 'boolean' ? raw.syntaxHighlight : undefined,
     title: String(raw.title ?? ''),
     command: String(raw.command ?? ''),
     name: String(raw.name ?? ''),

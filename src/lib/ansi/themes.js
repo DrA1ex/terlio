@@ -171,4 +171,17 @@ for (const theme of Object.values(themes)) {
   theme.danger ??= theme.error ?? '';
   theme.info ??= theme.accent ?? theme.title ?? '';
   theme.mutedBg ??= theme.selected ?? '';
+  theme.syntaxText ??= theme.text ?? '';
+  theme.syntaxComment ??= theme.textMuted ?? theme.muted ?? theme.subtle ?? '';
+  theme.syntaxString ??= theme.success ?? theme.assistant ?? theme.ok ?? '';
+  theme.syntaxNumber ??= theme.warning ?? theme.system ?? theme.accent ?? '';
+  theme.syntaxKeyword ??= theme.textAccent ?? theme.accent ?? theme.title ?? '';
+  theme.syntaxType ??= theme.info ?? theme.user ?? theme.title ?? '';
+  theme.syntaxBuiltin ??= theme.title ?? theme.textAccent ?? theme.accent ?? '';
+  theme.syntaxConstant ??= theme.warning ?? theme.system ?? theme.accent ?? '';
+  theme.syntaxProperty ??= theme.assistant ?? theme.text ?? '';
+  theme.syntaxPreprocessor ??= theme.danger ?? theme.error ?? theme.textAccent ?? '';
+  theme.syntaxAnnotation ??= theme.info ?? theme.accent ?? '';
+  theme.syntaxOperator ??= theme.subtle ?? theme.textMuted ?? theme.text ?? '';
+  theme.syntaxPunctuation ??= theme.textMuted ?? theme.muted ?? theme.text ?? '';
 }

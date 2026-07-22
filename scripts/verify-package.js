@@ -58,7 +58,9 @@ try {
     'examples/command-palette.js',
     'examples/components-showcase.js',
     'examples/long-text.js',
+    'examples/syntax-highlighting.js',
     'docs/getting-started.md',
+    'docs/syntax-highlighting.md',
     'docs/publishing.md',
   ];
   for (const file of required) assert.ok(included.has(file), `packed package is missing ${file}`);
@@ -101,7 +103,7 @@ try {
   const packageSpecifier = JSON.stringify(packageName);
   const exampleSpecifier = JSON.stringify(`${packageName}/examples/components-showcase`);
   const importSmoke = run(process.execPath, ['--input-type=module', '-e', [
-    `const { BottomOverlay, Box, Modal, OverlayHost, SelectList, Text, SelectableText, createOverlayManager, createTextLineSource, createTextSelectionState, renderToString } = await import(${packageSpecifier});`,
+    `const { BottomOverlay, Box, Modal, OverlayHost, SelectList, SyntaxText, Text, SelectableText, createOverlayManager, createTextLineSource, createTextSelectionState, highlightSyntax, renderToString, stripAnsi, themes } = await import(${packageSpecifier});`,
     `const { createComponentsShowcaseView } = await import(${exampleSpecifier});`,
     "const output = renderToString(Box({ border: true }, Text('published import works')), { width: 32, height: 3 });",
     "if (!output.includes('published import works')) throw new Error('package import smoke failed');",
@@ -113,6 +115,10 @@ try {
     "overlays.modal({ render: ({ width, height }) => Modal({ title: 'Dynamic', children: [String(width) + 'x' + String(height)] }) });",
     "const modalOutput = renderToString(OverlayHost({ content: Text('base'), manager: overlays, width: 40, height: 10 }), { width: 40, height: 10 });",
     "if (!modalOutput.includes('Dynamic')) throw new Error('dynamic modal smoke failed');",
+    "const syntaxOutput = highlightSyntax('const answer = 42;', { language: 'javascript', theme: themes.ocean });",
+    "if (stripAnsi(syntaxOutput) !== 'const answer = 42;' || !syntaxOutput.includes('\\x1b[')) throw new Error('syntax highlighting export smoke failed');",
+    "const syntaxNode = renderToString(SyntaxText({ code: 'let value: Int = 1', filename: 'Example.swift', theme: themes.ocean }), { width: 32, height: 2 });",
+    "if (!stripAnsi(syntaxNode).includes('let value')) throw new Error('SyntaxText smoke failed');",
     "if (typeof createComponentsShowcaseView !== 'function') throw new Error('example export smoke failed');",
   ].join('\n')], { cwd: consumer });
   assert.equal(importSmoke, '');
@@ -129,12 +135,16 @@ try {
   assert.match(examplesOutput, /demo:chat/);
   assert.match(examplesOutput, /example:components/);
   assert.match(examplesOutput, /example:long-text/);
+  assert.match(examplesOutput, /example:syntax/);
 
   const listAliasOutput = run(process.execPath, [cli, 'list'], { cwd: consumer });
   assert.equal(listAliasOutput, examplesOutput);
 
   const oneShot = run(process.execPath, [cli, 'example:components'], { cwd: consumer });
   assert.match(oneShot, /Component Composition Snapshot/);
+
+  const syntaxExample = run(process.execPath, [cli, 'example:syntax'], { cwd: consumer });
+  assert.match(syntaxExample, /Zero-dependency Syntax Highlighting/);
 
   console.log(`Verified ${packageName} package ${pack.version}: ${pack.entryCount} files, ${pack.size} bytes.`);
 } finally {

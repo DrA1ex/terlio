@@ -50,7 +50,16 @@ test('library entry exports terminal app and low-level building blocks', () => {
     'buildMockBlocks',
     'streamMockBlocks',
     'appendMessageBlock',
+    'SyntaxText',
+    'detectSyntaxLanguage',
+    'normalizeSyntaxLanguage',
+    'tokenizeSyntax',
+    'highlightSyntax',
+    'highlightSyntaxLines',
+    'styleSyntaxToken',
   ]) {
     assert.equal(typeof api[name], 'function', `${name} should be exported`);
   }
+  assert.ok(Array.isArray(api.SUPPORTED_SYNTAX_LANGUAGES));
+  assert.ok(Array.isArray(api.SYNTAX_TOKEN_TYPES));
 });

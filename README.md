@@ -42,10 +42,11 @@ npx terlio.js demo:support-desk
 npx terlio.js example:palette
 npx terlio.js example:themes
 npx terlio.js example:long-text
+npx terlio.js example:syntax
 npx terlio.js example:components
 ```
 
-The `examples` command prints the complete grouped catalog, including `example:long-text`. Interactive examples require a real TTY. `example:components` is a one-shot stdout example and can be used in CI or redirected to a file.
+The `examples` command prints the complete grouped catalog, including `example:long-text` and `example:syntax`. Interactive examples require a real TTY. `example:syntax` and `example:components` are one-shot stdout examples and can be used in CI or redirected to a file.
 
 The launcher accepts short names too:
 
@@ -65,6 +66,7 @@ npx terlio.js components
 - Blocking modals and confirmations, non-blocking toast overlays, and bottom-anchored popups that do not consume layout rows.
 - Unicode-aware measurement and clipping for emoji, CJK and styled ANSI text.
 - Structured response blocks for text, code, diffs, commands, warnings and tool results.
+- Opt-in zero-dependency syntax highlighting for common JavaScript, Python, C/C++, Swift, Objective-C and configuration files.
 - No runtime dependencies; Node.js built-ins only.
 
 ## Repository development
@@ -92,6 +94,7 @@ npm run example:editor
 npm run example:palette
 npm run example:stream
 npm run example:long-text
+npm run example:syntax
 npm run example:kit
 npm run example:keys
 npm run example:themes
@@ -183,6 +186,25 @@ For text that must stay selectable while wheel input remains active, use `Select
 
 Any node can define `onPointer`, `onClick`, `onWheel`, `onDrag`, `onMove`, or `onRelease`. Use `PointerRegion()` to wrap a component that does not expose pointer props directly. Call `app.togglePointerOverride()` or `app.setPointerOverride(true | false | null)` to temporarily override automatic ownership without changing the configured pointer preference.
 
+## Syntax highlighting
+
+Terlio.js includes an opt-in zero-dependency lexical highlighter. Use `SyntaxText` for a component, `highlightSyntax()` for ANSI output, or enable highlighting in structured code blocks:
+
+```js
+import { createBlock, renderBlockLines, themes } from 'terlio.js';
+
+const block = createBlock({
+  type: 'code',
+  filename: 'server.js',
+  syntaxHighlight: true,
+  content: 'export const port = 3000;',
+});
+
+const lines = renderBlockLines({ block, width: 72, theme: themes.ocean });
+```
+
+You can also pass `syntaxHighlight: true` to `renderBlocksLines()`, `ChatScreen`, `createChatScreen()` or `RichTerminalApp`. Explicit language names, common aliases, filenames and shebangs are supported. Run `npx terlio.js example:syntax` for a packaged snapshot, and see [Syntax highlighting](docs/syntax-highlighting.md) for the supported file types and theme tokens.
+
 ## Bottom-anchored overlays
 
 `BottomOverlay` places a non-modal surface over the bottom portion of an existing frame without reducing the space assigned to the underlying content. Pointer regions rendered inside the overlay participate in normal hit-testing and take precedence over covered regions, while uncovered background components remain interactive.
@@ -215,6 +237,7 @@ Use `bottom` to reserve fixed chrome below the popup, and `left`, `right`, `widt
 - [Components](docs/components.md)
 - [Interactive applications](docs/interactive-apps.md)
 - [Structured output and providers](docs/structured-output.md)
+- [Syntax highlighting](docs/syntax-highlighting.md)
 - [API reference](docs/api-reference.md)
 - [Examples](docs/examples.md)
 - [Publishing and releases](docs/publishing.md)

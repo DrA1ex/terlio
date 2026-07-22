@@ -671,6 +671,21 @@ Message helpers:
 - `lastUserMessage(messages)`
 - `lastAssistantMessage(messages)`
 
+
+## SyntaxText
+
+`SyntaxText({ code, language, filename, theme, enabled })` renders a multiline source string through Terlio's built-in zero-dependency lexical highlighter. `language` has priority; `filename` enables extension-based detection. Set `enabled: false` to render the original source unchanged.
+
+```js
+SyntaxText({
+  code: 'let title: String = "Terlio"',
+  filename: 'Example.swift',
+  theme: themes.ocean,
+});
+```
+
+For structured output, set `syntaxHighlight: true` on a code block or on the surrounding `renderBlocksLines()` call. See [Syntax highlighting](syntax-highlighting.md).
+
 ## Chat components
 
 Exports:

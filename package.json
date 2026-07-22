@@ -1,6 +1,6 @@
 {
   "name": "terlio.js",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Composable terminal UI for commands, streams, and interactive workflows",
   "repository": {
     "type": "git",
@@ -27,7 +27,8 @@
     "text-ui",
     "dashboard",
     "developer-tools",
-    "zero-dependency"
+    "zero-dependency",
+    "syntax-highlighting"
   ],
   "type": "module",
   "bin": {
@@ -56,7 +57,8 @@
     "demo:code-review": "node examples/code-review.js",
     "example:themes": "node examples/themes.js",
     "demo:chat": "node examples/chat.js",
-    "demo:support-desk": "node examples/support-desk.js"
+    "demo:support-desk": "node examples/support-desk.js",
+    "example:syntax": "node examples/syntax-highlighting.js"
   },
   "engines": {
     "node": ">=18"

@@ -218,8 +218,24 @@ You can render blocks directly without using the full chat screen:
 ```js
 import { renderBlocksLines, Box, Text } from 'terlio.js';
 
-const lines = renderBlocksLines(blocks, { width: 80 });
+const lines = renderBlocksLines({ blocks, width: 80, syntaxHighlight: true });
 const node = Box({ border: true, title: ' Assistant ' }, ...lines.map((line) => Text(line, { wrap: false })));
 ```
 
 This is useful for code review tools, command runners, and agent consoles where blocks are selected, copied, applied, or retried independently.
+
+
+## Syntax-highlighted code blocks
+
+Code highlighting is disabled by default. Enable it for one block with `syntaxHighlight: true`, or pass `syntaxHighlight: true` to `renderBlockLines()`, `renderBlocksLines()`, `ChatScreen`, or `RichTerminalApp`.
+
+```js
+const block = createBlock({
+  type: 'code',
+  filename: 'main.cpp',
+  syntaxHighlight: true,
+  content: '#include <iostream>\nint main() { return 0; }',
+});
+```
+
+The renderer uses `language` first and then `filename` for detection. See [Syntax highlighting](syntax-highlighting.md) for supported languages and custom theme tokens.

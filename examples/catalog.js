@@ -93,6 +93,13 @@ export const EXAMPLE_GROUPS = [
         description: 'Structured Response Explorer with block map, rendered response, inspector and safe actions.',
       },
       {
+        id: 'example:syntax',
+        name: 'syntax',
+        file: 'examples/syntax-highlighting.js',
+        interactive: false,
+        description: 'One-shot zero-dependency syntax highlighting snapshot for common source files.',
+      },
+      {
         id: 'example:components',
         name: 'components',
         file: 'examples/components-showcase.js',

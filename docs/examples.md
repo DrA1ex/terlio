@@ -115,6 +115,14 @@ npx terlio.js example:blocks
 
 Click response blocks and use wheel/`↑/↓` scrolling to explore complete structured responses, inspect individual block payloads and simulate safe copy, diff-apply and command-run actions without touching the filesystem or starting processes.
 
+### Syntax Highlighting Snapshot — `example:syntax`
+
+```bash
+npx terlio.js example:syntax
+```
+
+A one-shot, redirect-safe snapshot showing opt-in zero-dependency highlighting with explicit languages and filename detection for JavaScript, Python, C++ headers and Swift. Use it to inspect the current theme's syntax tokens without starting an interactive runtime.
+
 ### Component Composition Snapshot — `example:components`
 
 ```bash
@@ -134,7 +142,7 @@ npx terlio.js example palette
 npx terlio.js run demo:chat
 ```
 
-Interactive examples require a real TTY because they use raw input and alternate-screen rendering. `example:components` does not.
+Interactive examples require a real TTY because they use raw input and alternate-screen rendering. `example:syntax` and `example:components` do not.
 
 
 ## Development checkout
@@ -150,6 +158,7 @@ npm run example:editor
 npm run example:palette
 npm run example:stream
 npm run example:long-text
+npm run example:syntax
 npm run example:kit
 npm run example:keys
 npm run example:themes

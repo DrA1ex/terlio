@@ -43,7 +43,7 @@ npm run release:check
 - installs the tarball in a clean temporary project;
 - imports the root `terlio.js` export;
 - lists examples through the packaged CLI;
-- runs `example:components` from the installed package.
+- runs `example:syntax` and `example:components` from the installed package.
 
 Inspect the package manually when needed:
 
@@ -82,6 +82,7 @@ Consumer projects cannot invoke this repository's npm scripts. The `terlio.js` e
 npx terlio.js list
 npx terlio.js demo:chat
 npx terlio.js example:palette
+npx terlio.js example:syntax
 npx terlio.js example:components
 ```
 

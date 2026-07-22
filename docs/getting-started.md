@@ -26,10 +26,11 @@ Run a product demo or focused example:
 npx terlio.js demo:chat
 npx terlio.js demo:support-desk
 npx terlio.js example:palette
+npx terlio.js example:syntax
 npx terlio.js example:components
 ```
 
-Interactive examples require a real terminal. `example:components` writes a deterministic Component Composition Snapshot to stdout and does not require raw input.
+Interactive examples require a real terminal. `example:syntax` and `example:components` write deterministic snapshots to stdout and do not require raw input.
 
 ## First static render
 

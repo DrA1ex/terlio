@@ -1,6 +1,6 @@
 import { ansi } from '../ansi/codes.js';
 import { themes } from '../ansi/themes.js';
-import { color, truncateVisible, visibleLength } from '../ansi/text.js';
+import { color, padEndVisible, truncateVisible, visibleLength } from '../ansi/text.js';
 import { enabledSkillNames } from '../skills.js';
 import { wrapText } from '../wrap.js';
 import { getCommandPaletteMatches, getPaletteQuery } from '../commandPalette.js';
@@ -14,6 +14,7 @@ import { fit } from '../ui/layout/utils.js';
 import { renderCursorCell, renderTextEditorLines } from '../ui/components/editor.js';
 import { normalizeBlocks } from '../blocks.js';
 import { packageDisplayName } from '../packageMetadata.js';
+import { detectSyntaxLanguage, highlightSyntaxLines } from '../syntaxHighlight.js';
 
 export const DEFAULT_SUGGESTION_WINDOW_SIZE = 6;
 export const CHAT_MIN_COLUMNS = 56;
@@ -208,10 +209,10 @@ export function Header({
   compact ? null : Text(rowTwo, { wrap: false }));
 }
 
-export function TranscriptPane({ columns = 80, height = 10, messages = [], theme = themes.dark, frame = 0, scrollOffset = 0, busy = false, transcriptSelection = null, onTranscriptWheel = null, onTranscriptCopy = null } = {}) {
+export function TranscriptPane({ columns = 80, height = 10, messages = [], theme = themes.dark, frame = 0, scrollOffset = 0, busy = false, transcriptSelection = null, onTranscriptWheel = null, onTranscriptCopy = null, syntaxHighlight = false } = {}) {
   const safeHeight = Math.max(4, Number(height) || 4);
   const contentHeight = Math.max(1, safeHeight - 3);
-  const transcript = Transcript({ columns: Math.max(20, columns - 4), height: contentHeight, messages, theme, frame, scrollOffset });
+  const transcript = Transcript({ columns: Math.max(20, columns - 4), height: contentHeight, messages, theme, frame, scrollOffset, syntaxHighlight });
   const scrollSummary = [
     transcript.hiddenAbove > 0 ? `↑${transcript.hiddenAbove} earlier` : '',
     transcript.hiddenBelow > 0 ? `↓${transcript.hiddenBelow} newer` : '',
@@ -257,7 +258,7 @@ export function TranscriptPane({ columns = 80, height = 10, messages = [], theme
   };
 }
 
-export function Transcript({ columns = 80, height = 10, messages = [], theme = themes.dark, frame = 0, scrollOffset = 0 } = {}) {
+export function Transcript({ columns = 80, height = 10, messages = [], theme = themes.dark, frame = 0, scrollOffset = 0, syntaxHighlight = false } = {}) {
   if (!messages.length) {
     const rendered = renderWelcomeLines({ columns, height, theme });
     const sliced = rendered.slice(0, height);
@@ -274,7 +275,7 @@ export function Transcript({ columns = 80, height = 10, messages = [], theme = t
     };
   }
 
-  const rendered = renderTranscriptLines({ columns, messages, theme, frame });
+  const rendered = renderTranscriptLines({ columns, messages, theme, frame, syntaxHighlight });
   const maxOffset = Math.max(0, rendered.length - height);
   const nextScrollOffset = Math.min(Math.max(0, Number(scrollOffset) || 0), maxOffset);
   const end = Math.max(height, rendered.length - nextScrollOffset);
@@ -293,7 +294,7 @@ export function Transcript({ columns = 80, height = 10, messages = [], theme = t
   };
 }
 
-export function renderTranscriptLines({ columns = 80, messages = [], theme = themes.dark, frame = 0 } = {}) {
+export function renderTranscriptLines({ columns = 80, messages = [], theme = themes.dark, frame = 0, syntaxHighlight = false } = {}) {
   const readingWidth = Math.max(20, Math.min(MAX_READING_WIDTH, columns - 4));
   const leftMargin = columns > readingWidth + 2 ? Math.min(3, Math.floor((columns - readingWidth) / 5)) : 0;
   const indent = ' '.repeat(leftMargin);
@@ -307,7 +308,7 @@ export function renderTranscriptLines({ columns = 80, messages = [], theme = the
       ? color(theme, 'accent', streamingMarker(frame))
       : color(theme, statusToken(message.status), statusMarker(message.status));
     const contentWidth = Math.max(12, readingWidth - 13);
-    const lines = renderMessageContentLines({ message, width: contentWidth, theme });
+    const lines = renderMessageContentLines({ message, width: contentWidth, theme, syntaxHighlight });
 
     if (lines.length === 0) {
       rendered.push(indent + prefix + marker);
@@ -323,26 +324,26 @@ export function renderTranscriptLines({ columns = 80, messages = [], theme = the
   return rendered;
 }
 
-export function renderMessageContentLines({ message, width = 70, theme = themes.dark } = {}) {
+export function renderMessageContentLines({ message, width = 70, theme = themes.dark, syntaxHighlight = false } = {}) {
   const blocks = normalizeBlocks(message?.blocks);
-  if (blocks.length) return renderBlocksLines({ blocks, width, theme });
+  if (blocks.length) return renderBlocksLines({ blocks, width, theme, syntaxHighlight });
 
   const content = message?.content || (message?.status === 'streaming' ? 'Thinking…' : '');
   const token = message?.role === 'system' ? 'textMuted' : 'text';
   return wrapText(content, width, '  ').map((line) => color(theme, token, line));
 }
 
-export function renderBlocksLines({ blocks = [], width = 70, theme = themes.dark } = {}) {
+export function renderBlocksLines({ blocks = [], width = 70, theme = themes.dark, syntaxHighlight = false } = {}) {
   const lines = [];
   normalizeBlocks(blocks).forEach((block, index) => {
     if (index > 0 && lines.at(-1) !== '') lines.push('');
-    lines.push(...renderBlockLines({ block, width, theme }));
+    lines.push(...renderBlockLines({ block, width, theme, syntaxHighlight }));
   });
   return lines;
 }
 
-export function renderBlockLines({ block, width = 70, theme = themes.dark } = {}) {
-  if (block.type === 'code') return renderCodeBlock(block, width, theme);
+export function renderBlockLines({ block, width = 70, theme = themes.dark, syntaxHighlight = false } = {}) {
+  if (block.type === 'code') return renderCodeBlock(block, width, theme, syntaxHighlight);
   if (block.type === 'diff') return renderDiffBlock(block, width, theme);
   if (block.type === 'command') return renderCommandBlock(block, width, theme);
   if (block.type === 'warning') return renderWarningBlock(block, width, theme);
@@ -350,14 +351,40 @@ export function renderBlockLines({ block, width = 70, theme = themes.dark } = {}
   return wrapText(block.content || ' ', width, '  ').map((line) => color(theme, 'text', line));
 }
 
-function renderCodeBlock(block, width, theme) {
-  const title = block.title || `code${block.language ? ` · ${block.language}` : ''}`;
-  const body = String(block.content || '').split('\n');
+function renderCodeBlock(block, width, theme, syntaxHighlight = false) {
+  const filename = String(block.filename || block.meta?.filename || '');
+  const title = block.title || filename || `code${block.language ? ` · ${block.language}` : ''}`;
+  const requested = typeof block.syntaxHighlight === 'boolean'
+    ? block.syntaxHighlight
+    : typeof block.meta?.syntaxHighlight === 'boolean'
+      ? block.meta.syntaxHighlight
+      : Boolean(syntaxHighlight);
+  const enabled = requested && Boolean(detectSyntaxLanguage({
+    language: block.language,
+    filename,
+    source: block.content,
+  }));
+  const body = highlightSyntaxLines(block.content || '', {
+    language: block.language,
+    filename,
+    theme,
+    enabled,
+  });
   return [
     color(theme, 'border', blockTop(title, width)),
-    ...body.map((line) => color(theme, 'muted', blockBodyLine(line, width))),
+    ...body.map((line) => enabled
+      ? renderHighlightedCodeBodyLine(line, width, theme)
+      : color(theme, 'muted', blockBodyLine(line, width))),
     color(theme, 'border', blockBottom(width)),
   ];
+}
+
+function renderHighlightedCodeBodyLine(line, width, theme) {
+  const safeWidth = Math.max(4, Number(width) || 4);
+  const contentWidth = Math.max(0, safeWidth - 4);
+  const content = truncateVisible(String(line ?? ''), contentWidth, '…');
+  const padded = padEndVisible(content, contentWidth);
+  return `${color(theme, 'border', '│ ')}${padded}${color(theme, 'border', ' │')}`;
 }
 
 function renderDiffBlock(block, width, theme) {

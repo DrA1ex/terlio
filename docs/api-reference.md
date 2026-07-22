@@ -734,6 +734,23 @@ Exports:
 
 Use these when you want the built-in chat/transcript rendering without using the complete `RichTerminalApp`.
 
+
+## Syntax highlighting
+
+- `SUPPORTED_SYNTAX_LANGUAGES`
+- `SYNTAX_TOKEN_TYPES`
+- `normalizeSyntaxLanguage(value)`
+- `detectSyntaxLanguage({ language, filename, source })`
+- `tokenizeSyntax(source, options)`
+- `highlightSyntax(source, options)`
+- `highlightSyntaxLines(source, options)`
+- `styleSyntaxToken(token, theme)`
+- `SyntaxText(options)`
+
+`highlightSyntax()` returns ANSI-styled text. `highlightSyntaxLines()` returns one styled string per source line. Both safely return unstyled text when highlighting is disabled or the language cannot be detected.
+
+Structured block renderers accept `syntaxHighlight: true`. Code blocks may set `language`, `filename`, and a block-level `syntaxHighlight` override. `RichTerminalApp` also accepts `syntaxHighlight: true`.
+
 ## Providers and reference model
 
 Provider exports:

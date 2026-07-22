@@ -48,6 +48,8 @@ test('package metadata is ready for public distribution', async () => {
 test('README keeps usage documentation separate from release history', () => {
   assert.match(readme, /npx terlio\.js examples/);
   assert.match(readme, /npx terlio\.js example:long-text/);
+  assert.match(readme, /npx terlio\.js example:syntax/);
+  assert.match(readme, /docs\/syntax-highlighting\.md/);
   assert.match(readme, /npm run examples/);
   assert.doesNotMatch(readme, /^## Project status$/m);
   assert.doesNotMatch(readme, /Terlio\.js 1\.1 adds/);
@@ -63,6 +65,15 @@ test('long-text uses the shared packaged example catalog and documentation', () 
   assert.match(examplesDocumentation, /npx terlio\.js example:long-text --lines=50000/);
 });
 
+test('syntax example uses the shared packaged catalog and documentation', () => {
+  const entry = findExample('example:syntax');
+  assert.equal(entry?.file, 'examples/syntax-highlighting.js');
+  assert.equal(entry?.interactive, false);
+  assert.match(formatExampleCatalog(), /example:syntax/);
+  assert.match(examplesDocumentation, /### Syntax Highlighting Snapshot — `example:syntax`/);
+  assert.match(examplesDocumentation, /npx terlio\.js example:syntax/);
+});
+
 test('packaged example catalog resolves full ids and short names', () => {
   assert.ok(EXAMPLES.length >= 10);
   assert.equal(findExample('demo:chat')?.file, 'examples/chat.js');
@@ -70,6 +81,7 @@ test('packaged example catalog resolves full ids and short names', () => {
   assert.equal(findExample('palette')?.id, 'example:palette');
   assert.equal(findExample('long-text')?.id, 'example:long-text');
   assert.equal(findExample('components')?.interactive, false);
+  assert.equal(findExample('syntax')?.id, 'example:syntax');
   assert.equal(findExample('does-not-exist'), null);
 
   const output = formatExampleCatalog();
@@ -77,4 +89,5 @@ test('packaged example catalog resolves full ids and short names', () => {
   assert.match(output, new RegExp(`npx ${escapeRegExp(packageBinName)} demo:chat`));
   assert.match(output, new RegExp(`npx ${escapeRegExp(packageBinName)} example:components`));
   assert.match(output, new RegExp(`npx ${escapeRegExp(packageBinName)} example:long-text`));
+  assert.match(output, new RegExp(`npx ${escapeRegExp(packageBinName)} example:syntax`));
 });

@@ -24,7 +24,7 @@ const SUGGESTION_WINDOW_SIZE = 7;
 export { createAppPaletteItems };
 
 export class RichTerminalApp {
-  constructor({ input = process.stdin, output = process.stdout, onExit = null, onPointer = null, pointer = 'auto', animationMs = 80, sessionStore = new SessionStore() } = {}) {
+  constructor({ input = process.stdin, output = process.stdout, onExit = null, onPointer = null, pointer = 'auto', animationMs = 80, syntaxHighlight = false, sessionStore = new SessionStore() } = {}) {
     this.input = input;
     this.output = output;
     this.onExit = onExit;
@@ -63,6 +63,7 @@ export class RichTerminalApp {
     this.frame = 0;
     this.animationFrame = 0;
     this.animationMs = Math.max(0, Number(animationMs) || 0);
+    this.syntaxHighlight = Boolean(syntaxHighlight);
     this.debug = { enabled: false, events: [] };
     this.focus = new FocusManager(['input', 'suggestions', 'transcript', 'debug']);
     this.modes = new ModeManager('input');
@@ -696,6 +697,7 @@ export class RichTerminalApp {
       scrollOffset,
       transcriptSelection: this.transcriptSelection,
       frame: this.animationFrame,
+      syntaxHighlight: this.syntaxHighlight,
       onTranscriptWheel: (event) => {
         this.scrollOffset = Math.max(0, this.scrollOffset - event.deltaY);
         event.preventDefault();
