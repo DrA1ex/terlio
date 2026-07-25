@@ -1,0 +1,160 @@
+{
+  "id": "workspace-shell-wide",
+  "title": "Complete workspace shell",
+  "width": 112,
+  "height": 26,
+  "lines": [
+    "\u001b[38;5;24m┌  Release Workspace                                                                                           ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;87mRelease Workspace  ·  v1.1.3 verification\u001b[0m                                                                    \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67mTests: 269   Coverage: 97%   │   branch main   clean   │   Focus changes\u001b[0m                                     \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;24m┌  NAV                                                                                                         ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[48;5;24m\u001b[38;5;231m▣ Changes\u001b[0m   \u001b[38;5;67m□ Checks\u001b[0m   \u001b[38;5;67m□ Release\u001b[0m                                                                             \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67mClick a tab or use the keyboard.\u001b[0m                                                                             \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;45m┌  Summary                                ┐\u001b[0m \u001b[38;5;24m┌  Details                                                         ┐\u001b[0m",
+    "\u001b[38;5;45m│\u001b[0m   README updated                        \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m Selected change details                                          \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;45m│\u001b[0m › Security plan added                   \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m No unexpected files detected.                                    \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;45m│\u001b[0m   Package verified                      \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                                                  \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;45m│\u001b[0m                                         \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                                                  \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;45m│\u001b[0m                                         \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                                                  \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;45m└─────────────────────────────────────────┘\u001b[0m \u001b[38;5;24m└──────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;24m┌  COMMAND                                                                                                     ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;45m› release verify\u001b[0m                                                                                             \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67mverify   pack   publish     TAB next\u001b[0m                                                                         \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;24m┌  Keys                                                                                                        ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;45m↑/↓\u001b[0m\u001b[38;5;67m move\u001b[0m                             \u001b[38;5;45mEnter\u001b[0m\u001b[38;5;67m open\u001b[0m                           \u001b[38;5;45mEsc\u001b[0m\u001b[38;5;67m back\u001b[0m                           \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;45m?\u001b[0m\u001b[38;5;67m help\u001b[0m                                                                                                       \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;24m┌  STATUS                                                                                                      ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67mready  │  safe mode  │  112×26  │  local\u001b[0m                                                                     \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m"
+  ],
+  "plain": [
+    "┌  Release Workspace                                                                                           ┐",
+    "│ Release Workspace  ·  v1.1.3 verification                                                                    │",
+    "│ Tests: 269   Coverage: 97%   │   branch main   clean   │   Focus changes                                     │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘",
+    "┌  NAV                                                                                                         ┐",
+    "│ ▣ Changes   □ Checks   □ Release                                                                             │",
+    "│ Click a tab or use the keyboard.                                                                             │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘",
+    "┌  Summary                                ┐ ┌  Details                                                         ┐",
+    "│   README updated                        │ │ Selected change details                                          │",
+    "│ › Security plan added                   │ │ No unexpected files detected.                                    │",
+    "│   Package verified                      │ │                                                                  │",
+    "│                                         │ │                                                                  │",
+    "│                                         │ │                                                                  │",
+    "└─────────────────────────────────────────┘ └──────────────────────────────────────────────────────────────────┘",
+    "┌  COMMAND                                                                                                     ┐",
+    "│ › release verify                                                                                             │",
+    "│ verify   pack   publish     TAB next                                                                         │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘",
+    "┌  Keys                                                                                                        ┐",
+    "│ ↑/↓ move                             Enter open                           Esc back                           │",
+    "│ ? help                                                                                                       │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘",
+    "┌  STATUS                                                                                                      ┐",
+    "│ ready  │  safe mode  │  112×26  │  local                                                                     │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘"
+  ],
+  "pointerRegions": [
+    {
+      "token": 1,
+      "id": "workspace-tabs:changes",
+      "data": {
+        "kind": "tab",
+        "id": "changes",
+        "index": 0,
+        "tab": {
+          "id": "changes",
+          "label": "Changes"
+        }
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 2,
+        "y": 5,
+        "width": 9,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 5,
+          "width": 9,
+          "height": 1
+        }
+      ],
+      "handlers": []
+    },
+    {
+      "token": 2,
+      "id": "workspace-tabs:checks",
+      "data": {
+        "kind": "tab",
+        "id": "checks",
+        "index": 1,
+        "tab": {
+          "id": "checks",
+          "label": "Checks"
+        }
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 14,
+        "y": 5,
+        "width": 8,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 14,
+          "y": 5,
+          "width": 8,
+          "height": 1
+        }
+      ],
+      "handlers": []
+    },
+    {
+      "token": 3,
+      "id": "workspace-tabs:release",
+      "data": {
+        "kind": "tab",
+        "id": "release",
+        "index": 2,
+        "tab": {
+          "id": "release",
+          "label": "Release"
+        }
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 25,
+        "y": 5,
+        "width": 9,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 25,
+          "y": 5,
+          "width": 9,
+          "height": 1
+        }
+      ],
+      "handlers": []
+    }
+  ]
+}

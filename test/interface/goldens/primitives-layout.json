@@ -1,0 +1,86 @@
+{
+  "id": "primitives-layout",
+  "title": "Primitive composition and pointer surface",
+  "width": 64,
+  "height": 12,
+  "lines": [
+    "┌  Primitives                                                  ┐",
+    "│                                                              │",
+    "│ ┌  Left          ┐  ┌  Pointer       ┐                       │",
+    "│ │                │  │                │   plain box           │",
+    "│ │ alpha          │  │ clickable      │                       │",
+    "│ │ beta           │  │                │                       │",
+    "│ │                │  └────────────────┘                       │",
+    "│ └────────────────┘                                           │",
+    "│                                                              │",
+    "└──────────────────────────────────────────────────────────────┘",
+    "Footer text without wrapping                                    ",
+    "                                                                "
+  ],
+  "plain": [
+    "┌  Primitives                                                  ┐",
+    "│                                                              │",
+    "│ ┌  Left          ┐  ┌  Pointer       ┐                       │",
+    "│ │                │  │                │   plain box           │",
+    "│ │ alpha          │  │ clickable      │                       │",
+    "│ │ beta           │  │                │                       │",
+    "│ │                │  └────────────────┘                       │",
+    "│ └────────────────┘                                           │",
+    "│                                                              │",
+    "└──────────────────────────────────────────────────────────────┘",
+    "Footer text without wrapping                                    ",
+    "                                                                "
+  ],
+  "pointerRegions": [
+    {
+      "token": 1,
+      "id": "primitive-action",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 22,
+        "y": 2,
+        "width": 18,
+        "height": 5
+      },
+      "segments": [
+        {
+          "x": 22,
+          "y": 2,
+          "width": 18,
+          "height": 1
+        },
+        {
+          "x": 22,
+          "y": 3,
+          "width": 18,
+          "height": 1
+        },
+        {
+          "x": 22,
+          "y": 4,
+          "width": 18,
+          "height": 1
+        },
+        {
+          "x": 22,
+          "y": 5,
+          "width": 18,
+          "height": 1
+        },
+        {
+          "x": 22,
+          "y": 6,
+          "width": 18,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    }
+  ]
+}

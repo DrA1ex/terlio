@@ -1,0 +1,35 @@
+{
+  "id": "syntax-text",
+  "title": "Zero-dependency syntax highlighting",
+  "width": 72,
+  "height": 12,
+  "lines": [
+    "┌  Syntax · main.swift                                                 ┐",
+    "│                                                                      │",
+    "│ \u001b[38;5;141mimport\u001b[0m\u001b[38;5;252m Foundation\u001b[0m                                                    │",
+    "│                                                                      │",
+    "│ \u001b[38;5;141mstruct\u001b[0m\u001b[38;5;252m User \u001b[0m\u001b[38;5;244m{\u001b[0m                                                        │",
+    "│ \u001b[38;5;252m  \u001b[0m\u001b[38;5;141mlet\u001b[0m\u001b[38;5;252m name\u001b[0m\u001b[38;5;245m:\u001b[0m\u001b[38;5;252m \u001b[0m\u001b[38;5;141mString\u001b[0m                                                   │",
+    "│ \u001b[38;5;244m}\u001b[0m                                                                    │",
+    "│                                                                      │",
+    "│ \u001b[38;5;81mprint\u001b[0m\u001b[38;5;244m(\u001b[0m\u001b[38;5;252mUser\u001b[0m\u001b[38;5;244m(\u001b[0m\u001b[38;5;252mname\u001b[0m\u001b[38;5;245m:\u001b[0m\u001b[38;5;252m \u001b[0m\u001b[38;5;114m\"Ada\"\u001b[0m\u001b[38;5;244m))\u001b[0m                                             │",
+    "│                                                                      │",
+    "└──────────────────────────────────────────────────────────────────────┘",
+    "                                                                        "
+  ],
+  "plain": [
+    "┌  Syntax · main.swift                                                 ┐",
+    "│                                                                      │",
+    "│ import Foundation                                                    │",
+    "│                                                                      │",
+    "│ struct User {                                                        │",
+    "│   let name: String                                                   │",
+    "│ }                                                                    │",
+    "│                                                                      │",
+    "│ print(User(name: \"Ada\"))                                             │",
+    "│                                                                      │",
+    "└──────────────────────────────────────────────────────────────────────┘",
+    "                                                                        "
+  ],
+  "pointerRegions": []
+}

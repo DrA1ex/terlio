@@ -1,0 +1,214 @@
+{
+  "id": "chat-palette-panel",
+  "title": "Standalone command palette panel",
+  "width": 88,
+  "height": 18,
+  "lines": [
+    "\u001b[38;5;141m┌  Command Palette                                                                     ┐\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;244mType to filter · ↑/↓ move · Enter insert · Esc clear/close                          \u001b[0m \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;141mSearch\u001b[0m  <all>\u001b[7m \u001b[27m                                                                       \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;252m  Session       session.new        New session                                      \u001b[0m \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[48;5;238m\u001b[38;5;255m› Appearance    theme.next         Next theme                                       \u001b[0m \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;244m  Actions       danger.disabled    Unavailable action                               \u001b[0m \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m                                                                                      \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m                                                                                      \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m                                                                                      \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m                                                                                      \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m                                                                                      \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;244mCycle through themes                                                                \u001b[0m \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;244m2/3 · Type to filter. Use arrows to move, Enter to accept, Esc to cancel.           \u001b[0m \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m└──────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "                                                                                        ",
+    "                                                                                        ",
+    "                                                                                        ",
+    "                                                                                        "
+  ],
+  "plain": [
+    "┌  Command Palette                                                                     ┐",
+    "│ Type to filter · ↑/↓ move · Enter insert · Esc clear/close                           │",
+    "│ Search  <all>                                                                        │",
+    "│   Session       session.new        New session                                       │",
+    "│ › Appearance    theme.next         Next theme                                        │",
+    "│   Actions       danger.disabled    Unavailable action                                │",
+    "│                                                                                      │",
+    "│                                                                                      │",
+    "│                                                                                      │",
+    "│                                                                                      │",
+    "│                                                                                      │",
+    "│ Cycle through themes                                                                 │",
+    "│ 2/3 · Type to filter. Use arrows to move, Enter to accept, Esc to cancel.            │",
+    "└──────────────────────────────────────────────────────────────────────────────────────┘",
+    "                                                                                        ",
+    "                                                                                        ",
+    "                                                                                        ",
+    "                                                                                        "
+  ],
+  "pointerRegions": [
+    {
+      "token": 1,
+      "id": "chat-palette",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 88,
+        "height": 14
+      },
+      "segments": [
+        {
+          "x": 0,
+          "y": 0,
+          "width": 88,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "width": 88,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "width": 88,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "width": 88,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "width": 88,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "width": 88,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "width": 88,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "width": 88,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 8,
+          "width": 88,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 9,
+          "width": 88,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 10,
+          "width": 88,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 11,
+          "width": 88,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 12,
+          "width": 88,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 13,
+          "width": 88,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel",
+        "onRelease"
+      ]
+    },
+    {
+      "token": 2,
+      "id": "chat-palette:session.new",
+      "data": {
+        "paletteIndex": 0,
+        "itemId": "session.new"
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 3,
+        "width": 84,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 3,
+          "width": 84,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onRelease"
+      ]
+    },
+    {
+      "token": 3,
+      "id": "chat-palette:theme.next",
+      "data": {
+        "paletteIndex": 1,
+        "itemId": "theme.next"
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 4,
+        "width": 84,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 4,
+          "width": 84,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onRelease"
+      ]
+    }
+  ]
+}

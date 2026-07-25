@@ -1,0 +1,112 @@
+{
+  "id": "chat-screen-compact",
+  "title": "Compact chat screen and viewport prioritization",
+  "width": 64,
+  "height": 18,
+  "lines": [
+    "\u001b[38;5;45m┌  Terlio.js                                                   ┐\u001b[0m",
+    "\u001b[38;5;45m│\u001b[0m \u001b[38;5;195mCompact layout\u001b[0m                                  \u001b[38;5;67mmock · ocean\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;45m└──────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;24m┌  CONVERSATION · 2 messages                                   ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m             \u001b[38;5;24m│ \u001b[0m\u001b[38;5;195m  \u001b[0m\u001b[38;5;45mawait\u001b[0m\u001b[38;5;195m run\u001b[0m\u001b[38;5;67m();\u001b[0m                         \u001b[38;5;24m │\u001b[0m      \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m             \u001b[38;5;24m│ \u001b[0m\u001b[38;5;67m}\u001b[0m                                      \u001b[38;5;24m │\u001b[0m      \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m             \u001b[38;5;24m└─────────────────────────────────────────┘\u001b[0m      \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m                                                              \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m             \u001b[38;5;203mwarning: Watch out: Do not retry\u001b[0m                 \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m             \u001b[38;5;203m  non-idempotent operations automatically.\u001b[0m       \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m                                                              \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67mat latest · ↑8 e\u001b[0m…\u001b[0m \u001b[38;5;67m15 rows · drag to select · wheel to scroll\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;67m● Compact.\u001b[0m                                         \u001b[38;5;67mlatest · mock\u001b[0m",
+    "\u001b[38;5;45m┌  COMPOSER · CHAT                                             ┐\u001b[0m",
+    "\u001b[38;5;45m│\u001b[0m \u001b[38;5;231m\u001b[7mA\u001b[27msk something, or type / for commands…                      \u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;45m│\u001b[0m \u001b[38;5;67mEnter send · Ctrl+J newline · Ctrl+P palette                \u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;45m└──────────────────────────────────────────────────────────────┘\u001b[0m"
+  ],
+  "plain": [
+    "┌  Terlio.js                                                   ┐",
+    "│ Compact layout                                  mock · ocean │",
+    "└──────────────────────────────────────────────────────────────┘",
+    "┌  CONVERSATION · 2 messages                                   ┐",
+    "│             │   await run();                          │      │",
+    "│             │ }                                       │      │",
+    "│             └─────────────────────────────────────────┘      │",
+    "│                                                              │",
+    "│             warning: Watch out: Do not retry                 │",
+    "│               non-idempotent operations automatically.       │",
+    "│                                                              │",
+    "│ at latest · ↑8 e… 15 rows · drag to select · wheel to scroll │",
+    "└──────────────────────────────────────────────────────────────┘",
+    "● Compact.                                         latest · mock",
+    "┌  COMPOSER · CHAT                                             ┐",
+    "│ Ask something, or type / for commands…                       │",
+    "│ Enter send · Ctrl+J newline · Ctrl+P palette                 │",
+    "└──────────────────────────────────────────────────────────────┘"
+  ],
+  "pointerRegions": [
+    {
+      "token": 1,
+      "id": "chat-transcript",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 2,
+        "y": 4,
+        "width": 60,
+        "height": 7
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 4,
+          "width": 60,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 5,
+          "width": 60,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "width": 60,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "width": 60,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 8,
+          "width": 60,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 9,
+          "width": 60,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 10,
+          "width": 60,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onDrag",
+        "onRelease"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,249 @@
+{
+  "id": "select-list-rich",
+  "title": "SelectList presentation, disabled and dynamic rows",
+  "width": 58,
+  "height": 16,
+  "lines": [
+    "\u001b[38;5;24m┌  Project summary 2/3                                   ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;45m  Overview                                            \u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67m  Files: 128 changed                                  \u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m── Actions ───────────────────────────────────────────\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Run quick checks — lint and unit tests              \u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[48;5;24m\u001b[38;5;231m› Review a deliberately long item label that wraps    \u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[48;5;24m\u001b[38;5;231m  only when the available width is insufficient —     \u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[48;5;24m\u001b[38;5;231m  dynamic height                                      \u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67m  Publish release — requires maintainer access LOCKED \u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m──────────────────────────────────────────────────────\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└────────────────────────────────────────────────────────┘\u001b[0m",
+    "                                                          ",
+    "                                                          ",
+    "                                                          ",
+    "                                                          ",
+    "                                                          "
+  ],
+  "plain": [
+    "┌  Project summary 2/3                                   ┐",
+    "│   Overview                                             │",
+    "│   Files: 128 changed                                   │",
+    "│ ── Actions ─────────────────────────────────────────── │",
+    "│   Run quick checks — lint and unit tests               │",
+    "│ › Review a deliberately long item label that wraps     │",
+    "│   only when the available width is insufficient —      │",
+    "│   dynamic height                                       │",
+    "│   Publish release — requires maintainer access LOCKED  │",
+    "│ ────────────────────────────────────────────────────── │",
+    "└────────────────────────────────────────────────────────┘",
+    "                                                          ",
+    "                                                          ",
+    "                                                          ",
+    "                                                          ",
+    "                                                          "
+  ],
+  "pointerRegions": [
+    {
+      "token": 1,
+      "id": "select-list",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 58,
+        "height": 11
+      },
+      "segments": [
+        {
+          "x": 0,
+          "y": 0,
+          "width": 58,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "width": 58,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "width": 58,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "width": 58,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "width": 58,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "width": 58,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "width": 58,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "width": 58,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 8,
+          "width": 58,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 9,
+          "width": 58,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 10,
+          "width": 58,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onWheel"
+      ]
+    },
+    {
+      "token": 2,
+      "id": "select-list:3",
+      "data": {
+        "kind": "select-item",
+        "index": 3,
+        "item": {
+          "label": "Run quick checks",
+          "description": "lint and unit tests"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 4,
+        "width": 54,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 4,
+          "width": 54,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 3,
+      "id": "select-list:4",
+      "data": {
+        "kind": "select-item",
+        "index": 4,
+        "item": {
+          "label": "Review a deliberately long item label that wraps only when the available width is insufficient",
+          "description": "dynamic height"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 5,
+        "width": 54,
+        "height": 3
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 5,
+          "width": 54,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "width": 54,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "width": 54,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 4,
+      "id": "select-list:5",
+      "data": {
+        "kind": "select-item",
+        "index": 5,
+        "item": {
+          "label": "Publish release",
+          "description": "requires maintainer access",
+          "disabled": true,
+          "reason": true
+        },
+        "disabled": true
+      },
+      "disabled": true,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 8,
+        "width": 54,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 8,
+          "width": 54,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    }
+  ]
+}

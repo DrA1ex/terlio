@@ -1,0 +1,289 @@
+{
+  "id": "editor-scroll-selection",
+  "title": "Editor, scroll pane and persistent selection",
+  "width": 76,
+  "height": 18,
+  "lines": [
+    "┌  Draft                            ┐  ┌  Long output                      ┐",
+    "│ 1 │ First line                    │  │ row 08 · deterministic output     │",
+    "│ 2 │ Second line with a c\u001b[7mu\u001b[27mrsor and │  │ row 09 · deterministic output     │",
+    "│   │  wrapping behavior.           │  │ row 10 · deterministic output     │",
+    "│ 3 │ Third line                    │  │ row 11 · deterministic output     │",
+    "│                                   │  │ row 12 · deterministic output     │",
+    "│                                   │  │ row 13 · deterministic output     │",
+    "│                                   │  │ row 14 · deterministic output     │",
+    "│                                   │  │ row 15 · deterministic output     │",
+    "│                                   │  │ row 16 · deterministic output     │",
+    "│                                   │  │ row 17 · deterministic output     │",
+    "│                                   │  │ row 18 · deterministic output     │",
+    "│                                   │  │ row 19 · deterministic output     │",
+    "│                                   │  │ row 20 · deterministic output     │",
+    "│                                   │  │ row 21 · deterministic output     │",
+    "│                                   │  │ row 22 · deterministic output     │",
+    "│                                   │  │ wheel · ↑/↓ · PgUp/PgDn 7/9       │",
+    "└───────────────────────────────────┘  └───────────────────────────────────┘"
+  ],
+  "plain": [
+    "┌  Draft                            ┐  ┌  Long output                      ┐",
+    "│ 1 │ First line                    │  │ row 08 · deterministic output     │",
+    "│ 2 │ Second line with a cursor and │  │ row 09 · deterministic output     │",
+    "│   │  wrapping behavior.           │  │ row 10 · deterministic output     │",
+    "│ 3 │ Third line                    │  │ row 11 · deterministic output     │",
+    "│                                   │  │ row 12 · deterministic output     │",
+    "│                                   │  │ row 13 · deterministic output     │",
+    "│                                   │  │ row 14 · deterministic output     │",
+    "│                                   │  │ row 15 · deterministic output     │",
+    "│                                   │  │ row 16 · deterministic output     │",
+    "│                                   │  │ row 17 · deterministic output     │",
+    "│                                   │  │ row 18 · deterministic output     │",
+    "│                                   │  │ row 19 · deterministic output     │",
+    "│                                   │  │ row 20 · deterministic output     │",
+    "│                                   │  │ row 21 · deterministic output     │",
+    "│                                   │  │ row 22 · deterministic output     │",
+    "│                                   │  │ wheel · ↑/↓ · PgUp/PgDn 7/9       │",
+    "└───────────────────────────────────┘  └───────────────────────────────────┘"
+  ],
+  "pointerRegions": [
+    {
+      "token": 1,
+      "id": "pointer-1",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 39,
+        "y": 0,
+        "width": 37,
+        "height": 18
+      },
+      "segments": [
+        {
+          "x": 39,
+          "y": 0,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 1,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 2,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 3,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 4,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 5,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 6,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 7,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 8,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 9,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 10,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 11,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 12,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 13,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 14,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 15,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 16,
+          "width": 37,
+          "height": 1
+        },
+        {
+          "x": 39,
+          "y": 17,
+          "width": 37,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onWheel"
+      ]
+    },
+    {
+      "token": 2,
+      "id": "scroll-pane:selection",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 41,
+        "y": 1,
+        "width": 33,
+        "height": 15
+      },
+      "segments": [
+        {
+          "x": 41,
+          "y": 1,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 2,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 3,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 4,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 5,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 6,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 7,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 8,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 9,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 10,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 11,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 12,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 13,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 14,
+          "width": 33,
+          "height": 1
+        },
+        {
+          "x": 41,
+          "y": 15,
+          "width": 33,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel",
+        "onDrag",
+        "onRelease"
+      ]
+    }
+  ]
+}

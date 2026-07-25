@@ -58,7 +58,11 @@
     "example:themes": "node examples/themes.js",
     "demo:chat": "node examples/chat.js",
     "demo:support-desk": "node examples/support-desk.js",
-    "example:syntax": "node examples/syntax-highlighting.js"
+    "example:syntax": "node examples/syntax-highlighting.js",
+    "test:interface": "node --test test/interface/interfaceSnapshots.test.js",
+    "test:interface:audit": "node scripts/interface-testing/auditGoldens.js",
+    "test:interface:update": "TERLIO_UPDATE_INTERFACE_GOLDENS=1 node scripts/interface-testing/updateGoldens.js",
+    "test:interface:review": "node scripts/interface-testing/reviewGoldens.js"
   },
   "engines": {
     "node": ">=18"

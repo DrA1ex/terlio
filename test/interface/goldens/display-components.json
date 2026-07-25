@@ -1,0 +1,236 @@
+{
+  "id": "display-components",
+  "title": "Badges, chips, tabs, command and property display",
+  "width": 78,
+  "height": 14,
+  "lines": [
+    "\u001b[38;5;121m READY \u001b[0m  \u001b[38;5;45m LOCAL \u001b[0m  \u001b[38;5;215m[Streaming]\u001b[0m  \u001b[38;5;67m Static \u001b[0m                                       ",
+    "\u001b[38;5;67m□ 1 Overview\u001b[0m  \u001b[48;5;24m\u001b[38;5;231m▣ Logs\u001b[0m  \u001b[38;5;67m□ Settings\u001b[0m                                              ",
+    "Mode  \u001b[38;5;45m[safe]\u001b[0m  \u001b[38;5;67m fast \u001b[0m  \u001b[38;5;67m verbose \u001b[0m                                               ",
+    "\u001b[38;5;24m┌  COMMAND                                                                   ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;45m/ deploy\u001b[0m                                                                   \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67mstaging   production     TAB next\u001b[0m                                          \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "┌──────────────────┬─────────────────┐  \u001b[38;5;24m┌  Properties                        ┐\u001b[0m",
+    "│ Enter open       │ Esc back        │  \u001b[38;5;24m│\u001b[0m theme        ocean                 \u001b[38;5;24m│\u001b[0m",
+    "├──────────────────┼─────────────────┤  \u001b[38;5;24m│\u001b[0m provider     mock                  \u001b[38;5;24m│\u001b[0m",
+    "│ / command        │ ? help          │  \u001b[38;5;24m│\u001b[0m rows         14                    \u001b[38;5;24m│\u001b[0m",
+    "└──────────────────┴─────────────────┘  \u001b[38;5;24m└────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;67mready  │  clean  │  78×14  │  mock\u001b[0m                                            ",
+    "                                                                              "
+  ],
+  "plain": [
+    " READY    LOCAL   [Streaming]   Static                                        ",
+    "□ 1 Overview  ▣ Logs  □ Settings                                              ",
+    "Mode  [safe]   fast    verbose                                                ",
+    "┌  COMMAND                                                                   ┐",
+    "│ / deploy                                                                   │",
+    "│ staging   production     TAB next                                          │",
+    "└────────────────────────────────────────────────────────────────────────────┘",
+    "┌──────────────────┬─────────────────┐  ┌  Properties                        ┐",
+    "│ Enter open       │ Esc back        │  │ theme        ocean                 │",
+    "├──────────────────┼─────────────────┤  │ provider     mock                  │",
+    "│ / command        │ ? help          │  │ rows         14                    │",
+    "└──────────────────┴─────────────────┘  └────────────────────────────────────┘",
+    "ready  │  clean  │  78×14  │  mock                                            ",
+    "                                                                              "
+  ],
+  "pointerRegions": [
+    {
+      "token": 1,
+      "id": "section-tabs:overview",
+      "data": {
+        "kind": "tab",
+        "id": "overview",
+        "index": 0,
+        "tab": {
+          "id": "overview",
+          "label": "Overview",
+          "icon": "1"
+        }
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 0,
+        "y": 1,
+        "width": 12,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 0,
+          "y": 1,
+          "width": 12,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 2,
+      "id": "section-tabs:logs",
+      "data": {
+        "kind": "tab",
+        "id": "logs",
+        "index": 1,
+        "tab": {
+          "id": "logs",
+          "label": "Logs"
+        }
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 14,
+        "y": 1,
+        "width": 6,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 14,
+          "y": 1,
+          "width": 6,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 3,
+      "id": "section-tabs:settings",
+      "data": {
+        "kind": "tab",
+        "id": "settings",
+        "index": 2,
+        "tab": {
+          "id": "settings",
+          "label": "Settings"
+        }
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 22,
+        "y": 1,
+        "width": 10,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 22,
+          "y": 1,
+          "width": 10,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 4,
+      "id": "chip-line:safe",
+      "data": {
+        "kind": "chip",
+        "id": "safe",
+        "index": 0,
+        "chip": "safe"
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 6,
+        "y": 2,
+        "width": 6,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 6,
+          "y": 2,
+          "width": 6,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 5,
+      "id": "chip-line:fast",
+      "data": {
+        "kind": "chip",
+        "id": "fast",
+        "index": 1,
+        "chip": "fast"
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 14,
+        "y": 2,
+        "width": 6,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 14,
+          "y": 2,
+          "width": 6,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 6,
+      "id": "chip-line:verbose",
+      "data": {
+        "kind": "chip",
+        "id": "verbose",
+        "index": 2,
+        "chip": "verbose"
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 22,
+        "y": 2,
+        "width": 9,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 22,
+          "y": 2,
+          "width": 9,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    }
+  ]
+}

@@ -13,6 +13,8 @@ Start here:
 - [API reference](api-reference.md) — public exports grouped by area.
 - [Examples](examples.md) — runnable examples and their user paths.
 - [Publishing](publishing.md) — npm package verification, GitHub releases and trusted publishing.
+- [Interface snapshot testing](interface-testing.md) — component trees, golden frames, review workflow and coverage.
+- [Interface golden audit](interface-golden-audit.md) — verified baseline and known pre-existing visual issues.
 
 All package examples use imports from `terlio.js`:
 

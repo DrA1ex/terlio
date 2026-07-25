@@ -1,0 +1,170 @@
+{
+  "id": "chat-subcomponents",
+  "title": "Chat header, transcript and composer pieces",
+  "width": 92,
+  "height": 24,
+  "lines": [
+    "\u001b[38;5;141m┌  Terlio.js                                                                               ┐\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;252mInterface snapshot review\u001b[0m                 \u001b[38;5;244mprovider mock  ·  theme dark  ·  session bcdef\u001b[0m \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;244mwheel/click + drag selection · Ctrl+T native mode · Ctrl+P palet\u001b[0m…\u001b[0m \u001b[38;5;141mskills: code, terminal\u001b[0m \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m└──────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "┌  Transcript helper                                                                       ┐",
+    "│            \u001b[38;5;238m└─────────────────────────────────────────────────────────────────────┘\u001b[0m       │",
+    "│                                                                                          │",
+    "│            \u001b[38;5;203mwarning: Watch out: Do not retry non-idempotent operations\u001b[0m                    │",
+    "│            \u001b[38;5;203m  automatically.\u001b[0m                                                              │",
+    "│                                                                                          │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────┘",
+    "\u001b[38;5;141m┌  COMMANDS · 2 matches                                                                    ┐\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;244m↑/↓ select · Tab/Enter complete · Esc dismiss                                           \u001b[0m \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;250m   /help              /help                           Show commands                     \u001b[0m \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[48;5;238m\u001b[38;5;255m › /theme             /theme ocean                    Switch theme                      \u001b[0m \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m└──────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;238m┌  DEBUG · /debug off to close                                                             ┐\u001b[0m",
+    "\u001b[38;5;238m│\u001b[0m \u001b[38;5;244m debug pointer: wheel-down                                                              \u001b[0m \u001b[38;5;238m│\u001b[0m",
+    "\u001b[38;5;238m│\u001b[0m \u001b[38;5;244m debug key: enter                                                                       \u001b[0m \u001b[38;5;238m│\u001b[0m",
+    "\u001b[38;5;238m└──────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;244m● Snapshot ready.\u001b[0m                                                \u001b[38;5;244mscroll:+3 · debug:on · mock\u001b[0m",
+    "\u001b[38;5;141m┌  COMPOSER · COMMAND                                                                      ┐\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;255m/theme \u001b[7mo\u001b[27mcean                                                                            \u001b[0m \u001b[38;5;141m│\u001b[0m",
+    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;255m                                                                                        \u001b[0m \u001b[38;5;141m│\u001b[0m"
+  ],
+  "plain": [
+    "┌  Terlio.js                                                                               ┐",
+    "│ Interface snapshot review                 provider mock  ·  theme dark  ·  session bcdef │",
+    "│ wheel/click + drag selection · Ctrl+T native mode · Ctrl+P palet… skills: code, terminal │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────┘",
+    "┌  Transcript helper                                                                       ┐",
+    "│            └─────────────────────────────────────────────────────────────────────┘       │",
+    "│                                                                                          │",
+    "│            warning: Watch out: Do not retry non-idempotent operations                    │",
+    "│              automatically.                                                              │",
+    "│                                                                                          │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────┘",
+    "┌  COMMANDS · 2 matches                                                                    ┐",
+    "│ ↑/↓ select · Tab/Enter complete · Esc dismiss                                            │",
+    "│    /help              /help                           Show commands                      │",
+    "│  › /theme             /theme ocean                    Switch theme                       │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────┘",
+    "┌  DEBUG · /debug off to close                                                             ┐",
+    "│  debug pointer: wheel-down                                                               │",
+    "│  debug key: enter                                                                        │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────┘",
+    "● Snapshot ready.                                                scroll:+3 · debug:on · mock",
+    "┌  COMPOSER · COMMAND                                                                      ┐",
+    "│ /theme ocean                                                                             │",
+    "│                                                                                          │"
+  ],
+  "pointerRegions": [
+    {
+      "token": 1,
+      "id": "chat-suggestions",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 0,
+        "y": 11,
+        "width": 92,
+        "height": 5
+      },
+      "segments": [
+        {
+          "x": 0,
+          "y": 11,
+          "width": 92,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 12,
+          "width": 92,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 13,
+          "width": 92,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 14,
+          "width": 92,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 15,
+          "width": 92,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel",
+        "onRelease"
+      ]
+    },
+    {
+      "token": 2,
+      "id": "chat-suggestion:0",
+      "data": {
+        "suggestionIndex": 0
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 13,
+        "width": 88,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 13,
+          "width": 88,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onRelease"
+      ]
+    },
+    {
+      "token": 3,
+      "id": "chat-suggestion:1",
+      "data": {
+        "suggestionIndex": 1
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 14,
+        "width": 88,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 14,
+          "width": 88,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onRelease"
+      ]
+    }
+  ]
+}
