@@ -283,11 +283,24 @@ ProgressBar({ value, total, width, label, variant })
 
 Renders a Unicode progress bar with eighth-cell precision. `variant` supports:
 
-- `compact` (default): block fill with a shaded `░` remainder;
+- `compact` (default): block fill with an unpainted remainder;
 - `line`: block fill with a continuous `─` remainder;
+- `inset`: a one-row UI-style bar with subtle side caps and a lower `▁` rail behind the unfilled portion;
 - `boxed`: a bordered three-row bar with the label and percentage in its top border.
 
-The `compact` and `line` variants occupy one layout row. `boxed` occupies three real layout rows, so columns, rows, panels, clipping, and height measurement account for it normally.
+The `compact`, `line`, and `inset` variants occupy one layout row. `boxed` occupies three real layout rows, so columns, rows, panels, clipping, and height measurement account for it normally.
+
+
+### ProgressStatus
+
+```js
+const progress = ProgressStatus.create({ total, unit, invalidate, updateIntervalMs });
+ProgressStatus({ progress, label, width, variant, frame, format, rateMode });
+```
+
+Renders lifecycle state, value, rolling throughput, active elapsed time and ETA above the existing `ProgressBar` variants. The controller exposes `start`, `set`, `add`, `setTotal`, `pause`, `resume`, `complete`, `fail`, `cancel`, `reset`, `setInvalidate`, `snapshot` and `dispose`.
+
+Intermediate invalidation requests are throttled by `updateIntervalMs`; the first update and lifecycle transitions render immediately. See [Progress status and controllers](progress-status.md) for task integration, batching and deterministic testing.
 
 ### Spinner
 
@@ -511,8 +524,11 @@ KeyValueBlock({ title, rows })
 ### LiveJobBlock
 
 ```js
-LiveJobBlock({ title, status, steps, activeIndex, progress, frame })
+LiveJobBlock({ title, status, steps, activeIndex, progress, frame, progressVariant, showProgressDetails })
 ```
+
+`progress` may be a numeric percentage or a controller returned by `ProgressStatus.create()`. With a controller, the block derives lifecycle state, value and total automatically. Set `showProgressDetails: true` to include throughput, elapsed time and ETA.
+
 
 ### Timeline
 

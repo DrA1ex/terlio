@@ -44,6 +44,7 @@ export {
   Modal,
   Toast,
   ProgressBar,
+  ProgressStatus,
   Spinner,
   HelpOverlay,
   Badge,

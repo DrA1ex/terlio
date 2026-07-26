@@ -1,6 +1,7 @@
 import { Box, Column, Row, Text } from './node.js';
 import { visibleLength } from '../ansi/text.js';
-import { ProgressBar, Spinner } from './components/index.js';
+import { ProgressBar, ProgressStatus, Spinner } from './components/index.js';
+import { isProgressController, progressSnapshot } from '../progressStatus.js';
 
 export function MetricBlock({ title = ' Metric ', value = '', detail = '', status = '', pulse = false } = {}) {
   const prefix = pulse ? '● ' : '';
@@ -21,14 +22,42 @@ export function KeyValueBlock({ title = ' Details ', rows = [] } = {}) {
   return Box({ border: true, padding: { left: 1, right: 1 }, title }, ...(rendered.length ? rendered : [Text('No details.')]));
 }
 
-export function LiveJobBlock({ title = ' Job ', status = 'idle', steps = [], activeIndex = 0, progress = 0, frame = 0, running = status === 'running' } = {}) {
+export function LiveJobBlock({
+  title = ' Job ',
+  status = null,
+  steps = [],
+  activeIndex = 0,
+  progress = 0,
+  frame = 0,
+  running = null,
+  progressVariant = 'compact',
+  showProgressDetails = false,
+} = {}) {
+  const snapshot = progressSnapshot(progress, { total: 100, state: status ?? 'idle' });
+  const effectiveStatus = status ?? snapshot.state;
+  const effectiveRunning = running ?? effectiveStatus === 'running';
   const rows = steps.map((step, index) => {
-    const marker = index < activeIndex ? '✓' : index === activeIndex && running ? '…' : '·';
+    const marker = index < activeIndex ? '✓' : index === activeIndex && effectiveRunning ? '…' : '·';
     return Text(`${marker} ${step}`);
   });
-  const statusIcon = running ? Spinner({ frame, label: status }) : Text(`${statusGlyph(status)} ${status}`);
+  const statusIcon = effectiveRunning ? Spinner({ frame, label: effectiveStatus }) : Text(`${statusGlyph(effectiveStatus)} ${effectiveStatus}`);
+  const progressNode = showProgressDetails && isProgressController(progress)
+    ? ProgressStatus({
+      progress,
+      width: 18,
+      variant: progressVariant,
+      frame,
+      showState: false,
+      showValue: true,
+      showRate: true,
+      showElapsed: true,
+      showEta: true,
+    })
+    : ProgressBar({ value: snapshot.value, total: snapshot.total, width: 18, grow: true, variant: progressVariant });
   return Box({ border: true, padding: { left: 1, right: 1 }, title },
-    Row({ gap: 2 }, statusIcon, ProgressBar({ value: progress, total: 100, width: 18, grow: true })),
+    showProgressDetails && isProgressController(progress)
+      ? Column({ gap: 0 }, statusIcon, progressNode)
+      : Row({ gap: 2 }, statusIcon, progressNode),
     Column(...rows),
   );
 }

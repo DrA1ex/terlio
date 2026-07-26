@@ -85,7 +85,7 @@ test('all example:kit screens keep the local controls panel visible at 136x39', 
 
 test('showcase navigation wraps long entries into reserved second rows', () => {
   const state = createInteractionKitState();
-  select(state, 11);
+  select(state, 12);
   state.focus.focus('nav');
   const output = render(state, 136, 39);
   assert.match(output, /Structured Assistant\s+│/);
@@ -180,7 +180,7 @@ test('previously reported screen-specific behaviors remain functional', () => {
   assert.equal(progress.running, false);
   assert.match(render(state), /✓ completed/);
 
-  select(state, 10);
+  select(state, 11);
   const timeline = state.showcaseState['timeline-activity-feeds'];
   for (let index = 0; index < 20; index += 1) {
     handleInteractionKitKey({ key: { name: 'a', printable: true, text: 'a' }, state, runtime });
@@ -188,16 +188,16 @@ test('previously reported screen-specific behaviors remain functional', () => {
   handleInteractionKitKey({ key: { name: 'page-down' }, state, runtime });
   assert.ok(timeline.selected >= 8);
 
-  select(state, 11);
+  select(state, 12);
   assert.doesNotMatch(render(state), /regenerate/i);
   assert.doesNotMatch(render(state), /─…|…─/);
 
-  select(state, 12);
+  select(state, 13);
   const responsiveOutput = render(state);
   assert.match(responsiveOutput, /terminal width\s+136/);
   assert.doesNotMatch(responsiveOutput, /terminal width\s+0/);
 
-  select(state, 13);
+  select(state, 14);
   const focus = state.showcaseState['focus-and-modes'];
   assert.deepEqual(focus.modes.stack.map((entry) => entry.name), ['root']);
   handleInteractionKitKey({ key: { name: 'm', printable: true, text: 'm' }, state, runtime });
@@ -205,7 +205,7 @@ test('previously reported screen-specific behaviors remain functional', () => {
   assert.equal(focus.modes.current(), 'root');
   assert.equal(focus.focus.current(), 'nav');
 
-  select(state, 14);
+  select(state, 15);
   const frames = state.showcaseState['runtime-frames-diff'];
   const previous = frames.previous;
   handleInteractionKitKey({ key: { name: 'w', printable: true, text: 'w' }, state, runtime });
@@ -213,4 +213,41 @@ test('previously reported screen-specific behaviors remain functional', () => {
   assert.equal(frames.nextLong, true);
   handleInteractionKitKey({ key: { name: 'n', printable: true, text: 'n' }, state, runtime });
   assert.equal(frames.previousLong, true);
+});
+
+test('progress status showcase demonstrates controller lifecycle, batching and rate details', () => {
+  const state = createInteractionKitState();
+  const index = state.list.items.findIndex((item) => item.id === 'progress-status-controller');
+  assert.ok(index >= 0);
+  select(state, index);
+  state.focus.focus('preview');
+
+  const demo = state.showcaseState['progress-status-controller'];
+  const initialValue = demo.download.value;
+  for (let tick = 0; tick < 4; tick += 1) tickInteractionKit({ state });
+  assert.ok(demo.download.value > initialValue);
+  assert.equal(demo.batch.value, 1);
+
+  let output = render(state);
+  assert.match(output, /Progress Status and Batching/);
+  assert.match(output, /MiB\/s/);
+  assert.match(output, /left/);
+  assert.match(output, /Controller-backed job/);
+
+  handleInteractionKitKey({ key: { name: 'space', printable: true, text: ' ' }, state, runtime });
+  assert.equal(demo.download.state, 'paused');
+  const pausedValue = demo.download.value;
+  tickInteractionKit({ state });
+  assert.equal(demo.download.value, pausedValue);
+
+  handleInteractionKitKey({ key: { name: 'b', printable: true, text: 'b' }, state, runtime });
+  assert.equal(demo.batch.value, 2);
+  handleInteractionKitKey({ key: { name: 'f', printable: true, text: 'f' }, state, runtime });
+  assert.equal(demo.download.state, 'failed');
+  output = render(state);
+  assert.match(output, /failed: simulated network failure/);
+
+  handleInteractionKitKey({ key: { name: 'r', printable: true, text: 'r' }, state, runtime });
+  assert.equal(demo.download.state, 'running');
+  assert.equal(demo.download.value, 0);
 });

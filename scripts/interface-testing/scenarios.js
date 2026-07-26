@@ -26,6 +26,7 @@ import {
   Panel,
   PointerRegion,
   ProgressBar,
+  ProgressStatus,
   PropertyRows,
   RequireViewport,
   Row,
@@ -59,7 +60,7 @@ import {
 export const VISUAL_COMPONENTS = Object.freeze([
   'Text', 'Box', 'Panel', 'Row', 'Column', 'PointerRegion',
   'SplitPane', 'Docked', 'BottomOverlay', 'RequireViewport',
-  'SelectList', 'ConfirmPrompt', 'Modal', 'Toast', 'ProgressBar', 'Spinner',
+  'SelectList', 'ConfirmPrompt', 'Modal', 'Toast', 'ProgressBar', 'ProgressStatus', 'Spinner',
   'HelpOverlay', 'Badge', 'Chip', 'SectionTabs', 'CommandBar', 'FooterStatusBar',
   'Grid', 'PropertyRows', 'ChipLine', 'TextEditorView', 'ScrollPane',
   'SelectableText', 'SyntaxText', 'ChatScreen', 'ChatHeader', 'ChatTranscript',
@@ -202,7 +203,7 @@ export const INTERFACE_SCENARIOS = Object.freeze([
     title: 'Feedback and progress states',
     width: 72,
     height: 20,
-    covers: ['ConfirmPrompt', 'Modal', 'Toast', 'ProgressBar', 'Spinner', 'HelpOverlay'],
+    covers: ['ConfirmPrompt', 'Modal', 'Toast', 'ProgressBar', 'ProgressStatus', 'Spinner', 'HelpOverlay'],
     render: () => Column({ height: 20 },
       Row({ gap: 2, widths: [34, 36] },
         ConfirmPrompt({ message: 'Apply generated patch?', selected: 'cancel', confirmLabel: 'Apply', cancelLabel: 'Review' }),
@@ -212,6 +213,7 @@ export const INTERFACE_SCENARIOS = Object.freeze([
         Column(
           Spinner({ frame: 3, label: 'Indexing workspace' }),
           ProgressBar({ value: 63, total: 100, width: 18, label: 'Coverage' }),
+          ProgressStatus({ progress: { value: 42, total: 80, state: 'running', elapsedMs: 12000, rate: 3.5, etaMs: 10857, unit: 'files' }, width: 15, label: 'Batch', showState: false, showElapsed: false, showEta: false }),
         ),
         HelpOverlay({ shortcuts: [['↑/↓', 'move'], ['Enter', 'accept'], ['Esc', 'close']] }),
       ),

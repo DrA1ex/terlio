@@ -7,6 +7,7 @@ Terlio.js is a dependency-free declarative terminal UI framework for Node.js.
 - [Getting started](getting-started.md) — installation, package examples, first render and first managed workspace.
 - [UI runtime](ui-runtime.md) — node tree, layout rules, frames, diff rendering and sizing.
 - [Components](components.md) — lists, overlays, editors, scroll panes, live blocks and workspace layouts.
+- [Progress status and controllers](progress-status.md) — controller-owned progress, throughput, ETA, batching and throttled invalidation.
 - [Interactive apps](interactive-apps.md) — input, focus, modes, actions, command palette, scrolling, toasts and sessions.
 - [Structured output](structured-output.md) — assistant blocks, chat rendering, providers, streaming and message state.
 - [Syntax highlighting](syntax-highlighting.md) — opt-in zero-dependency highlighting, detection and theme tokens.

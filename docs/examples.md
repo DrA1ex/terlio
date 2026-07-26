@@ -89,7 +89,7 @@ npx terlio.js example:long-text --lines=50000
 npx terlio.js example:kit
 ```
 
-An interactive catalog with clickable tabs, lists, panes and wheel-scrollable surfaces covering layout, workspace composition, lists, command palettes, editor mechanics, overlays, scrolling, progress, timelines, semantic themes, focus and frame diffs.
+An interactive catalog with clickable tabs, lists, panes and wheel-scrollable surfaces covering layout, workspace composition, lists, command palettes, editor mechanics, overlays, scrolling, progress-bar variants, controller-owned progress status, batching, timelines, semantic themes, focus and frame diffs.
 
 ### Key Inspector — `example:keys`
 

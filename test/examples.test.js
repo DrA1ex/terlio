@@ -362,6 +362,7 @@ test('interaction kit uses action registry, palette, theme switching and local p
   assert.match(output, /Progress and Live Jobs/);
   assert.match(output, /compact \[██████████████████████████\] 100%/);
   assert.match(output, /line track \[██████████████████████████\] 100%/);
+  assert.match(output, /inset rail ▏██████████████████████████▕ 100%/);
   assert.match(output, /┌ boxed .* 100% ┐/);
   assert.match(output, /└─+┘/);
   assert.match(output, /LOCAL CONTROLS/);
@@ -396,8 +397,8 @@ test('interaction kit polish fixes local ownership for workspace, feedback and s
   handleInteractionKitKey({ key: { name: 'escape' }, state, runtime: { exit() {} } });
   assert.equal(state.overlays.hasBlocking(), false);
 
-  state.selectedShowcaseIndex = 11;
-  state.list.selectedIndex = 11;
+  state.selectedShowcaseIndex = 12;
+  state.list.selectedIndex = 12;
   const structured = state.showcaseState['structured-assistant-blocks'];
   const before = structured.scroll.scroll;
   handleInteractionKitKey({ key: { name: 'page-down' }, state, runtime: { exit() {} } });
@@ -419,8 +420,8 @@ test('interaction kit polish fixes progress, focus debugger and runtime diff int
   const progressOutput = renderToString(createInteractionKitView({ state, width: 128, height: 35 }), { width: 128, height: 35 });
   assert.match(progressOutput, /✓ completed/);
 
-  state.selectedShowcaseIndex = 13;
-  state.list.selectedIndex = 13;
+  state.selectedShowcaseIndex = 14;
+  state.list.selectedIndex = 14;
   const focusDemo = state.showcaseState['focus-and-modes'];
   const originalFocus = focusDemo.focus.current();
   handleInteractionKitKey({ key: { name: 'tab' }, state, runtime: { exit() {} } });
@@ -431,8 +432,8 @@ test('interaction kit polish fixes progress, focus debugger and runtime diff int
   handleInteractionKitKey({ key: { name: 'd', printable: true, text: 'd' }, state, runtime: { exit() {} } });
   assert.equal(focusDemo.focus.isEnabled('preview'), false);
 
-  state.selectedShowcaseIndex = 14;
-  state.list.selectedIndex = 14;
+  state.selectedShowcaseIndex = 15;
+  state.list.selectedIndex = 15;
   const runtimeDemo = state.showcaseState['runtime-frames-diff'];
   handleInteractionKitKey({ key: { name: 'd', printable: true, text: 'd' }, state, runtime: { exit() {} } });
   assert.equal(runtimeDemo.patchMode, 'full repaint');

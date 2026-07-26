@@ -4,11 +4,14 @@ import { fit } from './utils.js';
 
 const PARTIAL_BLOCKS = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'];
 const FULL_BLOCK = '█';
-const SHADED_TRACK = '░';
+const EMPTY_TRACK = ' ';
 const LINE_TRACK = '─';
+const INSET_TRACK = '▁';
+const INSET_LEFT = '▏';
+const INSET_RIGHT = '▕';
 const BOX_HORIZONTAL = '─';
 const UNITS_PER_CELL = 8;
-const PROGRESS_VARIANTS = new Set(['compact', 'line', 'boxed']);
+const PROGRESS_VARIANTS = new Set(['compact', 'line', 'inset', 'boxed']);
 
 export function renderProgressBar(node, assignedWidth) {
   const available = Math.max(1, Number(assignedWidth) || 1);
@@ -29,19 +32,23 @@ export function renderProgressBar(node, assignedWidth) {
     }));
   }
 
-  const trackGlyph = variant === 'line' ? LINE_TRACK : SHADED_TRACK;
-  const labeled = renderProgressLine({ ratio, requestedBarWidth, pct, label, available, trackGlyph });
-  const line = labeled ?? renderProgressLine({ ratio, requestedBarWidth, pct, label: '', available, trackGlyph }) ?? pct;
+  const style = variant === 'line'
+    ? { trackGlyph: LINE_TRACK, open: '[', close: ']' }
+    : variant === 'inset'
+      ? { trackGlyph: INSET_TRACK, open: INSET_LEFT, close: INSET_RIGHT }
+      : { trackGlyph: EMPTY_TRACK, open: '[', close: ']' };
+  const labeled = renderProgressLine({ ratio, requestedBarWidth, pct, label, available, ...style });
+  const line = labeled ?? renderProgressLine({ ratio, requestedBarWidth, pct, label: '', available, ...style }) ?? pct;
   return createLayoutResult([fit(line, available)]);
 }
 
-function renderProgressLine({ ratio, requestedBarWidth, pct, label, available, trackGlyph }) {
+function renderProgressLine({ ratio, requestedBarWidth, pct, label, available, trackGlyph, open, close }) {
   const prefix = label ? `${label} ` : '';
-  const overhead = visibleLength(prefix) + 2 + 1 + visibleLength(pct);
+  const overhead = visibleLength(prefix) + visibleLength(open) + visibleLength(close) + 1 + visibleLength(pct);
   const barWidth = Math.min(requestedBarWidth, available - overhead);
   if (barWidth < 1) return null;
   const bar = renderSmoothBar(ratio, barWidth, trackGlyph);
-  return `${prefix}[${bar}] ${pct}`;
+  return `${prefix}${open}${bar}${close} ${pct}`;
 }
 
 function renderBoxedProgress({ ratio, requestedBarWidth, pct, label, available }) {

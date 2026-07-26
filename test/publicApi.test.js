@@ -42,6 +42,7 @@ test('library entry exports terminal app and low-level building blocks', () => {
     'Modal',
     'Toast',
     'ProgressBar',
+    'ProgressStatus',
     'Spinner',
     'ModeManager',
     'createCommandPaletteState',
@@ -60,6 +61,7 @@ test('library entry exports terminal app and low-level building blocks', () => {
   ]) {
     assert.equal(typeof api[name], 'function', `${name} should be exported`);
   }
+  assert.equal(typeof api.ProgressStatus.create, 'function');
   assert.ok(Array.isArray(api.SUPPORTED_SYNTAX_LANGUAGES));
   assert.ok(Array.isArray(api.SYNTAX_TOKEN_TYPES));
 });

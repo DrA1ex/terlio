@@ -1,6 +1,7 @@
 import { visibleLength, truncateVisible } from '../../ansi/text.js';
 import { Box, Column, Panel, Row, Text, createNode } from '../node.js';
 import { mod } from './utils.js';
+import { createProgressController, formatProgressDuration, formatProgressRate, formatProgressValue, isProgressController, progressSnapshot } from '../../progressStatus.js';
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
@@ -89,6 +90,71 @@ export function ProgressBar({ value = 0, total = 100, width = 24, label = '', gr
   return createNode('progressBar', { value, total, width, label, grow, variant }, []);
 }
 
+
+export function ProgressStatus({
+  progress = null,
+  value = 0,
+  total = 100,
+  label = '',
+  width = 24,
+  variant = 'inset',
+  frame = 0,
+  unit = '',
+  format = null,
+  precision = null,
+  formatValue = null,
+  formatRate = null,
+  rateMode = null,
+  perItemLabel = null,
+  showState = true,
+  showValue = true,
+  showRate = true,
+  showElapsed = true,
+  showEta = true,
+  compact = false,
+} = {}) {
+  const snapshot = progressSnapshot(progress ?? { value, total, unit }, { value, total, unit });
+  const controller = isProgressController(progress) ? progress : null;
+  const effectiveUnit = String(unit || snapshot.unit || controller?.unit || '');
+  const effectiveFormat = formatValue || format || controller?.format || 'number';
+  const effectivePrecision = precision ?? controller?.precision ?? 1;
+  const effectiveRateMode = rateMode || controller?.rateMode || 'auto';
+  const effectivePerItemLabel = perItemLabel || controller?.perItemLabel || 'item';
+  const valueOptions = { unit: effectiveUnit, format: effectiveFormat, precision: effectivePrecision };
+  const details = [];
+
+  if (showState) details.push(progressStateLabel(snapshot.state, snapshot.error));
+  if (showValue) {
+    const repeatUnit = effectiveFormat === 'bytes' || typeof effectiveFormat === 'function';
+    const current = formatProgressValue(snapshot.value, { ...valueOptions, unit: repeatUnit ? effectiveUnit : '' });
+    const maximum = Number.isFinite(snapshot.total) ? formatProgressValue(snapshot.total, valueOptions) : 'unknown';
+    details.push(`${current}/${maximum}`);
+  }
+  if (showRate) details.push(formatProgressRate(snapshot.rate, { ...valueOptions, formatRate, rateMode: effectiveRateMode, perItemLabel: effectivePerItemLabel }));
+  if (showElapsed) details.push(`${formatProgressDuration(snapshot.elapsedMs)} elapsed`);
+  if (showEta && snapshot.etaMs !== null && snapshot.state === 'running') details.push(`${formatProgressDuration(snapshot.etaMs)} left`);
+
+  const bar = ProgressBar({
+    value: snapshot.value,
+    total: Number.isFinite(snapshot.total) ? snapshot.total : Math.max(1, snapshot.value),
+    width,
+    label,
+    variant,
+    grow: true,
+  });
+
+  if (compact || details.length === 0) return bar;
+  const headline = showState
+    ? Row({ gap: 1 }, snapshot.state === 'running' ? Spinner({ frame, label: '' }) : Text(progressStateGlyph(snapshot.state)), bar)
+    : bar;
+  return Column({ gap: 0 },
+    headline,
+    Text(details.join(' · '), { wrap: false }),
+  );
+}
+
+ProgressStatus.create = createProgressController;
+
 export function Spinner({ frame = 0, label = '' } = {}) {
   const glyph = SPINNER_FRAMES[mod(Number(frame) || 0, SPINNER_FRAMES.length)];
   return Text(`${glyph}${label ? ` ${label}` : ''}`);
@@ -97,6 +163,21 @@ export function Spinner({ frame = 0, label = '' } = {}) {
 export function HelpOverlay({ title = ' Help ', shortcuts = [] } = {}) {
   const rows = shortcuts.map(([key, description]) => Text(`${String(key).padEnd(14)} ${description}`));
   return Panel(title, ...(rows.length ? rows : [Text('No shortcuts registered.')]));
+}
+
+
+function progressStateGlyph(state) {
+  if (state === 'completed') return '✓';
+  if (state === 'paused') return 'Ⅱ';
+  if (state === 'failed') return '×';
+  if (state === 'cancelled') return '−';
+  if (state === 'running') return '…';
+  return '·';
+}
+
+function progressStateLabel(state, error) {
+  if (state === 'failed' && error) return `failed: ${error.message || String(error)}`;
+  return state;
 }
 
 function toastStyle(level, theme, active) {
