@@ -58,15 +58,16 @@ function resolveColumns({ requested, count, width, gap, minColumnWidth, maxColum
     return Math.max(1, Math.min(count, Number(requested) || 1));
   }
   const safeMin = Math.max(12, Number(minColumnWidth) || 22);
-  const maxByWidth = Math.max(1, Math.floor((width + gap) / (safeMin + gap)));
-  const safeMax = Math.max(1, Math.min(count, Number(maxColumns) || 3, maxByWidth));
-  let best = { columns: 1, height: Infinity, wrapped: Infinity };
+  const configuredMax = maxColumns === 'auto' ? count : Math.max(1, Number(maxColumns) || 3);
+  const safeMax = Math.max(1, Math.min(count, configuredMax));
+  let best = { columns: 1, height: Infinity, wrapped: Infinity, narrow: Infinity };
 
   for (let columns = 1; columns <= safeMax; columns += 1) {
     const available = Math.max(1, width - gap * Math.max(0, columns - 1));
     const columnWidths = distribute(available, columns);
     let height = 0;
     let wrapped = 0;
+    const narrow = columnWidths.filter((columnWidth) => columnWidth < safeMin).length;
     for (let index = 0; index < hints.length; index += columns) {
       let rowHeight = 1;
       for (let column = 0; column < columns; column += 1) {
@@ -81,8 +82,9 @@ function resolveColumns({ requested, count, width, gap, minColumnWidth, maxColum
     }
     if (height < best.height
       || (height === best.height && wrapped < best.wrapped)
-      || (height === best.height && wrapped === best.wrapped && columns > best.columns)) {
-      best = { columns, height, wrapped };
+      || (height === best.height && wrapped === best.wrapped && narrow < best.narrow)
+      || (height === best.height && wrapped === best.wrapped && narrow === best.narrow && columns > best.columns)) {
+      best = { columns, height, wrapped, narrow };
     }
   }
   return best.columns;

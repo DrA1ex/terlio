@@ -217,12 +217,11 @@ function renderNavPane({ state, theme, height }) {
         title: 'Entries',
         items: SHOWCASES,
         selectedIndex: state.selectedShowcaseIndex,
-        windowSize: Math.max(2, Math.floor((listHeight - 5) / 2)),
+        windowSize: 'auto',
         getLabel: (item) => item.title,
         getDescription: (item) => item.category,
         wrapItems: true,
-        rowLines: 2,
-        reserveItemLines: true,
+        maxItemLines: 2,
         theme,
         pointerId: 'kit:showcases',
         onSelect: (_entry, index) => {
@@ -264,7 +263,7 @@ function renderPreviewPane({ state, entry, theme, width, height }) {
     columns: 'auto',
     adaptive: true,
     minColumnWidth: 20,
-    maxColumns: 3,
+    maxColumns: 'auto',
     theme,
   });
   const paneInnerWidth = Math.max(1, width - 4);
@@ -800,7 +799,7 @@ const SHOWCASES = [
 
 
 
-function scrollStateByWheel(scrollState, event, step = 3) {
+function scrollStateByWheel(scrollState, event, step = 1) {
   const max = Math.max(0, Number(scrollState.totalRows || 0) - Number(scrollState.visibleRows || 0));
   const delta = event.deltaY < 0 ? -step : step;
   scrollState.scroll = clamp(Number(scrollState.scroll || 0) + delta, 0, max);

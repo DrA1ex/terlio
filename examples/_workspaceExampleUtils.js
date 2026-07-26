@@ -80,7 +80,7 @@ export function scrollOffset(current = 0, delta = 0, totalRows = 0, visibleRows 
   return Math.max(0, Math.min(max, (Number(current) || 0) + (Number(delta) || 0)));
 }
 
-export function wheelScrollDelta(event, step = 3) {
+export function wheelScrollDelta(event, step = 1) {
   const delta = Number(event?.deltaY) || 0;
   if (!delta) return 0;
   return (delta < 0 ? -1 : 1) * Math.max(1, Number(step) || 1);

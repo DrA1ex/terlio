@@ -249,7 +249,7 @@ function ticketView({ state, ticket, theme, mode, width, height = 24 }) {
     title: threadTitle,
     height: metrics.threadHeight,
     pointerId: 'support:ticket-thread',
-    onWheel: (event) => { scrollSupportPanel(state, 'ticketThread', event.deltaY < 0 ? 3 : -3); event.preventDefault(); },
+    onWheel: (event) => { scrollSupportPanel(state, 'ticketThread', event.deltaY < 0 ? 1 : -1); event.preventDefault(); },
     onClick: () => { state.focus = 'work'; },
   }, Lines(window.lines));
 
@@ -307,7 +307,7 @@ function replyView({ state, ticket, theme, mode, width, height = 24 }) {
   const editorHeight = Math.max(5, Math.min(mode === 'wide' ? 10 : 8, height - 16));
   const previewHeight = Math.max(2, Math.min(5, height - editorHeight - 14));
 
-  return pane({ title: `${state.focus === 'work' || state.focus === 'composer' ? '▶' : ' '} REPLY TO ${ticket.id} `, theme, active: state.focus === 'work' || state.focus === 'composer', height, pointerId: 'support:reply', onClick: () => { state.focus = 'work'; }, onWheel: (event) => { scrollSupportPanel(state, 'reply', event.deltaY < 0 ? -3 : 3); event.preventDefault(); } },
+  return pane({ title: `${state.focus === 'work' || state.focus === 'composer' ? '▶' : ' '} REPLY TO ${ticket.id} `, theme, active: state.focus === 'work' || state.focus === 'composer', height, pointerId: 'support:reply', onClick: () => { state.focus = 'work'; }, onWheel: (event) => { scrollSupportPanel(state, 'reply', event.deltaY < 0 ? -1 : 1); event.preventDefault(); } },
     Text(`${color(theme, 'title', truncateVisible(ticket.subject, Math.max(20, inner - 34)))}  ${color(theme, 'ok', '●')} Autosaved ${clockTime()}  Tone ${tag('Empathetic ▾', theme, 'accent')}`, { wrap: false }),
     Text(`Template  ${templateNames.map((name) => tag(name, theme, state.composerTemplate === name ? 'ok' : 'muted')).join(' ')}`, { wrap: false }),
     divider(theme, inner),
@@ -338,7 +338,7 @@ function customerFocusView({ state, ticket, theme, width, height = 24 }) {
     title: ' CUSTOMER PROFILE ',
     pointerId: 'support:customer',
     onClick: () => { state.focus = 'work'; },
-    onWheel: (event) => { scrollSupportPanel(state, 'customer', event.deltaY < 0 ? -3 : 3); event.preventDefault(); },
+    onWheel: (event) => { scrollSupportPanel(state, 'customer', event.deltaY < 0 ? -1 : 1); event.preventDefault(); },
   });
 }
 
@@ -380,7 +380,7 @@ function activityFocusView({ state, ticket, theme, width, mode, height = 24 }) {
 function contextRail({ state, theme, width, height = 30 }) {
   const active = state.focus === 'rail';
   const content = contextRailContent({ state, theme, width });
-  return scrollRenderedNode({ node: content, width, height, scroll: state.scroll?.rail || 0, theme, active, title: ' CONTEXT ', pointerId: 'support:rail', onClick: () => { state.focus = 'rail'; }, onWheel: (event) => { scrollSupportPanel(state, 'rail', event.deltaY < 0 ? -3 : 3); event.preventDefault(); } });
+  return scrollRenderedNode({ node: content, width, height, scroll: state.scroll?.rail || 0, theme, active, title: ' CONTEXT ', pointerId: 'support:rail', onClick: () => { state.focus = 'rail'; }, onWheel: (event) => { scrollSupportPanel(state, 'rail', event.deltaY < 0 ? -1 : 1); event.preventDefault(); } });
 }
 
 function contextRailContent({ state, theme, width }) {

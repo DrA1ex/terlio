@@ -32,13 +32,15 @@ test('code review wheel scrolls commit rows without changing selection until it 
 
   let view = renderCommits(state);
   dispatchPointerEvent(wheel(view.region, 1), view.frame.pointerRegions);
-  assert.equal(state.paneScroll.commits, 3);
-  assert.equal(state.selectedCommitIndex, 0, 'partially visible selection should stay selected');
+  assert.equal(state.paneScroll.commits, 1);
+  assert.equal(state.selectedCommitIndex, 0, 'one wheel step should move one row without changing a still-visible selection');
 
-  view = renderCommits(state);
-  dispatchPointerEvent(wheel(view.region, 1), view.frame.pointerRegions);
-  assert.equal(state.paneScroll.commits, 6);
-  assert.equal(state.selectedCommitIndex, 1, 'scrolling down should anchor selection to the first visible item only after the old selection disappears');
+  for (let step = 0; step < 4; step += 1) {
+    view = renderCommits(state);
+    dispatchPointerEvent(wheel(view.region, 1), view.frame.pointerRegions);
+  }
+  assert.equal(state.paneScroll.commits, 5);
+  assert.equal(state.selectedCommitIndex, 1, 'selection should move only after the old row leaves the viewport');
 
   state.selectedCommitIndex = 2;
   state.commitSelectionNeedsReveal = false;
@@ -46,11 +48,13 @@ test('code review wheel scrolls commit rows without changing selection until it 
 
   view = renderCommits(state);
   dispatchPointerEvent(wheel(view.region, -1), view.frame.pointerRegions);
-  assert.equal(state.paneScroll.commits, 5);
-  assert.equal(state.selectedCommitIndex, 2, 'partially visible lower selection should stay selected');
+  assert.equal(state.paneScroll.commits, 7);
+  assert.equal(state.selectedCommitIndex, 2, 'one upward wheel step should keep a partially visible selection');
 
-  view = renderCommits(state);
-  dispatchPointerEvent(wheel(view.region, -1), view.frame.pointerRegions);
-  assert.equal(state.paneScroll.commits, 2);
-  assert.equal(state.selectedCommitIndex, 1, 'scrolling up should anchor selection to the last visible item after the old selection disappears');
+  for (let step = 0; step < 4; step += 1) {
+    view = renderCommits(state);
+    dispatchPointerEvent(wheel(view.region, -1), view.frame.pointerRegions);
+  }
+  assert.equal(state.paneScroll.commits, 3);
+  assert.equal(state.selectedCommitIndex, 1, 'selection should anchor to the last visible item after the old row disappears');
 });

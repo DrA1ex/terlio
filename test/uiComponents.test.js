@@ -66,6 +66,54 @@ test('SelectList renders a scrollable selected window', () => {
 
 
 
+test('SelectList auto window fills a fixed height with one-row items and wraps only long items', () => {
+  const output = stripAnsi(renderToString(SelectList({
+    title: 'Entries',
+    items: [
+      { title: 'Short', category: 'Start' },
+      { title: 'A longer showcase entry that needs another row', category: 'Navigation' },
+      { title: 'Next', category: 'Feedback' },
+      { title: 'Last', category: 'Runtime' },
+    ],
+    getLabel: (item) => item.title,
+    getDescription: (item) => item.category,
+    selectedIndex: 0,
+    windowSize: 'auto',
+    maxItemLines: 2,
+    height: 8,
+  }), { width: 34, height: 8 }));
+  const lines = output.split('\n');
+
+  const shortRow = lines.findIndex((line) => line.includes('Short — Start'));
+  const longRow = lines.findIndex((line) => line.includes('A longer showcase entry'));
+  assert.ok(shortRow > 0);
+  assert.equal(longRow, shortRow + 1, 'short entries should not reserve an empty second row');
+  assert.match(lines[longRow + 1], /another row|Navigation/);
+  assert.match(output, /Next — Feedback/);
+  assert.equal(lines.length, 8);
+});
+
+test('adaptive KeyHintBar expands back to one row when all controls fit', () => {
+  const hints = [['Space', 'start/pause'], ['↑/↓ Pg', 'scroll'], ['r', 'reset'], ['f', 'finish']];
+  const narrow = stripAnsi(renderToString(KeyHintBar({
+    adaptive: true,
+    columns: 'auto',
+    maxColumns: 'auto',
+    minColumnWidth: 20,
+    hints,
+  }), { width: 60, height: 8 }));
+  const wide = stripAnsi(renderToString(KeyHintBar({
+    adaptive: true,
+    columns: 'auto',
+    maxColumns: 'auto',
+    minColumnWidth: 20,
+    hints,
+  }), { width: 80, height: 8 }));
+
+  assert.equal(narrow.split('\n').filter((line) => /start\/pause|reset/.test(line)).length, 2);
+  assert.match(wide, /Space start\/pause\s+↑\/↓ Pg scroll\s+r reset\s+f finish/);
+});
+
 test('SelectList can wrap long item labels into reserved item rows', () => {
   const output = stripAnsi(renderToString(SelectList({
     title: 'Entries',

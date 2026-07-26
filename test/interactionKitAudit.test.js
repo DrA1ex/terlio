@@ -7,6 +7,7 @@ import {
   WorkspacePane,
   createOverlayManager,
   renderNode,
+  renderToFrame,
   renderToString,
   stripAnsi,
   themes,
@@ -83,15 +84,24 @@ test('all example:kit screens keep the local controls panel visible at 136x39', 
   }
 });
 
-test('showcase navigation wraps long entries into reserved second rows', () => {
-  const state = createInteractionKitState();
-  select(state, 12);
-  state.focus.focus('nav');
-  const output = render(state, 136, 39);
-  assert.match(output, /Structured Assistant\s+│/);
-  assert.match(output, /Blocks — AI blocks/);
-  assert.match(output, /Runtime, Frames, and Diff/);
-  assert.match(output, /Rendering — Runtime/);
+test('showcase navigation uses one row when possible and wraps long entries to two', () => {
+  const firstState = createInteractionKitState();
+  firstState.focus.focus('nav');
+  const firstOutput = render(firstState, 136, 39);
+  const firstLines = firstOutput.split('\n');
+  const welcomeRow = firstLines.findIndex((line) => line.includes('Welcome / Tour Map — Start'));
+  const layoutRow = firstLines.findIndex((line) => line.includes('Layout Primitives — Layout'));
+  assert.ok(welcomeRow > 0);
+  assert.equal(layoutRow, welcomeRow + 1, 'one-row entries should be adjacent without reserved blank rows');
+
+  const wrappedState = createInteractionKitState();
+  select(wrappedState, 12);
+  wrappedState.focus.focus('nav');
+  const wrappedOutput = render(wrappedState, 136, 39);
+  assert.match(wrappedOutput, /Structured Assistant\s+│/);
+  assert.match(wrappedOutput, /Blocks — AI blocks/);
+  assert.match(wrappedOutput, /Runtime, Frames, and Diff/);
+  assert.match(wrappedOutput, /Rendering — Runtime/);
 });
 
 test('showcase navigation keeps its selection footer docked across wrapped entries', () => {
@@ -106,6 +116,29 @@ test('showcase navigation keeps its selection footer docked across wrapped entri
     rows.push(footerRow);
   }
   assert.equal(new Set(rows).size, 1);
+});
+
+test('progress help returns Finish to the first row when width becomes available', () => {
+  const state = createInteractionKitState();
+  const index = state.list.items.findIndex((item) => item.id === 'progress-live-jobs');
+  select(state, index);
+
+  const narrow = render(state, 100, 39);
+  const wide = render(state, 120, 39);
+  assert.match(narrow, /Space start\/pause\s+↑\/↓ Pg scroll[\s\S]*r reset\s+f finish/);
+  assert.match(wide, /Space start\/pause\s+↑\/↓ Pg scroll\s+r reset\s+f finish/);
+});
+
+test('progress showcase mouse wheel scrolls exactly one row', () => {
+  const state = createInteractionKitState();
+  const index = state.list.items.findIndex((item) => item.id === 'progress-live-jobs');
+  select(state, index);
+  const frame = renderToFrame(createInteractionKitView({ state, width: 128, height: 35 }), { width: 128, height: 35 });
+  const region = frame.pointerRegions.find((item) => item.id === 'kit:progress-live-jobs-scroll');
+  assert.ok(region?.onWheel);
+  const before = state.showcaseState['progress-live-jobs'].scroll.scroll;
+  region.onWheel({ deltaY: 1, preventDefault() {} });
+  assert.equal(state.showcaseState['progress-live-jobs'].scroll.scroll, before + 1);
 });
 
 test('the last toast expires and invalidates the rendered frame', () => {

@@ -8,6 +8,13 @@ import { createStreamingWorkbenchState, createStreamingWorkbenchView, handleStre
 import { createComponentsShowcaseView, createDiffShowcase, renderComponentsShowcase } from '../examples/components-showcase.js';
 import { createInteractionKitState, createInteractionKitView, handleInteractionKitKey } from '../examples/interaction-kit.js';
 import { packageDisplayName } from '../src/lib/packageMetadata.js';
+import { wheelScrollDelta } from '../examples/_workspaceExampleUtils.js';
+
+test('shared example wheel scrolling defaults to one row', () => {
+  assert.equal(wheelScrollDelta({ deltaY: 1 }), 1);
+  assert.equal(wheelScrollDelta({ deltaY: -1 }), -1);
+  assert.equal(wheelScrollDelta({ deltaY: 1 }, 4), 4);
+});
 
 test('package exposes runnable example scripts', async () => {
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));

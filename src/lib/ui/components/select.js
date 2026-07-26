@@ -65,7 +65,8 @@ export function renderSelectList(node, width, renderNode) {
   const theme = props.theme ?? null;
   const normalized = Array.from(props.items ?? []).map((item, index) => normalizeItem(item, index, props));
   const selected = resolveSelectedIndex(normalized, props.selectedIndex);
-  const itemCount = Math.max(1, Number(props.windowSize) || 1);
+  const autoWindow = props.windowSize === 'auto';
+  const itemCount = autoWindow ? normalized.length : Math.max(1, Number(props.windowSize) || 1);
   const maxItemLines = Math.max(1, Number(props.rowLines ?? props.maxItemLines) || 3);
   const wrapItems = props.wrapItems !== false;
   const reserveItemLines = Boolean(props.reserveItemLines);
@@ -84,7 +85,25 @@ export function renderSelectList(node, width, renderNode) {
     }, ...rows.slice(0, itemCount)), width, renderNode);
   }
 
-  const window = resolveListWindow({ total: normalized.length, selected, rows: itemCount, start: props.windowStart });
+  const rowHeights = autoWindow && fixedHeight !== undefined
+    ? normalized.map((item, absolute) => measureItemRows({
+        item,
+        selected: absolute === selected,
+        theme,
+        width: innerWidth,
+        wrapItems,
+        maxItemLines,
+        reserveItemLines,
+      }))
+    : null;
+  const window = resolveListWindow({
+    total: normalized.length,
+    selected,
+    rows: itemCount,
+    start: props.windowStart,
+    rowHeights,
+    maxRows: autoWindow && fixedHeight !== undefined ? Math.max(1, fixedHeight - 2) : null,
+  });
   for (let absolute = window.start; absolute < window.end; absolute += 1) {
     const item = normalized[absolute];
     if (item.presentation) {
@@ -112,7 +131,9 @@ export function renderSelectList(node, width, renderNode) {
       onWheel: typeof props.onWheel === 'function' ? props.onWheel : null,
     }, ...rowNodes));
   }
-  const minRows = itemCount * (reserveItemLines ? maxItemLines : 1);
+  const minRows = autoWindow && fixedHeight !== undefined
+    ? Math.max(0, fixedHeight - 2)
+    : itemCount * (reserveItemLines ? maxItemLines : 1);
   while (rows.length < minRows) rows.push(Text('', { wrap: false }));
 
   const more = [window.above > 0 ? `↑${window.above}` : '', window.below > 0 ? `↓${window.below}` : ''].filter(Boolean).join(' ');
@@ -130,6 +151,15 @@ export function renderSelectList(node, width, renderNode) {
     pointerAutoEnable: props.pointerAutoEnable !== false,
     onWheel: typeof props.onWheel === 'function' ? props.onWheel : null,
   }, ...rows), width, renderNode);
+}
+
+
+function measureItemRows({ item, selected, theme, width, wrapItems, maxItemLines, reserveItemLines }) {
+  if (item.presentation) {
+    return formatPresentationRows({ item, theme, width, wrapItems, maxItemLines, reserveItemLines }).length;
+  }
+  const token = item.disabled ? 'textMuted' : selected ? 'selected' : 'text';
+  return formatItemRows({ item, selected, theme, token, width, wrapItems, maxItemLines, reserveItemLines }).length;
 }
 
 function formatItemRows({ item, selected, theme, token, width, wrapItems, maxItemLines, reserveItemLines }) {
@@ -169,7 +199,11 @@ function formatWrappedRows({ content, prefix, continuationPrefix, theme, token, 
   });
 }
 
-function resolveListWindow({ total, selected, rows, start = null }) {
+function resolveListWindow({ total, selected, rows, start = null, rowHeights = null, maxRows = null }) {
+  if (Array.isArray(rowHeights) && Number.isFinite(maxRows)) {
+    return resolveListWindowByRows({ total, selected, start, rowHeights, maxRows });
+  }
+
   const safeRows = Math.max(1, Number(rows) || 1);
   if (total <= safeRows) return { start: 0, end: total, above: 0, below: 0 };
   const maxStart = Math.max(0, total - safeRows);
@@ -178,6 +212,57 @@ function resolveListWindow({ total, selected, rows, start = null }) {
     ? clamp(anchor - Math.floor(safeRows / 2), 0, maxStart)
     : clamp(Number(start) || 0, 0, maxStart);
   const end = Math.min(total, resolvedStart + safeRows);
+  return { start: resolvedStart, end, above: resolvedStart, below: Math.max(0, total - end) };
+}
+
+function resolveListWindowByRows({ total, selected, start = null, rowHeights, maxRows }) {
+  if (!total) return { start: 0, end: 0, above: 0, below: 0 };
+  const safeMaxRows = Math.max(1, Number(maxRows) || 1);
+  const heightAt = (index) => Math.max(1, Number(rowHeights[index]) || 1);
+
+  if (start !== null && start !== undefined) {
+    const resolvedStart = clamp(Number(start) || 0, 0, Math.max(0, total - 1));
+    let end = resolvedStart;
+    let used = 0;
+    while (end < total) {
+      const next = heightAt(end);
+      if (end > resolvedStart && used + next > safeMaxRows) break;
+      used += next;
+      end += 1;
+      if (used >= safeMaxRows) break;
+    }
+    return { start: resolvedStart, end, above: resolvedStart, below: Math.max(0, total - end) };
+  }
+
+  const anchor = clamp(selected >= 0 ? selected : 0, 0, total - 1);
+  let resolvedStart = anchor;
+  let end = anchor + 1;
+  let used = heightAt(anchor);
+  let takeBefore = true;
+
+  while (resolvedStart > 0 || end < total) {
+    const beforeHeight = resolvedStart > 0 ? heightAt(resolvedStart - 1) : Infinity;
+    const afterHeight = end < total ? heightAt(end) : Infinity;
+    let added = false;
+
+    if (takeBefore && used + beforeHeight <= safeMaxRows) {
+      resolvedStart -= 1;
+      used += beforeHeight;
+      added = true;
+    } else if (used + afterHeight <= safeMaxRows) {
+      used += afterHeight;
+      end += 1;
+      added = true;
+    } else if (used + beforeHeight <= safeMaxRows) {
+      resolvedStart -= 1;
+      used += beforeHeight;
+      added = true;
+    }
+
+    if (!added) break;
+    takeBefore = !takeBefore;
+  }
+
   return { start: resolvedStart, end, above: resolvedStart, below: Math.max(0, total - end) };
 }
 

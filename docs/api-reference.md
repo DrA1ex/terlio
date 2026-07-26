@@ -228,7 +228,7 @@ SelectList({
   title,
   items,
   selectedIndex,
-  windowSize,
+  windowSize, // number or 'auto'
   windowStart,
   emptyText,
   getLabel,
@@ -247,7 +247,7 @@ SelectList({
 })
 ```
 
-Renders a scroll-windowed selectable list. Items use one terminal row when their label and description fit, then grow only as needed up to `maxItemLines`. Content that still does not fit is clipped with an ellipsis on the final row. `windowStart` lets scrolling move the visible item window independently from `selectedIndex`; this is useful when wheel scrolling should not change selection until the selected item leaves the viewport. `rowLines` remains a compatibility alias for `maxItemLines`, while `reserveItemLines: true` opts into fixed-height rows.
+Renders a scroll-windowed selectable list. Items use one terminal row when their label and description fit, then grow only as needed up to `maxItemLines`. Content that still does not fit is clipped with an ellipsis on the final row. Set `windowSize: 'auto'` when the list receives a fixed height: it fills the available row budget with as many variable-height items as fit while keeping the selected item visible. `windowStart` lets scrolling move the visible item window independently from `selectedIndex`; this is useful when wheel scrolling should not change selection until the selected item leaves the viewport. `rowLines` remains a compatibility alias for `maxItemLines`, while `reserveItemLines: true` opts into fixed-height rows.
 
 Rows with `kind: 'heading'`, `kind: 'stat'`, or `kind: 'separator'` are presentation-only. Keyboard navigation and pointer focus skip them, they never inherit disabled styling, and they do not render the disabled marker. A stat row uses `label` with `value`, `description`, or `detail`. Set `disabledIndicator: ''` to hide the marker globally, or provide `getDisabledIndicator(item, index)` for per-item text.
 
@@ -419,14 +419,14 @@ KeyHintBar({
   columns = 3,
   adaptive = false,
   minColumnWidth = 22,
-  maxColumns = 3,
+  maxColumns = 3, // number or 'auto'
   gap = 2,
   gridBorder = false,
   theme,
 })
 ```
 
-Renders grouped key hints. The default mode uses the shared `Grid` component. With `adaptive: true` and `columns: 'auto'`, the bar chooses a column count from the available terminal width, wraps individual hints by words, and reports its natural height to `Docked`. This makes it suitable for a bottom-pinned local-controls panel at changing viewport sizes.
+Renders grouped key hints. The default mode uses the shared `Grid` component. With `adaptive: true` and `columns: 'auto'`, the bar chooses a column count from the available terminal width, wraps individual hints by words, and reports its natural height to `Docked`. Use `maxColumns: 'auto'` to let every hint share one row whenever their actual labels fit; the bar collapses to fewer columns as the viewport narrows and expands again when width returns. This makes it suitable for a bottom-pinned local-controls panel at changing viewport sizes.
 
 ### Docked layout
 
