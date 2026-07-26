@@ -2,7 +2,7 @@
 import {
   ActionRegistry, Badge, Box, ChipLine, Column, ConfirmPrompt, FocusManager, Grid, HelpOverlay,
   InputEditor, KeyHintBar, KeyValueBlock, LiveJobBlock, MetricBlock, Modal, ModeManager,
-  OverlayHost, ProgressBar, ProgressStatus, RequireViewport, Row, ScrollPane, SectionTabs, SelectList, SplitPane,
+  OverlayHost, ProgressBar, ProgressStatus, RequireViewport, Row, ScrollPane, ScrollView, SectionTabs, SelectList, SplitPane,
   SummaryList, Text, TextEditorView, Timeline, Toast, WorkspaceCommandBar, WorkspaceFooter,
   WorkspaceHeader, WorkspacePane, WorkspaceShell, color, createBlock, createCommandPaletteState,
   createFrame, createListState, createOverlayManager, createScrollState, createTimelineEvent,
@@ -274,7 +274,15 @@ function renderPreviewPane({ state, entry, theme, width, height }) {
     Math.max(3, Math.min(footerMaxHeight, measureNodeHeight(footerNode, paneInnerWidth))),
   );
   const contentHeight = Math.max(1, paneInnerHeight - footerHeight);
-  const preview = makeGrow(entry.render(showcaseCtx(state, entry, null, width, contentHeight, theme)));
+  const renderedPreview = entry.render(showcaseCtx(state, entry, null, width, contentHeight, theme));
+  const showcaseState = state.showcaseState[entry.id];
+  const preview = entry.scrollable
+    ? ScrollView({
+        scrollState: showcaseState?.scroll,
+        pointerId: `kit:${entry.id}-scroll`,
+        onWheel: (event) => scrollStateByWheel(showcaseState.scroll, event),
+      }, renderedPreview)
+    : makeGrow(renderedPreview);
   return WorkspacePane({
     title: ` PREVIEW · ${entry.title} `,
     active: state.focus.current() === 'preview',
@@ -291,33 +299,6 @@ function renderPreviewPane({ state, entry, theme, width, height }) {
     footerMaxHeight,
   });
 }
-
-function renderScrollableShowcase({
-  node,
-  scroll,
-  width,
-  height,
-  title,
-  pointerId,
-}) {
-  const safeWidth = Math.max(16, Number(width) || 16);
-  const safeHeight = Math.max(6, Number(height) || 6);
-  const contentWidth = Math.max(1, safeWidth - 4);
-  const lines = renderNode(node, contentWidth);
-  const visibleRows = Math.max(1, safeHeight - 3);
-  updateScrollState(scroll, { totalRows: lines.length, visibleRows });
-  return ScrollPane({
-    title,
-    lines,
-    width: safeWidth,
-    height: safeHeight,
-    scroll: scroll.scroll,
-    footer: true,
-    pointerId,
-    onWheel: (event) => scrollStateByWheel(scroll, event),
-  });
-}
-
 
 function makeGrow(node) {
   if (!node || typeof node !== 'object' || !node.type) return node;
@@ -552,7 +533,7 @@ const SHOWCASES = [
     return false;
   } },
 
-  { id: 'progress-live-jobs', title: 'Progress and Live Jobs', category: 'Feedback', summary: 'Shows deterministic long-running task visualization with live metrics and explicit running/completed states.', components: ['ProgressBar', 'Spinner', 'LiveJobBlock', 'MetricBlock'], controls: [{ key: 'Space', action: 'start/pause' }, { key: '↑/↓ Pg', action: 'scroll' }, { key: 'r', action: 'reset' }, { key: 'f', action: 'finish' }], createInitialState: () => progressState(), render: ({ state, app, theme, width, height }) => {
+  { id: 'progress-live-jobs', title: 'Progress and Live Jobs', scrollable: true, category: 'Feedback', summary: 'Shows deterministic long-running task visualization with live metrics and explicit running/completed states.', components: ['ProgressBar', 'Spinner', 'LiveJobBlock', 'MetricBlock'], controls: [{ key: 'Space', action: 'start/pause' }, { key: '↑/↓ Pg', action: 'scroll' }, { key: 'r', action: 'reset' }, { key: 'f', action: 'finish' }], createInitialState: () => progressState(), render: ({ state, app, theme, width, height }) => {
     const content = Column({ gap: 1 },
       LiveJobBlock({
         title: ' Simulated deployment ',
@@ -578,14 +559,7 @@ const SHOWCASES = [
       ] }),
       p('Compact, line, and inset variants occupy one row. Boxed progress is a real three-row component and participates in layout height normally.', theme, 'textMuted'),
     );
-    return renderScrollableShowcase({
-      node: content,
-      scroll: state.scroll,
-      width,
-      height,
-      title: ' PROGRESS AND LIVE JOBS ',
-      pointerId: 'kit:progress-live-jobs-scroll',
-    });
+    return content;
   }, handleKey: ({ state, overlays }, key) => {
     const scrollResult = handleScrollKey(state.scroll, key, { includeHomeEnd: true });
     if (scrollResult.handled) return true;
@@ -609,7 +583,7 @@ const SHOWCASES = [
     return false;
   } },
 
-  { id: 'progress-status-controller', title: 'Progress Status and Batching', category: 'Feedback', summary: 'Demonstrates controller-owned progress state, throttled invalidation, rate and ETA calculation, batching, lifecycle states, and LiveJobBlock integration.', components: ['ProgressStatus', 'ProgressStatus.create', 'LiveJobBlock', 'ProgressBar'], controls: [{ key: 'Space', action: 'pause/resume' }, { key: '↑/↓ Pg', action: 'scroll' }, { key: 'b', action: 'complete one batch' }, { key: 'c', action: 'complete all' }, { key: 'f', action: 'fail' }, { key: 'r', action: 'reset' }], createInitialState: () => progressStatusState(), render: ({ state, app, theme, width, height }) => {
+  { id: 'progress-status-controller', title: 'Progress Status and Batching', scrollable: true, category: 'Feedback', summary: 'Demonstrates controller-owned progress state, throttled invalidation, rate and ETA calculation, batching, lifecycle states, and LiveJobBlock integration.', components: ['ProgressStatus', 'ProgressStatus.create', 'LiveJobBlock', 'ProgressBar'], controls: [{ key: 'Space', action: 'pause/resume' }, { key: '↑/↓ Pg', action: 'scroll' }, { key: 'b', action: 'complete one batch' }, { key: 'c', action: 'complete all' }, { key: 'f', action: 'fail' }, { key: 'r', action: 'reset' }], createInitialState: () => progressStatusState(), render: ({ state, app, theme, width, height }) => {
     const download = state.download.snapshot();
     const batch = state.batch.snapshot();
     const content = Column({ gap: 1 },
@@ -647,14 +621,7 @@ const SHOWCASES = [
         ['manual batch actions', String(state.manualBatchAdds)],
       ] }),
     );
-    return renderScrollableShowcase({
-      node: content,
-      scroll: state.scroll,
-      width,
-      height,
-      title: ' PROGRESS STATUS AND BATCHING ',
-      pointerId: 'kit:progress-status-scroll',
-    });
+    return content;
   }, handleKey: ({ state, overlays }, key) => {
     const scrollResult = handleScrollKey(state.scroll, key, { includeHomeEnd: true });
     if (scrollResult.handled) return true;

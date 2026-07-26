@@ -32,6 +32,7 @@ export { createScrollState, updateScrollState, handleScrollKey, appendScrollRows
 export { layout, renderNode, measureNodeHeight } from './ui/layout/index.js';
 export { SplitPane, resolvePaneSizes } from './ui/layout/splitPane.js';
 export { Docked } from './ui/layout/docked.js';
+export { ScrollView } from './ui/layout/scrollView.js';
 export { BottomOverlay } from './ui/layout/bottomOverlay.js';
 export { RequireViewport } from './ui/requireViewport.js';
 export { Frame, createFrame, normalizeLines, padEndVisible as padFrameLine, truncateVisibleText } from './ui/screen.js';

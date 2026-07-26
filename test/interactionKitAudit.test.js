@@ -141,6 +141,25 @@ test('progress showcase mouse wheel scrolls exactly one row', () => {
   assert.equal(state.showcaseState['progress-live-jobs'].scroll.scroll, before + 1);
 });
 
+
+test('progress previews scroll inside the main pane while local controls stay docked', () => {
+  const state = createInteractionKitState();
+  const index = state.list.items.findIndex((item) => item.id === 'progress-live-jobs');
+  select(state, index);
+
+  const before = render(state, 128, 35);
+  const beforeLines = before.split('\n');
+  const controlsRow = beforeLines.findIndex((line) => line.includes('LOCAL CONTROLS'));
+  assert.ok(controlsRow > 0);
+  assert.doesNotMatch(before, /PROGRESS AND LIVE JOBS/);
+
+  handleInteractionKitKey({ key: { name: 'page-down' }, state, runtime });
+  const after = render(state, 128, 35);
+  const afterLines = after.split('\n');
+  assert.equal(afterLines.findIndex((line) => line.includes('LOCAL CONTROLS')), controlsRow);
+  assert.match(after, /boxed/);
+});
+
 test('the last toast expires and invalidates the rendered frame', () => {
   const state = createInteractionKitState();
   state.overlays.toast('One final toast', 'success', 3);

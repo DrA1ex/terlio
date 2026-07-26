@@ -135,6 +135,7 @@ Use stateful helpers and components for common interaction patterns:
 ```js
 SelectList({ items, selectedIndex })
 ScrollPane({ lines, scroll, height })
+ScrollView({ scrollState }, composedContent)
 CommandBar({ value, suggestions })
 ```
 

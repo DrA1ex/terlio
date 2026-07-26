@@ -11,6 +11,7 @@ import { renderShadowOverlay } from './shadowOverlay.js';
 import { renderText } from './text.js';
 import { renderSplitPane } from './splitPane.js';
 import { renderDocked } from './docked.js';
+import { renderScrollView } from './scrollView.js';
 import { renderBottomOverlay } from './bottomOverlay.js';
 import { renderProgressBar } from './progressBar.js';
 import { renderKeyHintBar } from '../keyHintBar.js';
@@ -133,6 +134,9 @@ function renderNodeInternal(node, width, pointerContext, policy) {
     case 'docked':
       result = renderDocked(node, width, childRenderer);
       break;
+    case 'scrollView':
+      result = renderScrollView(node, width, childRenderer);
+      break;
     case 'bottomOverlay':
       result = renderBottomOverlay(node, width, childRenderer);
       break;
@@ -219,3 +223,4 @@ export { fit };
 
 export { SplitPane, resolvePaneSizes } from './splitPane.js';
 export { Docked } from './docked.js';
+export { ScrollView } from './scrollView.js';

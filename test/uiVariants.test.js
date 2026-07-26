@@ -44,6 +44,7 @@ import {
   responsiveColumns,
   resolvePaneSizes,
   ScrollPane,
+  ScrollView,
   takeVisible,
   themes,
   truncateVisibleText,
@@ -331,6 +332,29 @@ test('editor and scroll surfaces handle placeholders, wrapping, tails and autosc
   const pane = render(ScrollPane({ lines: rows, height: 4, width: 20, border: false, footer: false, scroll: 1 }), 20, 4);
   assert.match(pane, /five/);
   assert.equal(pane.split('\n').length, 4);
+});
+
+
+test('ScrollView scrolls arbitrary component trees without adding chrome', () => {
+  const state = createScrollState({ scroll: 1, totalRows: 0, visibleRows: 3, sticky: false });
+  const output = render(ScrollView({
+    height: 3,
+    scrollState: state,
+  },
+  Text('row 1'),
+  Text('row 2'),
+  Text('row 3'),
+  Text('row 4'),
+  Text('row 5')),
+  20, 3);
+
+  assert.equal(stripAnsi(output).split('\n').length, 3);
+  assert.match(output, /row 2/);
+  assert.match(output, /row 4/);
+  assert.doesNotMatch(output, /[┌┐└┘]/);
+  assert.equal(state.totalRows, 5);
+  assert.equal(state.visibleRows, 3);
+  assert.equal(state.scroll, 1);
 });
 
 test('responsive helpers expose stable narrow, medium and wide contracts including empty windows', () => {

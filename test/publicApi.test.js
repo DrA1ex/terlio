@@ -43,6 +43,7 @@ test('library entry exports terminal app and low-level building blocks', () => {
     'Toast',
     'ProgressBar',
     'ProgressStatus',
+    'ScrollView',
     'Spinner',
     'ModeManager',
     'createCommandPaletteState',

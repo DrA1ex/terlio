@@ -347,6 +347,48 @@ Render or calculate a scroll window. Long sources are viewport-virtualized: `Scr
 
 Use `resolveAutoScrollOffset()` for log/transcript panes that should follow new output only while the user is already at the bottom. Use `resolveScrollKeyOffset()` for read-only panes that should handle `up`, `down`, `page-up`, and `page-down` consistently. Once the user scrolls up, keep `sticky: false`; when they scroll or page back to the bottom, set it to `true` again.
 
+
+### ScrollView
+
+```js
+ScrollView({
+  scrollState,
+  height: 'fill',
+  pointerId,
+  onWheel,
+}, content)
+```
+
+Scrolls an arbitrary component tree without drawing its own border or footer. The parent layout assigns the viewport height; `ScrollView` renders the complete child tree, exposes only the visible rows, and translates and clips pointer regions into viewport coordinates. Pass a state from `createScrollState()` to keep `totalRows`, `visibleRows`, and the clamped `scroll` offset synchronized.
+
+Use `ScrollView` inside a fixed-height `WorkspacePane` with `footerNode` when the pane body should scroll while local controls or another footer remain docked:
+
+```js
+const scroll = createScrollState({ sticky: false });
+
+WorkspacePane({
+  title: ' Results ',
+  height,
+  children: [
+    ScrollView({
+      scrollState: scroll,
+      pointerId: 'results-scroll',
+      onWheel: (event) => {
+        scroll.scroll += event.deltaY;
+        scroll.sticky = false;
+        event.preventDefault();
+      },
+    }, resultTree),
+  ],
+  footerNode: KeyHintBar({
+    title: ' LOCAL CONTROLS ',
+    hints: [['↑/↓', 'scroll'], ['Enter', 'open']],
+  }),
+});
+```
+
+Unlike `ScrollPane`, `ScrollView` is intended for composed UI nodes rather than a prebuilt line source. It does not add nested chrome, so the containing pane remains the only visible container.
+
 ### fitInline
 
 ```js

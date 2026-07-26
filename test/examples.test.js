@@ -369,7 +369,7 @@ test('interaction kit uses action registry, palette, theme switching and local p
   assert.match(output, /Progress and Live Jobs/);
   assert.match(output, /compact \[██████████████████████████\] 100%/);
   assert.match(output, /line track \[██████████████████████████\] 100%/);
-  assert.match(output, /wheel · ↑\/↓ · PgUp\/PgDn/);
+  assert.doesNotMatch(output, /┌  PROGRESS AND LIVE JOBS/);
   handleInteractionKitKey({ key: { name: 'page-down' }, state, runtime: { exit() {} } });
   assert.ok(job.scroll.scroll > 0);
   output = renderToString(createInteractionKitView({ state, width: 128, height: 35 }), { width: 128, height: 35 });

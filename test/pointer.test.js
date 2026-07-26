@@ -6,6 +6,7 @@ import {
   Column,
   PointerRegion,
   RichTerminalApp,
+  ScrollView,
   TerminalInputDecoder,
   Text,
   createWorkspaceApp,
@@ -128,6 +129,22 @@ test('rendered pointer regions expose component hit-testing and local coordinate
     ['wheel', 4, 1, 'history'],
     ['pointer', 'wheel-down'],
   ]);
+});
+
+
+test('ScrollView translates and clips pointer regions with the visible content window', () => {
+  const frame = renderToFrame(ScrollView({ height: 2, scroll: 1 },
+    Text('row 1'),
+    PointerRegion({ pointerId: 'visible-action', onClick() {} }, Text('row 2')),
+    PointerRegion({ pointerId: 'below-window', onClick() {} }, Text('row 3')),
+    Text('row 4')),
+  { width: 20, height: 2 });
+
+  const visible = frame.pointerRegions.find((region) => region.id === 'visible-action');
+  const clipped = frame.pointerRegions.find((region) => region.id === 'below-window');
+  assert.deepEqual(visible?.bounds, { x: 0, y: 0, width: 5, height: 1 });
+  assert.deepEqual(clipped?.bounds, { x: 0, y: 1, width: 5, height: 1 });
+  assert.doesNotMatch(frame.toString(), /row 1|row 4/);
 });
 
 test('nested PointerRegion handlers bubble from the innermost component', () => {
