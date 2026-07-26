@@ -1,0 +1,374 @@
+{
+  "id": "adaptive-select-list",
+  "title": "Adaptive one-line and wrapped list rows",
+  "width": 76,
+  "height": 18,
+  "lines": [
+    "\u001b[38;5;24m┌  ADAPTIVE LIST                                                           ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m┌  Entries 4/6                                                         ┐\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Overview — fits on one line                                       \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Progress and Live Jobs — feedback                                 \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Scrollable Surfaces — navigation                                  \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[48;5;24m\u001b[38;5;231m› A deliberately longer showcase entry that wraps only when the     \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[48;5;24m\u001b[38;5;231m  available width requires it — responsive row height               \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Progress Status and Batching — controller demo                    \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Themes — appearance                                               \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                                                      \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                                                      \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                                                      \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                                                      \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                                                      \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                                                      \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m└──────────────────────────────────────────────────────────────────────┘\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67m4/6 · Enter preview\u001b[0m                                                      \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────────────────────────────────────────────┘\u001b[0m"
+  ],
+  "plain": [
+    "┌  ADAPTIVE LIST                                                           ┐",
+    "│ ┌  Entries 4/6                                                         ┐ │",
+    "│ │   Overview — fits on one line                                        │ │",
+    "│ │   Progress and Live Jobs — feedback                                  │ │",
+    "│ │   Scrollable Surfaces — navigation                                   │ │",
+    "│ │ › A deliberately longer showcase entry that wraps only when the      │ │",
+    "│ │   available width requires it — responsive row height                │ │",
+    "│ │   Progress Status and Batching — controller demo                     │ │",
+    "│ │   Themes — appearance                                                │ │",
+    "│ │                                                                      │ │",
+    "│ │                                                                      │ │",
+    "│ │                                                                      │ │",
+    "│ │                                                                      │ │",
+    "│ │                                                                      │ │",
+    "│ │                                                                      │ │",
+    "│ └──────────────────────────────────────────────────────────────────────┘ │",
+    "│ 4/6 · Enter preview                                                      │",
+    "└──────────────────────────────────────────────────────────────────────────┘"
+  ],
+  "pointerRegions": [
+    {
+      "token": 1,
+      "id": "adaptive-list",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 2,
+        "y": 1,
+        "width": 72,
+        "height": 15
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 1,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 3,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 4,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 5,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 8,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 9,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 10,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 11,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 12,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 13,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 14,
+          "width": 72,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 15,
+          "width": 72,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onWheel"
+      ]
+    },
+    {
+      "token": 2,
+      "id": "adaptive-list:0",
+      "data": {
+        "kind": "select-item",
+        "index": 0,
+        "item": {
+          "label": "Overview",
+          "description": "fits on one line"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 4,
+        "y": 2,
+        "width": 68,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 2,
+          "width": 68,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 3,
+      "id": "adaptive-list:1",
+      "data": {
+        "kind": "select-item",
+        "index": 1,
+        "item": {
+          "label": "Progress and Live Jobs",
+          "description": "feedback"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 4,
+        "y": 3,
+        "width": 68,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 3,
+          "width": 68,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 4,
+      "id": "adaptive-list:2",
+      "data": {
+        "kind": "select-item",
+        "index": 2,
+        "item": {
+          "label": "Scrollable Surfaces",
+          "description": "navigation"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 4,
+        "y": 4,
+        "width": 68,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 4,
+          "width": 68,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 5,
+      "id": "adaptive-list:3",
+      "data": {
+        "kind": "select-item",
+        "index": 3,
+        "item": {
+          "label": "A deliberately longer showcase entry that wraps only when the available width requires it",
+          "description": "responsive row height"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 4,
+        "y": 5,
+        "width": 68,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 5,
+          "width": 68,
+          "height": 1
+        },
+        {
+          "x": 4,
+          "y": 6,
+          "width": 68,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 6,
+      "id": "adaptive-list:4",
+      "data": {
+        "kind": "select-item",
+        "index": 4,
+        "item": {
+          "label": "Progress Status and Batching",
+          "description": "controller demo"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 4,
+        "y": 7,
+        "width": 68,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 7,
+          "width": 68,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 7,
+      "id": "adaptive-list:5",
+      "data": {
+        "kind": "select-item",
+        "index": 5,
+        "item": {
+          "label": "Themes",
+          "description": "appearance"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 4,
+        "y": 8,
+        "width": 68,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 8,
+          "width": 68,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "responsive-key-hints",
+  "title": "Key hints collapse and expand with available width",
+  "width": 160,
+  "height": 14,
+  "lines": [
+    "\u001b[38;5;24m┌  NARROW CONTROLS                         ┐\u001b[0m  \u001b[38;5;24m┌  WIDE CONTROLS                                                                                                 ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;45mSpace\u001b[0m\u001b[38;5;67m pause/resume\u001b[0m   \u001b[38;5;45m↑/↓ Pg\u001b[0m\u001b[38;5;67m scroll\u001b[0m       \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m│\u001b[0m \u001b[38;5;45mSpace\u001b[0m\u001b[38;5;67m pause/resume\u001b[0m     \u001b[38;5;45m↑/↓ Pg\u001b[0m\u001b[38;5;67m scroll\u001b[0m          \u001b[38;5;45mb\u001b[0m\u001b[38;5;67m complete one batch\u001b[0m  \u001b[38;5;45mc\u001b[0m\u001b[38;5;67m complete all\u001b[0m        \u001b[38;5;45mf\u001b[0m\u001b[38;5;67m finish\u001b[0m             \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;45mb\u001b[0m\u001b[38;5;67m complete one\u001b[0m       \u001b[38;5;45mc\u001b[0m\u001b[38;5;67m complete all\u001b[0m      \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m└────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67mbatch\u001b[0m                                    \u001b[38;5;24m│\u001b[0m                                                                                                                    ",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;45mf\u001b[0m\u001b[38;5;67m finish\u001b[0m                                 \u001b[38;5;24m│\u001b[0m                                                                                                                    ",
+    "\u001b[38;5;24m└──────────────────────────────────────────┘\u001b[0m                                                                                                                    ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                "
+  ],
+  "plain": [
+    "┌  NARROW CONTROLS                         ┐  ┌  WIDE CONTROLS                                                                                                 ┐",
+    "│ Space pause/resume   ↑/↓ Pg scroll       │  │ Space pause/resume     ↑/↓ Pg scroll          b complete one batch  c complete all        f finish             │",
+    "│ b complete one       c complete all      │  └────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘",
+    "│ batch                                    │                                                                                                                    ",
+    "│ f finish                                 │                                                                                                                    ",
+    "└──────────────────────────────────────────┘                                                                                                                    ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                ",
+    "                                                                                                                                                                "
+  ],
+  "pointerRegions": []
+}

@@ -1,0 +1,1145 @@
+{
+  "id": "interaction-kit-progress-live-jobs",
+  "title": "Interaction Kit progress and live jobs window",
+  "width": 120,
+  "height": 35,
+  "lines": [
+    "\u001b[38;5;24m┌  Terlio.js Component Studio                                                                                          ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;87mTerlio.js Component Studio  ·  Interactive component and capability showcase\u001b[0m                                         \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67mTheme: ocean   Size: 120×35   Screen: 10/16   │   Focus: preview   Mode: browse   │   Focus preview\u001b[0m                  \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;24m┌  SHOWCASES                       ┐\u001b[0m  \u001b[38;5;45m┌  PREVIEW · Progress and Live Jobs                                              ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m┌  Entries 10/16 · ↑6 ↓4       ┐\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m │ · Run smoke checks                                                         │ \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Text Editor and Input     \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m │ · Publish artifact                                                         │ \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Mechanics — Input         \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m └────────────────────────────────────────────────────────────────────────────┘ \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Scrollable Surfaces —     \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m                                                                                \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Navigation                \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m ┌  Elapsed             ┐  ┌  Lifecycle           ┐  ┌  Throughput          ┐   \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Feedback: Toasts, Modals, \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m │ ● 37s                │  │ running              │  │ 244/420              │   \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Confirmations — Feedback  \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m │ fake clock           │  │ local timer          │  │ files                │   \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[48;5;24m\u001b[38;5;231m› Progress and Live Jobs —  \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m └──────────────────────┘  └──────────────────────┘  └──────────────────────┘   \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[48;5;24m\u001b[38;5;231m  Feedback                  \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m                                                                                \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Progress Status and       \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m┌  PROGRESS BAR VARIANTS                                                     ┐\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Batching — Feedback       \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m compact [███████████████▏          ] 58%                                   \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Timeline and Activity     \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                                                            \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Feeds — Feedback          \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m line track [███████████████▏──────────] 58%                                \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m└──────────────────────────────┘\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                                                            \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67m10/16 · Enter preview\u001b[0m            \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m inset rail ▏███████████████▏▁▁▁▁▁▁▁▁▁▁▕ 58%                                \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────┘\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                                                            \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m┌  ABOUT THIS SCREEN               ┐\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m ┌ boxed ────────────────────────────── 58% ┐                               \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m Progress and Live Jobs           \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m │████████████████████████▍                 │                               \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m Shows deterministic              \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m └──────────────────────────────────────────┘                               \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m long-running task visualization  \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m└────────────────────────────────────────────────────────────────────────────┘\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m with live metrics and explicit   \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m                                                                                \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m running/completed states.        \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m Compact, line, and inset variants occupy one row. Boxed progress is a real     \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m Uses  \u001b[38;5;67m ProgressBar \u001b[0m  \u001b[38;5;67m Spinner \u001b[0m  \u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m three-row component and participates in layout height normally.                \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m Space start/pause · ↑/↓ Pg       \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m┌  LOCAL CONTROLS                                                            ┐\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m scroll · r reset · f finish      \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;45mSpace\u001b[0m\u001b[38;5;67m start/pause\u001b[0m  \u001b[38;5;45m↑/↓ Pg\u001b[0m\u001b[38;5;67m scroll\u001b[0m      \u001b[38;5;45mr\u001b[0m\u001b[38;5;67m reset\u001b[0m            \u001b[38;5;45mf\u001b[0m\u001b[38;5;67m finish\u001b[0m          \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m                                  \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m└────────────────────────────────────────────────────────────────────────────┘\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────┘\u001b[0m  \u001b[38;5;45m└────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;24m┌  STATUS                                                                                                              ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67mEsc nav  │  tab Switch Focus  │  shift+tab Switch Focus Back  │  t Next Theme  │  ? Open Help  │  / Open Command Pal\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m"
+  ],
+  "plain": [
+    "┌  Terlio.js Component Studio                                                                                          ┐",
+    "│ Terlio.js Component Studio  ·  Interactive component and capability showcase                                         │",
+    "│ Theme: ocean   Size: 120×35   Screen: 10/16   │   Focus: preview   Mode: browse   │   Focus preview                  │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘",
+    "┌  SHOWCASES                       ┐  ┌  PREVIEW · Progress and Live Jobs                                              ┐",
+    "│ ┌  Entries 10/16 · ↑6 ↓4       ┐ │  │ │ · Run smoke checks                                                         │ │",
+    "│ │   Text Editor and Input      │ │  │ │ · Publish artifact                                                         │ │",
+    "│ │   Mechanics — Input          │ │  │ └────────────────────────────────────────────────────────────────────────────┘ │",
+    "│ │   Scrollable Surfaces —      │ │  │                                                                                │",
+    "│ │   Navigation                 │ │  │ ┌  Elapsed             ┐  ┌  Lifecycle           ┐  ┌  Throughput          ┐   │",
+    "│ │   Feedback: Toasts, Modals,  │ │  │ │ ● 37s                │  │ running              │  │ 244/420              │   │",
+    "│ │   Confirmations — Feedback   │ │  │ │ fake clock           │  │ local timer          │  │ files                │   │",
+    "│ │ › Progress and Live Jobs —   │ │  │ └──────────────────────┘  └──────────────────────┘  └──────────────────────┘   │",
+    "│ │   Feedback                   │ │  │                                                                                │",
+    "│ │   Progress Status and        │ │  │ ┌  PROGRESS BAR VARIANTS                                                     ┐ │",
+    "│ │   Batching — Feedback        │ │  │ │ compact [███████████████▏          ] 58%                                   │ │",
+    "│ │   Timeline and Activity      │ │  │ │                                                                            │ │",
+    "│ │   Feeds — Feedback           │ │  │ │ line track [███████████████▏──────────] 58%                                │ │",
+    "│ └──────────────────────────────┘ │  │ │                                                                            │ │",
+    "│ 10/16 · Enter preview            │  │ │ inset rail ▏███████████████▏▁▁▁▁▁▁▁▁▁▁▕ 58%                                │ │",
+    "└──────────────────────────────────┘  │ │                                                                            │ │",
+    "┌  ABOUT THIS SCREEN               ┐  │ │ ┌ boxed ────────────────────────────── 58% ┐                               │ │",
+    "│ Progress and Live Jobs           │  │ │ │████████████████████████▍                 │                               │ │",
+    "│ Shows deterministic              │  │ │ └──────────────────────────────────────────┘                               │ │",
+    "│ long-running task visualization  │  │ └────────────────────────────────────────────────────────────────────────────┘ │",
+    "│ with live metrics and explicit   │  │                                                                                │",
+    "│ running/completed states.        │  │ Compact, line, and inset variants occupy one row. Boxed progress is a real     │",
+    "│ Uses   ProgressBar    Spinner    │  │ three-row component and participates in layout height normally.                │",
+    "│ Space start/pause · ↑/↓ Pg       │  │ ┌  LOCAL CONTROLS                                                            ┐ │",
+    "│ scroll · r reset · f finish      │  │ │ Space start/pause  ↑/↓ Pg scroll      r reset            f finish          │ │",
+    "│                                  │  │ └────────────────────────────────────────────────────────────────────────────┘ │",
+    "└──────────────────────────────────┘  └────────────────────────────────────────────────────────────────────────────────┘",
+    "┌  STATUS                                                                                                              ┐",
+    "│ Esc nav  │  tab Switch Focus  │  shift+tab Switch Focus Back  │  t Next Theme  │  ? Open Help  │  / Open Command Pal │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘"
+  ],
+  "pointerRegions": [
+    {
+      "token": 1,
+      "id": "kit:navigation",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 0,
+        "y": 4,
+        "width": 36,
+        "height": 17
+      },
+      "segments": [
+        {
+          "x": 0,
+          "y": 4,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 8,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 9,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 10,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 11,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 12,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 13,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 14,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 15,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 16,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 17,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 18,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 19,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 20,
+          "width": 36,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 2,
+      "id": "kit:showcases",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 5,
+        "width": 32,
+        "height": 14
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 5,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 8,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 9,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 10,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 11,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 12,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 13,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 14,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 15,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 16,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 17,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 18,
+          "width": 32,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onWheel"
+      ]
+    },
+    {
+      "token": 3,
+      "id": "kit:showcases:6",
+      "data": {
+        "kind": "select-item",
+        "index": 6,
+        "item": {
+          "id": "text-editor-input",
+          "title": "Text Editor and Input Mechanics",
+          "category": "Input",
+          "summary": "Demonstrates modern multiline editing, cursor diagnostics, word movement, kill operations, and bracketed paste.",
+          "components": [
+            "InputEditor",
+            "handleInputEditorKey",
+            "TextEditorView"
+          ],
+          "controls": [
+            {
+              "key": "text",
+              "action": "edit"
+            },
+            {
+              "key": "Ctrl+A/E",
+              "action": "line bounds"
+            },
+            {
+              "key": "Ctrl+U/K",
+              "action": "kill"
+            },
+            {
+              "key": "s/r",
+              "action": "save/reset"
+            }
+          ],
+          "createInitialState": "[function]",
+          "render": "[function]",
+          "handleKey": "[function]"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 2,
+      "bounds": {
+        "x": 4,
+        "y": 6,
+        "width": 28,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 6,
+          "width": 28,
+          "height": 1
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "width": 28,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 4,
+      "id": "kit:showcases:7",
+      "data": {
+        "kind": "select-item",
+        "index": 7,
+        "item": {
+          "id": "scrollable-surfaces",
+          "title": "Scrollable Surfaces",
+          "category": "Navigation",
+          "summary": "Shows stateful scroll panes with sticky-bottom behavior for logs and transcripts.",
+          "components": [
+            "createScrollState",
+            "handleScrollKey",
+            "ScrollPane",
+            "visibleWindowLines"
+          ],
+          "controls": [
+            {
+              "key": "wheel / ↑/↓",
+              "action": "line"
+            },
+            {
+              "key": "PgUp/PgDn",
+              "action": "page"
+            },
+            {
+              "key": "Home/End",
+              "action": "jump"
+            },
+            {
+              "key": "a/s",
+              "action": "append/sticky"
+            }
+          ],
+          "createInitialState": "[function]",
+          "render": "[function]",
+          "handleKey": "[function]"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 2,
+      "bounds": {
+        "x": 4,
+        "y": 8,
+        "width": 28,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 8,
+          "width": 28,
+          "height": 1
+        },
+        {
+          "x": 4,
+          "y": 9,
+          "width": 28,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 5,
+      "id": "kit:showcases:8",
+      "data": {
+        "kind": "select-item",
+        "index": 8,
+        "item": {
+          "id": "feedback-overlays",
+          "title": "Feedback: Toasts, Modals, Confirmations",
+          "category": "Feedback",
+          "summary": "Shows root-level OverlayHost behavior: non-blocking toasts and blocking modal/confirm focus traps.",
+          "components": [
+            "OverlayHost",
+            "Toast",
+            "Modal",
+            "ConfirmPrompt"
+          ],
+          "controls": [
+            {
+              "key": "↑/↓",
+              "action": "choose"
+            },
+            {
+              "key": "Enter",
+              "action": "trigger"
+            },
+            {
+              "key": "Esc",
+              "action": "close overlay/nav"
+            },
+            {
+              "key": "←/→",
+              "action": "confirm choice"
+            }
+          ],
+          "createInitialState": "[function]",
+          "render": "[function]",
+          "handleKey": "[function]"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 2,
+      "bounds": {
+        "x": 4,
+        "y": 10,
+        "width": 28,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 10,
+          "width": 28,
+          "height": 1
+        },
+        {
+          "x": 4,
+          "y": 11,
+          "width": 28,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 6,
+      "id": "kit:showcases:9",
+      "data": {
+        "kind": "select-item",
+        "index": 9,
+        "item": {
+          "id": "progress-live-jobs",
+          "title": "Progress and Live Jobs",
+          "scrollable": true,
+          "category": "Feedback",
+          "summary": "Shows deterministic long-running task visualization with live metrics and explicit running/completed states.",
+          "components": [
+            "ProgressBar",
+            "Spinner",
+            "LiveJobBlock",
+            "MetricBlock"
+          ],
+          "controls": [
+            {
+              "key": "Space",
+              "action": "start/pause"
+            },
+            {
+              "key": "↑/↓ Pg",
+              "action": "scroll"
+            },
+            {
+              "key": "r",
+              "action": "reset"
+            },
+            {
+              "key": "f",
+              "action": "finish"
+            }
+          ],
+          "createInitialState": "[function]",
+          "render": "[function]",
+          "handleKey": "[function]"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 2,
+      "bounds": {
+        "x": 4,
+        "y": 12,
+        "width": 28,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 12,
+          "width": 28,
+          "height": 1
+        },
+        {
+          "x": 4,
+          "y": 13,
+          "width": 28,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 7,
+      "id": "kit:showcases:10",
+      "data": {
+        "kind": "select-item",
+        "index": 10,
+        "item": {
+          "id": "progress-status-controller",
+          "title": "Progress Status and Batching",
+          "scrollable": true,
+          "category": "Feedback",
+          "summary": "Demonstrates controller-owned progress state, throttled invalidation, rate and ETA calculation, batching, lifecycle states, and LiveJobBlock integration.",
+          "components": [
+            "ProgressStatus",
+            "ProgressStatus.create",
+            "LiveJobBlock",
+            "ProgressBar"
+          ],
+          "controls": [
+            {
+              "key": "Space",
+              "action": "pause/resume"
+            },
+            {
+              "key": "↑/↓ Pg",
+              "action": "scroll"
+            },
+            {
+              "key": "b",
+              "action": "complete one batch"
+            },
+            {
+              "key": "c",
+              "action": "complete all"
+            },
+            {
+              "key": "f",
+              "action": "fail"
+            },
+            {
+              "key": "r",
+              "action": "reset"
+            }
+          ],
+          "createInitialState": "[function]",
+          "render": "[function]",
+          "handleKey": "[function]"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 2,
+      "bounds": {
+        "x": 4,
+        "y": 14,
+        "width": 28,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 14,
+          "width": 28,
+          "height": 1
+        },
+        {
+          "x": 4,
+          "y": 15,
+          "width": 28,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 8,
+      "id": "kit:showcases:11",
+      "data": {
+        "kind": "select-item",
+        "index": 11,
+        "item": {
+          "id": "timeline-activity-feeds",
+          "title": "Timeline and Activity Feeds",
+          "category": "Feedback",
+          "summary": "Demonstrates event streams, metrics, and structured detail panes.",
+          "components": [
+            "Timeline",
+            "createTimelineEvent",
+            "MetricBlock",
+            "KeyValueBlock"
+          ],
+          "controls": [
+            {
+              "key": "a",
+              "action": "event"
+            },
+            {
+              "key": "e",
+              "action": "error"
+            },
+            {
+              "key": "c",
+              "action": "clear"
+            },
+            {
+              "key": "↑/↓ Pg",
+              "action": "select"
+            }
+          ],
+          "createInitialState": "[function]",
+          "render": "[function]",
+          "handleKey": "[function]"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 2,
+      "bounds": {
+        "x": 4,
+        "y": 16,
+        "width": 28,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 16,
+          "width": 28,
+          "height": 1
+        },
+        {
+          "x": 4,
+          "y": 17,
+          "width": 28,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 9,
+      "id": "chip-line:ProgressBar",
+      "data": {
+        "kind": "chip",
+        "id": "ProgressBar",
+        "index": 0,
+        "chip": {
+          "id": "ProgressBar"
+        }
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 8,
+        "y": 27,
+        "width": 13,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 8,
+          "y": 27,
+          "width": 13,
+          "height": 1
+        }
+      ],
+      "handlers": []
+    },
+    {
+      "token": 10,
+      "id": "chip-line:Spinner",
+      "data": {
+        "kind": "chip",
+        "id": "Spinner",
+        "index": 1,
+        "chip": {
+          "id": "Spinner"
+        }
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 23,
+        "y": 27,
+        "width": 9,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 23,
+          "y": 27,
+          "width": 9,
+          "height": 1
+        }
+      ],
+      "handlers": []
+    },
+    {
+      "token": 12,
+      "id": "kit:preview",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 38,
+        "y": 4,
+        "width": 82,
+        "height": 28
+      },
+      "segments": [
+        {
+          "x": 38,
+          "y": 4,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 5,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 6,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 7,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 8,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 9,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 10,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 11,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 12,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 13,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 14,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 15,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 16,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 17,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 18,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 19,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 20,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 21,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 22,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 23,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 24,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 25,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 26,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 27,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 28,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 29,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 30,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 31,
+          "width": 82,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 13,
+      "id": "kit:progress-live-jobs-scroll",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 12,
+      "bounds": {
+        "x": 40,
+        "y": 5,
+        "width": 78,
+        "height": 23
+      },
+      "segments": [
+        {
+          "x": 40,
+          "y": 5,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 6,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 7,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 8,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 9,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 10,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 11,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 12,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 13,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 14,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 15,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 16,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 17,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 18,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 19,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 20,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 21,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 22,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 23,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 24,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 25,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 26,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 27,
+          "width": 78,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onWheel"
+      ]
+    }
+  ]
+}

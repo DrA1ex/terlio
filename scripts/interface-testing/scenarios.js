@@ -31,6 +31,7 @@ import {
   RequireViewport,
   Row,
   ScrollPane,
+  ScrollView,
   SectionTabs,
   SelectableText,
   SelectList,
@@ -53,13 +54,15 @@ import {
   createCommandPaletteState,
   createMessage,
   createOverlayManager,
+  createScrollState,
   createTextSelectionState,
   themes,
 } from '../../src/lib/index.js';
+import { createInteractionKitState, createInteractionKitView } from '../../examples/interaction-kit.js';
 
 export const VISUAL_COMPONENTS = Object.freeze([
   'Text', 'Box', 'Panel', 'Row', 'Column', 'PointerRegion',
-  'SplitPane', 'Docked', 'BottomOverlay', 'RequireViewport',
+  'SplitPane', 'Docked', 'ScrollView', 'BottomOverlay', 'RequireViewport',
   'SelectList', 'ConfirmPrompt', 'Modal', 'Toast', 'ProgressBar', 'ProgressStatus', 'Spinner',
   'HelpOverlay', 'Badge', 'Chip', 'SectionTabs', 'CommandBar', 'FooterStatusBar',
   'Grid', 'PropertyRows', 'ChipLine', 'TextEditorView', 'ScrollPane',
@@ -437,4 +440,212 @@ export const INTERFACE_SCENARIOS = Object.freeze([
       transcriptSelection: createTextSelectionState(),
     }),
   },
+  {
+    id: 'adaptive-select-list',
+    title: 'Adaptive one-line and wrapped list rows',
+    width: 76,
+    height: 18,
+    covers: ['SelectList', 'WorkspacePane'],
+    render: () => WorkspacePane({
+      title: ' ADAPTIVE LIST ',
+      height: 18,
+      theme: ocean,
+      children: [SelectList({
+        title: 'Entries',
+        height: 'fill',
+        windowSize: 'auto',
+        selectedIndex: 3,
+        maxItemLines: 2,
+        wrapItems: true,
+        theme: ocean,
+        pointerId: 'adaptive-list',
+        onSelect: noop,
+        onWheel: noop,
+        items: [
+          { label: 'Overview', description: 'fits on one line' },
+          { label: 'Progress and Live Jobs', description: 'feedback' },
+          { label: 'Scrollable Surfaces', description: 'navigation' },
+          { label: 'A deliberately longer showcase entry that wraps only when the available width requires it', description: 'responsive row height' },
+          { label: 'Progress Status and Batching', description: 'controller demo' },
+          { label: 'Themes', description: 'appearance' },
+        ],
+      })],
+      footer: '4/6 · Enter preview',
+    }),
+  },
+  {
+    id: 'responsive-key-hints',
+    title: 'Key hints collapse and expand with available width',
+    width: 160,
+    height: 14,
+    covers: ['KeyHintBar', 'Row'],
+    render: () => Row({ gap: 2, widths: [44, 114] },
+      KeyHintBar({
+        title: ' NARROW CONTROLS ',
+        hints: [['Space', 'pause/resume'], ['↑/↓ Pg', 'scroll'], ['b', 'complete one batch'], ['c', 'complete all'], ['f', 'finish']],
+        columns: 'auto',
+        maxColumns: 'auto',
+        minColumnWidth: 14,
+        adaptive: true,
+        theme: ocean,
+      }),
+      KeyHintBar({
+        title: ' WIDE CONTROLS ',
+        hints: [['Space', 'pause/resume'], ['↑/↓ Pg', 'scroll'], ['b', 'complete one batch'], ['c', 'complete all'], ['f', 'finish']],
+        columns: 'auto',
+        maxColumns: 'auto',
+        minColumnWidth: 14,
+        adaptive: true,
+        theme: ocean,
+      }),
+    ),
+  },
+  {
+    id: 'progress-bar-variants',
+    title: 'Progress bar variants and boundary states',
+    width: 82,
+    height: 17,
+    covers: ['ProgressBar'],
+    render: () => WorkspacePane({
+      title: ' PROGRESS BAR VARIANTS ',
+      height: 17,
+      theme: ocean,
+      children: [Column({ gap: 1 },
+        ProgressBar({ value: 0, total: 100, width: 28, label: 'compact idle', variant: 'compact' }),
+        ProgressBar({ value: 42, total: 100, width: 28, label: 'compact', variant: 'compact' }),
+        ProgressBar({ value: 42, total: 100, width: 28, label: 'line track', variant: 'line' }),
+        ProgressBar({ value: 42, total: 100, width: 28, label: 'inset rail', variant: 'inset' }),
+        ProgressBar({ value: 42, total: 100, width: 48, label: 'boxed', variant: 'boxed' }),
+        ProgressBar({ value: 100, total: 100, width: 28, label: 'complete', variant: 'compact' }),
+      )],
+    }),
+  },
+  {
+    id: 'progress-status-lifecycle',
+    title: 'Progress status details and lifecycle states',
+    width: 120,
+    height: 22,
+    covers: ['ProgressStatus', 'LiveJobBlock'],
+    render: () => Column({ height: 22, gap: 1 },
+      WorkspacePane({ title: ' RUNNING TRANSFER ', theme: ocean, children: [
+        ProgressStatus({ progress: { value: 42 * 1024 * 1024, total: 96 * 1024 * 1024, state: 'running', elapsedMs: 4000, rate: 10.5 * 1024 * 1024, etaMs: 5143, unit: 'bytes' }, width: 34, label: 'Assets', variant: 'inset', format: 'bytes' }),
+      ] }),
+      Row({ gap: 2, distribute: true },
+        WorkspacePane({ title: ' STATES ', theme: ocean, children: [
+          ProgressStatus({ progress: { value: 48, total: 100, state: 'paused', elapsedMs: 12000, rate: 4, unit: 'items' }, width: 15, label: 'Paused', showRate: false, showEta: false }),
+          ProgressStatus({ progress: { value: 24, total: 24, state: 'completed', elapsedMs: 6400, rate: 3.75, unit: 'files' }, width: 15, label: 'Done', showRate: false, showEta: false }),
+          ProgressStatus({ progress: { value: 3, total: 10, state: 'failed', elapsedMs: 2200, rate: 1.36, error: new Error('checksum mismatch'), unit: 'parts' }, width: 15, label: 'Failed', showRate: false, showElapsed: false, showEta: false }),
+          ProgressStatus({ progress: { value: 7, total: 20, state: 'cancelled', elapsedMs: 1800, unit: 'tasks' }, width: 15, label: 'Cancelled', showRate: false, showElapsed: false, showEta: false }),
+        ] }),
+        LiveJobBlock({
+          title: ' Controller-backed job ',
+          status: 'running',
+          running: true,
+          progress: { value: 42, total: 100, state: 'running', elapsedMs: 4000, rate: 10.5, etaMs: 5524, unit: 'items' },
+          progressVariant: 'inset',
+          showProgressDetails: true,
+          steps: ['Open stream', 'Decode chunks', 'Write cache', 'Verify artifact'],
+          activeIndex: 1,
+          frame: 6,
+        }),
+      ),
+    ),
+  },
+  {
+    id: 'scroll-view-workspace-top',
+    title: 'Scrollable workspace body at the top',
+    width: 82,
+    height: 18,
+    covers: ['ScrollView', 'WorkspacePane', 'KeyHintBar'],
+    render: () => scrollableWorkspaceSnapshot(0),
+  },
+  {
+    id: 'scroll-view-workspace-scrolled',
+    title: 'Scrollable workspace body with fixed footer',
+    width: 82,
+    height: 18,
+    covers: ['ScrollView', 'WorkspacePane', 'KeyHintBar'],
+    render: () => scrollableWorkspaceSnapshot(7),
+  },
+  {
+    id: 'interaction-kit-progress-live-jobs',
+    title: 'Interaction Kit progress and live jobs window',
+    width: 120,
+    height: 35,
+    covers: ['ScrollView', 'ProgressBar', 'LiveJobBlock', 'MetricBlock', 'SelectList', 'KeyHintBar', 'WorkspaceShell'],
+    render: () => interactionKitProgressWindow('progress-live-jobs', { scroll: 5 }),
+  },
+  {
+    id: 'interaction-kit-progress-status',
+    title: 'Interaction Kit progress status and batching window',
+    width: 120,
+    height: 35,
+    covers: ['ScrollView', 'ProgressStatus', 'LiveJobBlock', 'SelectList', 'KeyHintBar', 'WorkspaceShell'],
+    render: () => interactionKitProgressWindow('progress-status-controller', { scroll: 8 }),
+  },
 ]);
+
+
+function scrollableWorkspaceSnapshot(scroll) {
+  const scrollState = createScrollState({ scroll, totalRows: 0, visibleRows: 1, sticky: false });
+  return WorkspacePane({
+    title: ' SCROLLABLE WORKSPACE BODY ',
+    height: 18,
+    theme: ocean,
+    children: [ScrollView({
+      scrollState,
+      pointerId: 'workspace-scroll',
+      onWheel: noop,
+    }, Column({ gap: 1 },
+      ...Array.from({ length: 12 }, (_, index) => PointerRegion({
+        pointerId: `workspace-row:${index}`,
+        pointerData: { row: index },
+        onClick: noop,
+      }, Text(`Row ${String(index + 1).padStart(2, '0')} · ${['prepare input', 'render frame', 'patch terminal', 'verify output'][index % 4]}`))),
+    ))],
+    footerNode: KeyHintBar({
+      title: ' LOCAL CONTROLS ',
+      hints: [['↑/↓', 'scroll'], ['PgUp/PgDn', 'page'], ['Home/End', 'jump'], ['Enter', 'open']],
+      columns: 'auto',
+      maxColumns: 'auto',
+      minColumnWidth: 14,
+      theme: ocean,
+    }),
+    footerMinHeight: 3,
+    footerMaxHeight: 5,
+  });
+}
+
+function interactionKitProgressWindow(id, { scroll = 0 } = {}) {
+  const state = createInteractionKitState();
+  const index = state.list.items.findIndex((item) => item.id === id);
+  state.selectedShowcaseIndex = index;
+  state.list.selectedIndex = index;
+  state.focus.focus('preview');
+  state.frame = 8;
+  const showcase = state.showcaseState[id];
+  if (showcase?.scroll) showcase.scroll.scroll = scroll;
+
+  if (id === 'progress-live-jobs') {
+    Object.assign(showcase, {
+      progress: 58,
+      running: true,
+      status: 'running',
+      activeIndex: 2,
+      elapsed: 37,
+      ticks: 148,
+      processed: 244,
+    });
+  } else if (id === 'progress-status-controller') {
+    showcase.clockMs = 1000;
+    showcase.download.add(18 * 1024 * 1024);
+    showcase.batch.add(3);
+    showcase.clockMs = 4000;
+    showcase.download.add(24 * 1024 * 1024);
+    showcase.batch.add(2);
+    showcase.batchNotice = 'Manual batch completed: 5/12.';
+    showcase.manualBatchAdds = 1;
+  }
+
+  return createInteractionKitView({ state, width: 120, height: 35 });
+}

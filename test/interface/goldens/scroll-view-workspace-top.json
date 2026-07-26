@@ -1,0 +1,302 @@
+{
+  "id": "scroll-view-workspace-top",
+  "title": "Scrollable workspace body at the top",
+  "width": 82,
+  "height": 18,
+  "lines": [
+    "\u001b[38;5;24m┌  SCROLLABLE WORKSPACE BODY                                                     ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m Row 01 · prepare input                                                         \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m                                                                                \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m Row 02 · render frame                                                          \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m                                                                                \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m Row 03 · patch terminal                                                        \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m                                                                                \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m Row 04 · verify output                                                         \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m                                                                                \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m Row 05 · prepare input                                                         \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m                                                                                \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m Row 06 · render frame                                                          \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m┌  LOCAL CONTROLS                                                            ┐\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m↑/↓\u001b[0m \u001b[38;5;67mscroll\u001b[0m                                                                 \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;45mPgUp/PgDn\u001b[0m \u001b[38;5;67mpage\u001b[0m                                                             \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;45mHome/End\u001b[0m \u001b[38;5;67mjump\u001b[0m                                                              \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m└────────────────────────────────────────────────────────────────────────────┘\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└────────────────────────────────────────────────────────────────────────────────┘\u001b[0m"
+  ],
+  "plain": [
+    "┌  SCROLLABLE WORKSPACE BODY                                                     ┐",
+    "│ Row 01 · prepare input                                                         │",
+    "│                                                                                │",
+    "│ Row 02 · render frame                                                          │",
+    "│                                                                                │",
+    "│ Row 03 · patch terminal                                                        │",
+    "│                                                                                │",
+    "│ Row 04 · verify output                                                         │",
+    "│                                                                                │",
+    "│ Row 05 · prepare input                                                         │",
+    "│                                                                                │",
+    "│ Row 06 · render frame                                                          │",
+    "│ ┌  LOCAL CONTROLS                                                            ┐ │",
+    "│ │ ↑/↓ scroll                                                                 │ │",
+    "│ │ PgUp/PgDn page                                                             │ │",
+    "│ │ Home/End jump                                                              │ │",
+    "│ └────────────────────────────────────────────────────────────────────────────┘ │",
+    "└────────────────────────────────────────────────────────────────────────────────┘"
+  ],
+  "pointerRegions": [
+    {
+      "token": 1,
+      "id": "workspace-scroll",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 2,
+        "y": 1,
+        "width": 78,
+        "height": 11
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 1,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 3,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 4,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 5,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 8,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 9,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 10,
+          "width": 78,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 11,
+          "width": 78,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onWheel"
+      ]
+    },
+    {
+      "token": 2,
+      "id": "workspace-row:0",
+      "data": {
+        "row": 0
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 1,
+        "width": 22,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 1,
+          "width": 22,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 3,
+      "id": "workspace-row:1",
+      "data": {
+        "row": 1
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 3,
+        "width": 21,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 3,
+          "width": 21,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 4,
+      "id": "workspace-row:2",
+      "data": {
+        "row": 2
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 5,
+        "width": 23,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 5,
+          "width": 23,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 5,
+      "id": "workspace-row:3",
+      "data": {
+        "row": 3
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 7,
+        "width": 22,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 7,
+          "width": 22,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 6,
+      "id": "workspace-row:4",
+      "data": {
+        "row": 4
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 9,
+        "width": 22,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 9,
+          "width": 22,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 7,
+      "id": "workspace-row:5",
+      "data": {
+        "row": 5
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 11,
+        "width": 21,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 11,
+          "width": 21,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    }
+  ]
+}

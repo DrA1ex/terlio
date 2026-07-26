@@ -25,6 +25,23 @@ test('interface scenarios are deterministic across host time zones', async () =>
   assert.deepEqual(yekaterinburg, utc);
 });
 
+
+test('ScrollView keeps the workspace footer stationary while the body scrolls', () => {
+  const topScenario = INTERFACE_SCENARIOS.find((scenario) => scenario.id === 'scroll-view-workspace-top');
+  const scrolledScenario = INTERFACE_SCENARIOS.find((scenario) => scenario.id === 'scroll-view-workspace-scrolled');
+  assert.ok(topScenario && scrolledScenario, 'paired ScrollView scenarios must exist');
+
+  const top = renderScenario(topScenario);
+  const scrolled = renderScenario(scrolledScenario);
+  const topFooter = top.plain.findIndex((line) => line.includes('LOCAL CONTROLS'));
+  const scrolledFooter = scrolled.plain.findIndex((line) => line.includes('LOCAL CONTROLS'));
+
+  assert.ok(topFooter > 0, 'top scenario must render the local controls footer');
+  assert.equal(scrolledFooter, topFooter, 'scrolling must not move the footer');
+  assert.deepEqual(scrolled.plain.slice(scrolledFooter), top.plain.slice(topFooter));
+  assert.notDeepEqual(scrolled.plain.slice(1, topFooter), top.plain.slice(1, topFooter));
+});
+
 test('interface scenario ids and golden files are complete, unique and free of stale files', () => {
   const ids = INTERFACE_SCENARIOS.map((scenario) => scenario.id);
   assert.equal(new Set(ids).size, ids.length, 'interface scenario ids must be unique');

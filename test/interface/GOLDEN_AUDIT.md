@@ -4,7 +4,7 @@
 
 The interface snapshot suite renders deterministic component trees into fixed-size virtual terminal frames and compares the complete output with committed golden files.
 
-The catalog currently covers **50 of 50 public visual components (100%)**. Coverage here means that every public visual component is represented in at least one rendered interface tree. It is intentionally separate from source-line coverage.
+The catalog currently contains **22 golden frames** and covers **52 of 52 public visual components (100%)**. Coverage here means that every public visual component is represented in at least one rendered interface tree. It is intentionally separate from source-line coverage.
 
 Each golden stores:
 
@@ -73,6 +73,45 @@ Affected golden:
 - `chat-subcomponents`.
 
 The header selects a complete compact help variant. `palette` is either shown in full or omitted with its shortcut group rather than shortened to `palet…`.
+
+
+### UI-AUDIT-006 — Adaptive list rows use only the space they need
+
+Affected golden:
+
+- `adaptive-select-list`.
+
+Short items remain one line. Longer labels wrap only when the available width requires it and use no more than the configured two lines. The list fills its assigned panel height while the footer remains at the bottom.
+
+### UI-AUDIT-007 — Shortcut layouts respond in both directions
+
+Affected golden:
+
+- `responsive-key-hints`.
+
+The same shortcut set is rendered at narrow and wide widths. Narrow layouts wrap labels and reduce the column count; wide layouts restore additional columns instead of retaining a stale compact arrangement.
+
+### UI-AUDIT-008 — Progress surfaces cover variants and lifecycle states
+
+Affected goldens:
+
+- `progress-bar-variants`;
+- `progress-status-lifecycle`;
+- `interaction-kit-progress-live-jobs`;
+- `interaction-kit-progress-status`.
+
+The catalog protects all four progress-bar variants, fractional filling, zero and completed states, running rate and ETA details, paused/completed/failed/cancelled lifecycle states, controller-backed `LiveJobBlock` output, batching feedback and the complete Interaction Kit windows that combine these components.
+
+### UI-AUDIT-009 — Scrollable workspace bodies keep local controls fixed
+
+Affected goldens:
+
+- `scroll-view-workspace-top`;
+- `scroll-view-workspace-scrolled`;
+- `interaction-kit-progress-live-jobs`;
+- `interaction-kit-progress-status`.
+
+`ScrollView` clips and translates the body while the surrounding `WorkspacePane` remains the only bordered container. The local-controls footer stays on the same rows before and after scrolling, and clipped pointer regions remain inside the body viewport.
 
 ## Golden update policy
 
