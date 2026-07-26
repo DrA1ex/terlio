@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { createTerminalSink } from '../src/lib/terminal/sink.js';
 import {
   Badge,
   Column,
@@ -124,5 +123,5 @@ function samplePane(sample) {
 if (isDirectRun(import.meta.url)) {
   const width = Math.max(MIN_WIDTH, Number(process.stdout.columns) || 112);
   const height = Math.max(MIN_HEIGHT, Number(process.stdout.rows) || 30);
-  createTerminalSink({ output: process.stdout }).write(`${renderSyntaxHighlighting({ width, height })}\n`, { kind: 'one-shot-example' });
+  process.stdout.write(`${renderSyntaxHighlighting({ width, height })}\n`);
 }

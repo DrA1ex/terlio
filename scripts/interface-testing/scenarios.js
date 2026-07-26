@@ -59,6 +59,7 @@ import {
   themes,
 } from '../../src/lib/index.js';
 import { createInteractionKitState, createInteractionKitView } from '../../examples/interaction-kit.js';
+import { createSyntaxHighlightingView } from '../../examples/syntax-highlighting.js';
 
 export const VISUAL_COMPONENTS = Object.freeze([
   'Text', 'Box', 'Panel', 'Row', 'Column', 'PointerRegion',
@@ -287,6 +288,14 @@ export const INTERFACE_SCENARIOS = Object.freeze([
         code: 'import Foundation\n\nstruct User {\n  let name: String\n}\n\nprint(User(name: "Ada"))',
       }),
     ),
+  },
+  {
+    id: 'syntax-highlighting-window',
+    title: 'Complete syntax highlighting example window',
+    width: 112,
+    height: 30,
+    covers: ['SyntaxText', 'WorkspacePane', 'WorkspaceShell'],
+    render: () => createSyntaxHighlightingView({ width: 112, height: 30 }),
   },
   {
     id: 'workspace-shell-wide',

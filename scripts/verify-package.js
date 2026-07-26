@@ -145,6 +145,8 @@ try {
 
   const syntaxExample = run(process.execPath, [cli, 'example:syntax'], { cwd: consumer });
   assert.match(syntaxExample, /Zero-dependency Syntax Highlighting/);
+  assert.match(syntaxExample, /\x1b\[/, 'syntax example must emit real ANSI styling');
+  assert.doesNotMatch(syntaxExample, /␛\[/, 'syntax example must not display escaped control notation');
 
   console.log(`Verified ${packageName} package ${pack.version}: ${pack.entryCount} files, ${pack.size} bytes.`);
 } finally {

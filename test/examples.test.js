@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { renderToString } from '../src/lib/index.js';
 import { createEditorLabState, createEditorLabView, handleEditorLabKey } from '../examples/editor-lab.js';
 import { createCommandPaletteState, createCommandPaletteView, getFilteredActions, handleCommandPaletteKey, tickCommandPalette } from '../examples/command-palette.js';
@@ -9,6 +11,19 @@ import { createComponentsShowcaseView, createDiffShowcase, renderComponentsShowc
 import { createInteractionKitState, createInteractionKitView, handleInteractionKitKey } from '../examples/interaction-kit.js';
 import { packageDisplayName } from '../src/lib/packageMetadata.js';
 import { wheelScrollDelta } from '../examples/_workspaceExampleUtils.js';
+
+test('one-shot syntax example emits real ANSI instead of visible escape notation', () => {
+  const entry = fileURLToPath(new URL('../examples/syntax-highlighting.js', import.meta.url));
+  const result = spawnSync(process.execPath, [entry], {
+    encoding: 'utf8',
+    env: process.env,
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /\x1b\[/);
+  assert.doesNotMatch(result.stdout, /␛\[/);
+  assert.match(result.stdout, /Zero-dependency Syntax Highlighting/);
+});
 
 test('shared example wheel scrolling defaults to one row', () => {
   assert.equal(wheelScrollDelta({ deltaY: 1 }), 1);

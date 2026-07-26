@@ -4,7 +4,7 @@
 
 The interface snapshot suite renders deterministic component trees into fixed-size virtual terminal frames and compares the complete output with committed golden files.
 
-The catalog currently contains **22 golden frames** and covers **52 of 52 public visual components (100%)**. Coverage here means that every public visual component is represented in at least one rendered interface tree. It is intentionally separate from source-line coverage.
+The catalog currently contains **23 golden frames** and covers **52 of 52 public visual components (100%)**. Coverage here means that every public visual component is represented in at least one rendered interface tree. It is intentionally separate from source-line coverage.
 
 Each golden stores:
 
@@ -112,6 +112,14 @@ Affected goldens:
 - `interaction-kit-progress-status`.
 
 `ScrollView` clips and translates the body while the surrounding `WorkspacePane` remains the only bordered container. The local-controls footer stays on the same rows before and after scrolling, and clipped pointer regions remain inside the body viewport.
+
+### UI-AUDIT-010 — The packaged syntax example retains real terminal styling
+
+Affected golden:
+
+- `syntax-highlighting-window`.
+
+The complete syntax-highlighting example keeps its workspace layout, language detection and semantic token colors. A separate direct-run regression test and the packed-package smoke test require real ANSI output and reject visible escape notation such as `␛[38;5;…m`.
 
 ## Golden update policy
 

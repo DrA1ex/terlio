@@ -37,7 +37,7 @@ Each golden contains:
 - width and height;
 - pointer-region geometry and handler metadata.
 
-This catches regressions in layout, wrapping, borders, truncation, styling, overlay composition, hit-testing geometry, editor cursors, adaptive list windows, responsive shortcut grids, scrollable workspace bodies, progress lifecycle states, and responsive chat/workspace output. The suite also renders the complete catalog in both `UTC` and `Asia/Yekaterinburg` and requires byte-equivalent snapshots, preventing host-time-zone drift in committed goldens.
+This catches regressions in layout, wrapping, borders, truncation, styling, overlay composition, hit-testing geometry, editor cursors, adaptive list windows, responsive shortcut grids, scrollable workspace bodies, progress lifecycle states, the complete syntax-highlighting example, and responsive chat/workspace output. The suite also renders the complete catalog in both `UTC` and `Asia/Yekaterinburg` and requires byte-equivalent snapshots, preventing host-time-zone drift in committed goldens.
 
 ## Coverage
 
