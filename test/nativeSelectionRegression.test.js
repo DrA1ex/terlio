@@ -146,10 +146,9 @@ test('packaged example runtime never shadows Ctrl+C with a copy callback', () =>
     state: {},
     render: () => Text('demo'),
     onKey: ({ key }) => seenKeys.push(key),
+    input,
+    output,
   });
-  runtime.input = input;
-  runtime.output = output;
-  runtime.renderer.output = output;
   runtime.running = true;
   runtime.exit = (code) => exits.push(code);
 

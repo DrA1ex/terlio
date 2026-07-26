@@ -24,59 +24,55 @@ Every golden was reviewed from its ANSI-stripped frame and passed automated chec
 - absence of `undefined`, `[object Object]`, and `NaN` placeholders;
 - absence of unexpected C0/C1 controls;
 - pointer bounds and segments remaining inside the viewport;
-- deterministic rendering across repeated runs.
+- deterministic rendering in both `UTC` and `Asia/Yekaterinburg`.
 
-The goldens capture the current 1.1.3 output. They are regression baselines, not an assertion that every captured layout is visually ideal.
+The goldens capture the current interface output. They are regression baselines and must be reviewed rather than updated automatically when rendering changes.
 
-## Existing issues found during visual review
+## Behaviors covered by the baseline
 
-The following issues were present before the snapshot suite was added. They were intentionally **not fixed** in this change.
+The current goldens protect the following interface requirements.
 
-### UI-AUDIT-001 — Structured chat blocks can be clipped into orphaned borders
-
-Affected goldens:
-
-- `chat-subcomponents`
-- `chat-screen-compact`
-
-When the transcript viewport begins or ends inside a bordered code/diff block, only the visible physical rows are retained. This can leave a closing border or side borders visible without the corresponding opening border and title.
-
-This is most noticeable in compact chat layouts and when reading the newest rows of a long structured assistant response.
-
-### UI-AUDIT-002 — Bottom overlays can visually collide with underlying pane borders
+### UI-AUDIT-001 — Structured chat blocks retain their opening context
 
 Affected goldens:
 
-- `responsive-layouts`
-- `chat-screen-full`
+- `chat-subcomponents`;
+- `chat-screen-compact`.
 
-A bottom overlay correctly replaces cells inside its rectangle, but the still-visible base cells immediately outside that rectangle may contain box-drawing borders. At the overlay edges this can produce joined or colliding border fragments that look like one malformed surface.
+When a transcript viewport begins inside a structured code or diff block, the visible fragment retains the opening border and title. Compact layouts do not show an orphaned side or closing border without identifying the block.
 
-The hit-testing and frame dimensions remain valid; this is a compositing/visual-boundary issue.
+### UI-AUDIT-002 — Bottom overlays remain visually isolated
 
-### UI-AUDIT-003 — `LiveJobBlock` does not adapt its progress row to narrow panes
+Affected goldens:
 
-Affected golden:
+- `responsive-layouts`;
+- `chat-screen-full`.
 
-- `live-and-timeline`
+Bottom overlays and chat autocomplete surfaces remain visually separate from adjacent bordered panes. The frames preserve a clean boundary while keeping overlay hit-testing and clipping inside the viewport.
 
-In a narrow pane, the spinner/status and fixed-width progress bar do not fit on one row. The progress bar is hard-clipped and its percentage appears on the following row without the complete bar delimiters.
-
-### UI-AUDIT-004 — Compact chat status text truncates semantic labels mid-phrase
-
-Affected golden:
-
-- `chat-screen-compact`
-
-The transcript footer combines history state and selection help in one line. Under the compact width, `earlier` is shortened to an ambiguous fragment (`e…`). The layout remains bounded, but the resulting status is difficult to understand.
-
-### UI-AUDIT-005 — Header help can truncate a command name mid-word
+### UI-AUDIT-003 — `LiveJobBlock` adapts to narrow panes
 
 Affected golden:
 
-- `chat-subcomponents`
+- `live-and-timeline`.
 
-The compact header help line truncates `palette` to `palet…` to preserve the skills summary. This is a minor UX issue rather than a structural rendering failure.
+The progress bar contracts to the available width and keeps its percentage on the same row. The status and step list remain visible without a clipped bar or a detached percentage line.
+
+### UI-AUDIT-004 — Compact history labels remain semantic
+
+Affected golden:
+
+- `chat-screen-compact`.
+
+The compact transcript footer uses a complete `earlier` label rather than an ambiguous fragment such as `e…`.
+
+### UI-AUDIT-005 — Compact header commands are not cut mid-word
+
+Affected golden:
+
+- `chat-subcomponents`.
+
+The header selects a complete compact help variant. `palette` is either shown in full or omitted with its shortcut group rather than shortened to `palet…`.
 
 ## Golden update policy
 
@@ -96,5 +92,5 @@ Before committing updated goldens:
 1. Review every changed plain frame.
 2. Review raw ANSI changes when styling changed.
 3. Confirm pointer-region changes are intentional.
-4. Update this audit when a known issue is fixed, changes shape, or a new issue is found.
-5. Do not delete an issue from this document merely because its current broken output was accepted as a regression baseline.
+4. Update this audit when a protected behavior changes or a new issue is found.
+5. Never accept a failing golden solely to make the suite green.

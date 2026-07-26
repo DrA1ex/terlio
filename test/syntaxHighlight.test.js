@@ -208,9 +208,10 @@ test('unterminated strings and comments remain lossless', () => {
   }
 });
 
-test('syntax token styling supports explicit, fallback, unknown and empty tokens', () => {
-  assert.equal(styleSyntaxToken({ type: 'keyword', value: 'let' }, { syntaxKeyword: '<k>' }), '<k>let\x1b[0m');
-  assert.equal(styleSyntaxToken({ type: 'comment', value: 'note' }, { textMuted: '<m>' }), '<m>note\x1b[0m');
+test('syntax token styling supports validated explicit, fallback, unknown and empty tokens', () => {
+  assert.equal(styleSyntaxToken({ type: 'keyword', value: 'let' }, { syntaxKeyword: '\x1b[31m' }), '\x1b[31mlet\x1b[0m');
+  assert.equal(styleSyntaxToken({ type: 'comment', value: 'note' }, { textMuted: '\x1b[2m' }), '\x1b[2mnote\x1b[0m');
+  assert.equal(styleSyntaxToken({ type: 'keyword', value: 'let' }, { syntaxKeyword: '<k>' }), 'let');
   assert.equal(styleSyntaxToken({ type: 'missing', value: 'plain' }, {}), 'plain');
   assert.equal(styleSyntaxToken({ type: 'string', value: '' }, theme), '');
   assert.equal(styleSyntaxToken(null, theme), '');

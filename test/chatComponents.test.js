@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  ChatHeader,
   ChatScreen,
   createChatScreen,
   createCommandPaletteState,
@@ -128,6 +129,59 @@ test('ChatScreen renders debug overlay through DebugPanel', () => {
 
   assert.match(output, /debug key: ctrl-p/);
   assert.match(output, /debug:on/);
+});
+
+
+test('compact transcript keeps the structured code header visible when the block is taller than the viewport', () => {
+  const message = createMessage({
+    role: 'assistant',
+    blocks: [{
+      type: 'code',
+      title: 'example.js',
+      content: Array.from({ length: 12 }, (_, index) => `line ${index}`).join('\n'),
+    }],
+  });
+  const screen = createChatScreen({
+    columns: 64,
+    rows: 18,
+    theme: themes.dark,
+    messages: [message],
+    inputParts: { before: '', current: ' ', after: '' },
+  });
+
+  const output = plain(screen.node, { width: 64, height: 18 });
+  assert.match(output, /┌─ example\.js/);
+  assert.match(output, /line 11/);
+  assert.doesNotMatch(output, /CONVERSATION[^\n]*\n│\s+│ line 7/);
+});
+
+test('compact transcript uses an unambiguous whole-word history summary', () => {
+  const messages = Array.from({ length: 12 }, (_, index) => createMessage({ role: 'user', content: `message ${index}` }));
+  const screen = createChatScreen({
+    columns: 72,
+    rows: 18,
+    theme: themes.dark,
+    messages,
+    scrollOffset: 5,
+    inputParts: { before: '', current: ' ', after: '' },
+  });
+
+  const output = plain(screen.node, { width: 72, height: 18 });
+  assert.match(output, /↑\d+ earlier/);
+  assert.doesNotMatch(output, /ea…|e…/);
+});
+
+test('narrow chat header keeps the palette shortcut as a complete word', () => {
+  const output = plain(ChatHeader({
+    columns: 80,
+    compact: false,
+    theme: themes.dark,
+    pointerActive: true,
+    activeSkills: ['code'],
+  }), { width: 80, height: 4 });
+
+  assert.match(output, /Ctrl\+P palette/);
+  assert.doesNotMatch(output, /palet?…/);
 });
 
 test('RichTerminalApp.render delegates to component ChatScreen and TerminalRenderer', () => {

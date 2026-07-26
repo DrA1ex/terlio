@@ -24,8 +24,11 @@ export class InputEditor {
 
   insertPaste(text) {
     const chars = Array.from(this.value);
-    const normalized = String(text ?? '').replace(/\r\n?/g, '\n').replace(/\t/g, '  ');
-    const inserted = Array.from(normalized).filter((char) => char === '\n' || isPrintable(char)).join('');
+    // Bracketed paste is already a single semantic input transaction. Preserve
+    // its data verbatim apart from newline normalization and the editor's
+    // established tab expansion; terminal controls are made harmless only when
+    // the value is rendered by the terminal output boundary.
+    const inserted = String(text ?? '').replace(/\r\n?/g, '\n').replace(/\t/g, '  ');
     chars.splice(this.cursor, 0, ...Array.from(inserted));
     this.value = chars.join('');
     this.cursor += charLength(inserted);

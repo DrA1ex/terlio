@@ -1,6 +1,7 @@
 import { createNode } from '../node.js';
 import { renderRow } from './row.js';
 import { renderColumn } from './column.js';
+import { createLayoutResult } from './result.js';
 
 export function SplitPane({ orientation = 'horizontal', panes = [], gap = 1, height = undefined, focus = '', theme = null } = {}) {
   return createNode('splitPane', { orientation, panes, gap, height, focus, theme }, panes.map((pane) => pane.node ?? pane.children ?? pane));
@@ -9,7 +10,7 @@ export function SplitPane({ orientation = 'horizontal', panes = [], gap = 1, hei
 export function renderSplitPane(node, width, renderNode) {
   const props = node.props || {};
   const panes = Array.from(props.panes ?? []).filter(Boolean);
-  if (!panes.length) return [''];
+  if (!panes.length) return createLayoutResult(['']);
   const sizes = resolvePaneSizes(panes, width, Number(props.gap ?? 1));
   const children = panes.map((pane, index) => {
     const child = pane.node ?? pane.children ?? node.children[index];

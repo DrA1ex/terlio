@@ -1,5 +1,3 @@
-import { wcwidth } from './ansi/text.js';
-
 const SGR_MOUSE_RE = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/;
 
 const BUTTONS = ['left', 'middle', 'right', 'none'];
@@ -84,10 +82,47 @@ export function isPointerEvent(value) {
   return Boolean(value && value.type === 'pointer' && Number.isFinite(value.x) && Number.isFinite(value.y));
 }
 
+export function normalizePointerRegions(regions = [], {
+  width = Infinity,
+  height = Infinity,
+  maxRegions = Infinity,
+  preserveUnknownParents = true,
+} = {}) {
+  const safeWidth = normalizeDimension(width);
+  const safeHeight = normalizeDimension(height);
+  const safeMaxRegions = normalizeRegionLimit(maxRegions);
+  const output = [];
+  const seenTokens = new Set();
+
+  for (const source of Array.from(regions ?? [])) {
+    if (output.length >= safeMaxRegions) break;
+    const token = normalizeToken(source?.token);
+    if (token === null || seenTokens.has(token)) continue;
+    const segments = normalizeSegments(source?.segments, safeWidth, safeHeight);
+    if (!segments.length) continue;
+
+    seenTokens.add(token);
+    output.push({
+      ...source,
+      token,
+      parentToken: normalizeToken(source?.parentToken),
+      segments,
+      bounds: boundsForSegments(segments),
+    });
+  }
+
+  const validTokens = new Set(output.map((region) => region.token));
+  return output.map((region) => ({
+    ...region,
+    parentToken: region.parentToken !== region.token && (
+      preserveUnknownParents || validTokens.has(region.parentToken)
+    ) ? region.parentToken : null,
+  }));
+}
+
 export function requestsPointerReporting(regions = []) {
-  return Array.from(regions ?? []).some((region) => (
-    region
-    && !region.disabled
+  return normalizePointerRegions(regions).some((region) => (
+    !region.disabled
     && region.pointerEvents !== 'none'
     && region.autoEnable !== false
   ));
@@ -98,11 +133,12 @@ export function hitTestPointerRegions(regions = [], x, y, { all = false } = {}) 
   const safeY = Number(y);
   if (!Number.isFinite(safeX) || !Number.isFinite(safeY)) return all ? [] : null;
   const matches = [];
+  const normalized = normalizePointerRegions(regions, { preserveUnknownParents: false });
 
-  for (let index = regions.length - 1; index >= 0; index -= 1) {
-    const region = regions[index];
-    if (!region || region.disabled || region.pointerEvents === 'none') continue;
-    const segment = region.segments?.find((item) => (
+  for (let index = normalized.length - 1; index >= 0; index -= 1) {
+    const region = normalized[index];
+    if (region.disabled || region.pointerEvents === 'none') continue;
+    const segment = region.segments.find((item) => (
       safeY === item.y && safeX >= item.x && safeX < item.x + item.width
     ));
     if (!segment) continue;
@@ -116,9 +152,10 @@ export function hitTestPointerRegions(regions = [], x, y, { all = false } = {}) 
 export function dispatchPointerEvent(pointer, regions = [], context = {}, { capturedToken = null } = {}) {
   if (!isPointerEvent(pointer)) return { handled: false, event: pointer, targets: [] };
 
+  const normalized = normalizePointerRegions(regions, { preserveUnknownParents: false });
   const hits = capturedToken == null
-    ? hitTestPointerRegions(regions, pointer.x, pointer.y, { all: true })
-    : capturedPointerHits(regions, capturedToken, pointer);
+    ? hitTestPointerRegions(normalized, pointer.x, pointer.y, { all: true })
+    : capturedPointerHits(normalized, capturedToken, pointer);
   const matches = routedMatchChain(hits);
   const target = matches[0]?.region ?? null;
   const event = createRoutedPointerEvent(pointer, target);
@@ -147,86 +184,20 @@ export function dispatchPointerEvent(pointer, regions = [], context = {}, { capt
   return { handled, event, targets: matches.map((item) => publicRegion(item.region)) };
 }
 
-export function extractPointerRegions(lines = [], metadata = new Map(), { width = 80, height = 24 } = {}) {
-  const safeWidth = Math.max(1, Number(width) || 1);
-  const safeHeight = Math.max(1, Number(height) || 1);
-  const regionsByToken = new Map();
-  const cleanLines = [];
-
-  for (let y = 0; y < Math.min(lines.length, safeHeight); y += 1) {
-    const source = String(lines[y] ?? '');
-    let clean = '';
-    let visibleX = 0;
-    let index = 0;
-
-    while (index < source.length) {
-      if (source[index] === '\x1b') {
-        const marker = /^\x1b\[\?9000;(\d+);(\d+)z/.exec(source.slice(index));
-        if (marker) {
-          const token = Number(marker[1]);
-          const requestedWidth = Math.max(1, Number(marker[2]) || 1);
-          const segmentWidth = Math.max(0, Math.min(requestedWidth, safeWidth - visibleX));
-          if (segmentWidth > 0 && metadata.has(token)) {
-            const entry = regionsByToken.get(token) ?? { ...metadata.get(token), token, segments: [] };
-            entry.segments.push({ x: visibleX, y, width: segmentWidth, height: 1 });
-            regionsByToken.set(token, entry);
-          }
-          index += marker[0].length;
-          continue;
-        }
-
-        const ansi = /^\x1b\[[0-?]*[ -/]*[@-~]/.exec(source.slice(index));
-        if (ansi) {
-          clean += ansi[0];
-          index += ansi[0].length;
-          continue;
-        }
-      }
-
-      const codePoint = source.codePointAt(index);
-      if (codePoint === undefined) break;
-      const char = String.fromCodePoint(codePoint);
-      clean += char;
-      visibleX += cellWidth(char);
-      index += char.length;
-    }
-
-    cleanLines.push(clean);
-  }
-
-  const regions = [...regionsByToken.values()].map((region) => ({
-    ...region,
-    bounds: boundsForSegments(region.segments),
-  }));
-
-  return { lines: cleanLines, regions };
-}
-
-
-export function stripPointerMarkers(value) {
-  return String(value ?? '').replace(/\x1b\[\?9000;\d+;\d+z/g, '');
-}
-
-export function pointerMarker(token, width) {
-  return `\x1b[?9000;${Math.max(1, Number(token) || 1)};${Math.max(1, Number(width) || 1)}z`;
-}
-
-
 function capturedPointerHits(regions, token, pointer) {
-  const region = Array.from(regions ?? []).find((item) => item?.token === token);
+  const safeToken = normalizeToken(token);
+  if (safeToken === null) return [];
+  const region = regions.find((item) => item.token === safeToken);
   if (!region || region.disabled || region.pointerEvents === 'none') return [];
-  const segment = nearestSegment(region.segments, pointer?.y) ?? {
-    x: region.bounds?.x ?? 0,
-    y: region.bounds?.y ?? 0,
-    width: Math.max(1, region.bounds?.width ?? 1),
-    height: 1,
-  };
+  const segment = nearestSegment(region.segments, pointer?.y) ?? region.segments[0];
   const hits = [{ region, segment }];
+  const visited = new Set([region.token]);
   let parentToken = region.parentToken;
-  while (parentToken != null) {
-    const parent = Array.from(regions ?? []).find((item) => item?.token === parentToken);
+  while (parentToken != null && !visited.has(parentToken)) {
+    visited.add(parentToken);
+    const parent = regions.find((item) => item.token === parentToken);
     if (!parent) break;
-    hits.push({ region: parent, segment: nearestSegment(parent.segments, pointer?.y) ?? parent.segments?.[0] ?? segment });
+    hits.push({ region: parent, segment: nearestSegment(parent.segments, pointer?.y) ?? parent.segments[0] ?? segment });
     parentToken = parent.parentToken;
   }
   return hits;
@@ -234,10 +205,10 @@ function capturedPointerHits(regions, token, pointer) {
 
 function nearestSegment(segments = [], y = 0) {
   if (!segments.length) return null;
-  const exact = segments.find((item) => Number(item.y) === Number(y));
+  const exact = segments.find((item) => item.y === Number(y));
   if (exact) return exact;
   return segments.reduce((best, item) => (
-    Math.abs(Number(item.y) - Number(y)) < Math.abs(Number(best.y) - Number(y)) ? item : best
+    Math.abs(item.y - Number(y)) < Math.abs(best.y - Number(y)) ? item : best
   ), segments[0]);
 }
 
@@ -246,13 +217,15 @@ function routedMatchChain(hits = []) {
   if (!target) return [];
   const byToken = new Map(hits.map((hit) => [hit.region.token, hit]));
   const chain = [];
+  const visited = new Set();
   let current = target.region;
-  while (current) {
+  while (current && !visited.has(current.token)) {
+    visited.add(current.token);
     const match = byToken.get(current.token);
     if (match) chain.push(match);
     current = current.parentToken == null
       ? null
-      : hits.find((hit) => hit.region.token === current.parentToken)?.region ?? null;
+      : byToken.get(current.parentToken)?.region ?? null;
   }
   return chain;
 }
@@ -302,6 +275,41 @@ function publicRegion(region) {
   };
 }
 
+function normalizeSegments(segments, width, height) {
+  const output = [];
+  for (const source of Array.from(segments ?? [])) {
+    const x = Number(source?.x);
+    const y = Number(source?.y);
+    const segmentWidth = Number(source?.width);
+    const segmentHeight = source?.height === undefined ? 1 : Number(source.height);
+    if (!Number.isInteger(x) || !Number.isInteger(y) ||
+        !Number.isInteger(segmentWidth) || segmentWidth <= 0 || segmentHeight !== 1) continue;
+    if (y < 0 || y >= height) continue;
+    const start = Math.max(0, x);
+    const end = Math.min(width, x + segmentWidth);
+    if (end <= start) continue;
+    output.push({ x: start, y, width: end - start, height: 1 });
+  }
+  return output;
+}
+
+function normalizeToken(value) {
+  if (value === null || value === undefined) return null;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+function normalizeDimension(value) {
+  if (value === Infinity) return Infinity;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : Infinity;
+}
+
+function normalizeRegionLimit(value) {
+  if (value === Infinity) return Infinity;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : Infinity;
+}
+
 function boundsForSegments(segments = []) {
   if (!segments.length) return { x: 0, y: 0, width: 0, height: 0 };
   const minX = Math.min(...segments.map((item) => item.x));
@@ -309,8 +317,4 @@ function boundsForSegments(segments = []) {
   const maxX = Math.max(...segments.map((item) => item.x + item.width));
   const maxY = Math.max(...segments.map((item) => item.y + item.height));
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
-
-function cellWidth(char) {
-  return wcwidth(char);
 }

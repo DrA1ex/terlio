@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   BottomOverlay,
+  Box,
   Column,
   PointerRegion,
   TerminalRenderer,
@@ -47,6 +48,48 @@ test('BottomOverlay supports aligned widths and clips oversized surfaces inside 
   assert.equal(lines[2].slice(10, 18).trim(), 'three');
   assert.match(lines[3], /row-3/);
   assert.match(lines[4], /row-4/);
+});
+
+
+test('BottomOverlay can isolate a bordered overlay from bordered content underneath', () => {
+  const content = Box({ border: true, height: 8 },
+    ...Array.from({ length: 6 }, (_, index) => Text(`base ${index}`)),
+  );
+  const overlay = Box({ border: true, height: 4, title: ' Overlay ' }, Text('one'), Text('two'));
+  const lines = renderNode(BottomOverlay({
+    content,
+    overlay,
+    height: 8,
+    bottom: 1,
+    left: 2,
+    right: 2,
+    isolate: true,
+  }), 30).map(stripAnsi);
+
+  assert.match(lines[3], /^│ ┌  Overlay/);
+  assert.match(lines[3], /┐ │$/);
+  assert.match(lines[4], /^│ │one/);
+  assert.doesNotMatch(lines.slice(3, 7).join('\n'), /│b[┌│└]/);
+});
+
+
+test('BottomOverlay hides an underlying horizontal border instead of leaving intersecting fragments', () => {
+  const content = Box({ border: true, height: 8 },
+    ...Array.from({ length: 6 }, (_, index) => Text(`base ${index}`)),
+  );
+  const overlay = Box({ border: true, height: 4, title: ' Overlay ' }, Text('one'), Text('two'));
+  const lines = renderNode(BottomOverlay({
+    content,
+    overlay,
+    height: 8,
+    bottom: 0,
+    left: 2,
+    right: 2,
+    isolate: true,
+  }), 30).map(stripAnsi);
+
+  assert.match(lines[7], /^  └─+┘  $/);
+  assert.doesNotMatch(lines[7], /^└ .* ┘$/);
 });
 
 test('BottomOverlay pointer hit-testing prefers the overlay while background remains interactive elsewhere', () => {

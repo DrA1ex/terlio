@@ -46,8 +46,12 @@ class FakeOutput extends EventEmitter {
     this.isTTY = true;
     this.columns = columns;
     this.rows = rows;
+    this.buffer = '';
   }
-  write() { return true; }
+  write(value) {
+    this.buffer += String(value ?? '');
+    return true;
+  }
 }
 
 function pointerAt(region, code) {
@@ -130,11 +134,12 @@ test('packaged interactive examples can temporarily invert smart pointer mode wi
       props: { pointerId: 'clickable', onClick() {} },
       children: [{ type: 'text', props: { value: 'copyable text', wrap: false }, children: [] }],
     }),
+    input: new FakeInput(),
+    output,
   });
-  runtime.output = output;
-  runtime.renderer.output = output;
   runtime.running = true;
   runtime.render();
+  assert.match(output.buffer, /copyable text/);
   assert.equal(runtime.pointerActive, true);
 
   runtime.handleData('\x14');

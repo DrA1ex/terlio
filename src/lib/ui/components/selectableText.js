@@ -14,6 +14,7 @@ export function SelectableText({
   selectionLines = lines,
   selectionOffsetX = 0,
   selectionOffsetY = 0,
+  selectionRowMap = null,
   selection,
   pointerId = 'selectable-text',
   pointerData = undefined,
@@ -35,6 +36,7 @@ export function SelectableText({
   const rendered = renderTextSelectionLines(visible, selection, {
     sourceLines: source,
     rowOffset: offsetY,
+    rowMap: selectionRowMap,
   });
 
   return PointerRegion({
@@ -50,7 +52,7 @@ export function SelectableText({
         return false;
       }
 
-      const mapped = mappedEventPoint(event, source, { offsetX, offsetY });
+      const mapped = mappedEventPoint(event, source, { offsetX, offsetY, rowMap: selectionRowMap });
       if (!mapped.valid) {
         const changed = clearTextSelection(selection);
         onSelectionChange?.('', selection, event, context);
@@ -79,7 +81,7 @@ export function SelectableText({
         return false;
       }
 
-      const mapped = mappedEventPoint(event, source, { offsetX, offsetY, clampOutside: true });
+      const mapped = mappedEventPoint(event, source, { offsetX, offsetY, rowMap: selectionRowMap, clampOutside: true });
       const interaction = selection.interaction ?? {
         point: mapped.point,
         insideSelection: false,
@@ -105,7 +107,7 @@ export function SelectableText({
         return false;
       }
 
-      const mapped = mappedEventPoint(event, source, { offsetX, offsetY, clampOutside: true });
+      const mapped = mappedEventPoint(event, source, { offsetX, offsetY, rowMap: selectionRowMap, clampOutside: true });
       const interaction = selection.interaction;
       const moved = Boolean(interaction?.moved || (interaction?.point && !samePoint(interaction.point, mapped.point)));
 
@@ -147,19 +149,41 @@ export function SelectableText({
 function mappedEventPoint(event, lines, {
   offsetX = 0,
   offsetY = 0,
+  rowMap = null,
   clampOutside = false,
 } = {}) {
+  const localY = Math.trunc(Number(event?.localY) || 0);
+  const mappedY = mappedSourceRow(localY, rowMap, offsetY);
   const raw = {
     x: Math.trunc(Number(event?.localX) || 0) + offsetX,
-    y: Math.trunc(Number(event?.localY) || 0) + offsetY,
+    y: mappedY ?? -1,
   };
-  const valid = raw.y >= 0 && raw.y < lines.length;
+  const valid = mappedY !== null && raw.y >= 0 && raw.y < lines.length;
   if (!clampOutside || !lines.length) return { point: raw, valid };
-  const y = Math.max(0, Math.min(raw.y, lines.length - 1));
+  const y = valid
+    ? raw.y
+    : nearestMappedSourceRow(localY, rowMap, offsetY, lines.length);
   return {
     point: { x: Math.max(0, raw.x), y },
     valid,
   };
+}
+
+function mappedSourceRow(localY, rowMap, offsetY) {
+  if (!Array.isArray(rowMap)) return localY + offsetY;
+  const value = rowMap[localY];
+  return Number.isInteger(value) ? value : null;
+}
+
+function nearestMappedSourceRow(localY, rowMap, offsetY, sourceLength) {
+  if (!Array.isArray(rowMap)) return Math.max(0, Math.min(localY + offsetY, sourceLength - 1));
+  for (let distance = 0; distance < rowMap.length; distance += 1) {
+    const before = rowMap[localY - distance];
+    if (Number.isInteger(before)) return Math.max(0, Math.min(before, sourceLength - 1));
+    const after = rowMap[localY + distance];
+    if (Number.isInteger(after)) return Math.max(0, Math.min(after, sourceLength - 1));
+  }
+  return 0;
 }
 
 function samePoint(a, b) {

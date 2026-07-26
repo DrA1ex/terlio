@@ -1,6 +1,6 @@
 import { visibleLength, truncateVisible } from '../../ansi/text.js';
 import { Box, Column, Panel, Row, Text, createNode } from '../node.js';
-import { clamp, mod } from './utils.js';
+import { mod } from './utils.js';
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
@@ -85,15 +85,8 @@ export function Toast({
   }, [body]);
 }
 
-export function ProgressBar({ value = 0, total = 100, width = 24, label = '' } = {}) {
-  const safeTotal = Number(total) > 0 ? Number(total) : 100;
-  const ratio = clamp(Number(value) / safeTotal, 0, 1);
-  const barWidth = Math.max(1, Number(width) || 1);
-  const filled = Math.round(ratio * barWidth);
-  const bar = '#'.repeat(filled) + '-'.repeat(Math.max(0, barWidth - filled));
-  const pct = `${Math.round(ratio * 100)}%`;
-  const prefix = label ? `${label} ` : '';
-  return Text(`${prefix}[${bar}] ${pct}`);
+export function ProgressBar({ value = 0, total = 100, width = 24, label = '', grow = false } = {}) {
+  return createNode('progressBar', { value, total, width, label, grow }, []);
 }
 
 export function Spinner({ frame = 0, label = '' } = {}) {

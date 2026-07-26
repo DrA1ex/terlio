@@ -1,5 +1,7 @@
 import { ansi } from '../../ansi/codes.js';
+import { sanitizeSgrStyle } from '../../terminal/controlParser.js';
 import { stripAnsi, takeVisibleAnsi, visibleLength } from '../../ansi/text.js';
+import { asLayoutResult, createLayoutResult, translatePointerRegions } from './result.js';
 import { fit } from './utils.js';
 
 export function renderShadowOverlay(node, width, renderNode) {
@@ -12,10 +14,11 @@ export function renderShadowOverlay(node, width, renderNode) {
   const requestedInset = Math.max(0, Number(props.inset) || 0);
   const actualX = Math.min(Math.max(minActualX, requestedInset), Math.max(0, containerWidth - childWidth));
   const shadowX = Math.max(0, actualX + offsetX);
-  const shadowColor = String(props.shadowColor || '');
+  const shadowColor = sanitizeSgrStyle(props.shadowColor || '');
   const reset = shadowColor ? ansi.reset : '';
   const child = node.children?.[0] ?? null;
-  const actualLines = renderNode(child, childWidth).map((line) => fit(line, childWidth));
+  const childResult = asLayoutResult(renderNode(child, childWidth));
+  const actualLines = childResult.lines.map((line) => fit(line, childWidth));
   const shadowLines = actualLines.map((line) => stripAnsi(line));
   const totalHeight = actualLines.length + offsetY;
   const output = [];
@@ -35,7 +38,7 @@ export function renderShadowOverlay(node, width, renderNode) {
     }));
   }
 
-  return output;
+  return createLayoutResult(output, translatePointerRegions(childResult.pointerRegions, actualX, 0, { width: containerWidth, height: totalHeight }));
 }
 
 function composeShadowOverlayLine({ actualLine, shadowPlain, actualX, shadowX, childWidth, width, shadowColor, reset }) {

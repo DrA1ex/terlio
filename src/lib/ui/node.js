@@ -7,7 +7,8 @@ export function createNode(type, props = {}, children = []) {
 }
 
 export function Text(value = '', props = {}) {
-  return createNode('text', { ...props, value: String(value ?? '') }, []);
+  const normalized = value?.type === 'unsafe-raw' ? value : String(value ?? '');
+  return createNode('text', { ...props, value: normalized }, []);
 }
 
 export function Box(props = {}, ...children) {

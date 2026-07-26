@@ -1,5 +1,9 @@
 export { RichTerminalApp, createAppPaletteItems } from './app.js';
 export { ansi, mouseReportingSequence } from './ansi/codes.js';
+export { createTerminalPolicy, normalizeTerminalPolicy, withSecurityLimits } from './terminal/policy.js';
+export { unsafeRawAnsi } from './terminal/unsafe.js';
+export { DEFAULT_SECURITY_LIMITS, TerlioLimitError, createLimitError, normalizeSecurityLimits, mergeSecurityLimits, enforceLimit, utf8ByteLength, truncateUtf8 } from './securityLimits.js';
+export { applyUnicodeSecurity, normalizeUnicodeSecurity, visibleCodePoint } from './unicodeSecurity.js';
 export { themes } from './ansi/themes.js';
 export { color, stripAnsi, visibleLength, wcwidth, padEndVisible, truncateVisible } from './ansi/text.js';
 export { commands, findCommand, getSuggestions, helpText, parseCommand } from './commands.js';

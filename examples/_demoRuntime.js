@@ -3,11 +3,12 @@ import { fileURLToPath } from 'node:url';
 import {
   TerminalInputDecoder,
   TerminalRenderer,
-  ansi,
-  mouseReportingSequence,
   requestsPointerReporting,
   renderToFrame,
 } from '../src/lib/index.js';
+import { createTerminalPolicy } from '../src/lib/terminal/policy.js';
+import { resolveTerminalSink } from '../src/lib/terminal/sink.js';
+import { TerminalSessionGuard } from '../src/lib/terminal/sessionGuard.js';
 
 export class InteractiveRuntime {
   constructor({
@@ -21,6 +22,10 @@ export class InteractiveRuntime {
     tickMs = 0,
     animationMs = 80,
     onStop = null,
+    input = process.stdin,
+    output = process.stdout,
+    terminalPolicy = createTerminalPolicy(),
+    terminalSink = null,
   }) {
     this.title = title;
     this.state = {
@@ -45,9 +50,12 @@ export class InteractiveRuntime {
     this.animationTimer = null;
     this.renderBatchDepth = 0;
     this.renderPending = false;
-    this.input = process.stdin;
-    this.output = process.stdout;
-    this.renderer = new TerminalRenderer({ output: this.output });
+    this.input = input;
+    this.output = output;
+    this.terminalPolicy = terminalPolicy;
+    this.terminalSink = resolveTerminalSink({ sink: terminalSink, output: this.output, policy: this.terminalPolicy });
+    this.terminalSession = new TerminalSessionGuard({ input: this.input, output: this.output, sink: this.terminalSink });
+    this.renderer = new TerminalRenderer({ output: this.output, sink: this.terminalSink, policy: this.terminalPolicy });
     this.inputDecoder = new TerminalInputDecoder();
     this.running = false;
     this.boundOnData = this.handleData.bind(this);
@@ -61,9 +69,9 @@ export class InteractiveRuntime {
 
     this.running = true;
     this.renderer.reset();
-    this.output.write(ansi.altScreen + ansi.hideCursor + ansi.autoWrapOff + ansi.clear + ansi.home);
+    this.terminalSession.start();
     this.input.setEncoding('utf8');
-    this.input.setRawMode(true);
+    this.terminalSession.enableRawMode();
     this.input.resume();
     this.input.on('data', this.boundOnData);
     this.output.on('resize', this.boundOnResize);
@@ -91,7 +99,6 @@ export class InteractiveRuntime {
     this.input.off('data', this.boundOnData);
     this.output.off('resize', this.boundOnResize);
     this.setPointerActive(false);
-    if (this.input.isTTY) this.input.setRawMode(false);
     this.input.pause();
     this.inputDecoder.reset();
     if (!this.stopNotified) {
@@ -99,7 +106,7 @@ export class InteractiveRuntime {
       try { this.onStop?.({ state: this.state, runtime: this }); } catch {}
     }
     this.renderer.reset();
-    this.output.write(ansi.autoWrapOn + ansi.showCursor + ansi.normalScreen + ansi.reset + '\n');
+    this.terminalSession.cleanup({ newline: true });
   }
 
   exit(code = 0) {
@@ -111,7 +118,7 @@ export class InteractiveRuntime {
   handleResize() {
     if (!this.running) return;
     this.renderer.reset();
-    this.output.write(ansi.clear + ansi.home);
+    this.terminalSession.clear();
     this.render();
   }
 
@@ -145,7 +152,7 @@ export class InteractiveRuntime {
     const view = this.renderView(context);
     const frame = renderToFrame(view, { width, height });
     this.renderer.renderFrame(frame);
-    this.output.write(ansi.reset);
+    this.terminalSession.resetStyles();
     this.syncPointerMode();
     this.syncAnimationTimer();
   }
@@ -267,7 +274,7 @@ export class InteractiveRuntime {
     const next = Boolean(enabled);
     if (next === this.pointerActive) return false;
     this.pointerActive = next;
-    this.output.write(mouseReportingSequence(next, this.pointerOptions));
+    this.terminalSession.setPointerReporting(next, this.pointerOptions);
     return true;
   }
 }
@@ -280,18 +287,18 @@ export function isDirectRun(metaUrl) {
 export function runInteractiveDemo(config) {
   const runtime = new InteractiveRuntime(config);
 
-  process.on('SIGINT', () => runtime.exit(130));
-  process.on('SIGTERM', () => runtime.exit(143));
-  process.on('uncaughtException', (error) => {
+  runtime.terminalSession.trackSignalHandler(process, 'SIGINT', () => runtime.exit(130), { removeOnCleanup: false });
+  runtime.terminalSession.trackSignalHandler(process, 'SIGTERM', () => runtime.exit(143), { removeOnCleanup: false });
+  runtime.terminalSession.trackSignalHandler(process, 'uncaughtException', (error) => {
     runtime.stop();
     console.error(error);
     process.exit(1);
-  });
-  process.on('unhandledRejection', (error) => {
+  }, { removeOnCleanup: false });
+  runtime.terminalSession.trackSignalHandler(process, 'unhandledRejection', (error) => {
     runtime.stop();
     console.error(error);
     process.exit(1);
-  });
+  }, { removeOnCleanup: false });
 
   runtime.start();
   return runtime;

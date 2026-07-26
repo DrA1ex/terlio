@@ -1,4 +1,6 @@
 import { visibleLength } from '../../ansi/text.js';
+import { sanitizeSgrStyle } from '../../terminal/controlParser.js';
+import { createLayoutResult } from './result.js';
 import { distribute, fit, normalizeSpacing } from './utils.js';
 
 export function renderGrid(node, width) {
@@ -6,7 +8,7 @@ export function renderGrid(node, width) {
   const safeColumns = Math.max(1, Number(props.columns) || 1);
   const items = Array.from(props.items ?? []);
   const emptyText = String(props.emptyText ?? '');
-  if (!items.length) return emptyText ? [fit(emptyText, width)] : [''];
+  if (!items.length) return createLayoutResult(emptyText ? [fit(emptyText, width)] : ['']);
 
   const renderItem = typeof props.renderItem === 'function' ? props.renderItem : (item) => String(item ?? '');
   const rows = [];
@@ -16,12 +18,12 @@ export function renderGrid(node, width) {
     rows.push(rowItems.map((item, offset) => item === null ? '' : String(renderItem(item, index + offset) ?? '')));
   }
 
-  if (props.border) return renderBorderedGrid(rows, props, width, safeColumns);
+  if (props.border) return createLayoutResult(renderBorderedGrid(rows, props, width, safeColumns));
 
   const gap = Math.max(0, Number(props.gap) || 0);
   const available = Math.max(1, width - gap * (safeColumns - 1));
   const columnWidths = distribute(available, safeColumns);
-  return rows.map((row) => fit(row.map((cell, index) => fit(cell, columnWidths[index])).join(' '.repeat(gap)), width));
+  return createLayoutResult(rows.map((row) => fit(row.map((cell, index) => fit(cell, columnWidths[index])).join(' '.repeat(gap)), width)));
 }
 
 function renderBorderedGrid(rows, props, width, columns) {
@@ -31,7 +33,7 @@ function renderBorderedGrid(rows, props, width, columns) {
   }
 
   const padding = normalizeSpacing(props.padding ?? { left: 1, right: 1 });
-  const borderColor = String(props.borderColor ?? '');
+  const borderColor = sanitizeSgrStyle(props.borderColor ?? '');
   const reset = borderColor ? '\x1b[0m' : '';
   const cellWidths = distribute(Math.max(1, safeWidth - columns - 1), columns);
   const line = (left, middle, right) => borderColor + left + cellWidths.map((cellWidth) => '─'.repeat(cellWidth)).join(middle) + right + reset;

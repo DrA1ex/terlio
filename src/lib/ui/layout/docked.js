@@ -1,5 +1,6 @@
 import { createNode } from '../node.js';
-import { applyFixedHeight, withHeight } from './utils.js';
+import { applyFixedHeightResult, asLayoutResult, createLayoutResult, translatePointerRegions } from './result.js';
+import { withHeight } from './utils.js';
 
 /**
  * Reserves space for a bottom-docked node before assigning the remaining
@@ -32,36 +33,47 @@ export function renderDocked(node, width, renderNode) {
   const gap = Math.max(0, Number(props.gap) || 0);
 
   if (fixedHeight === null) {
-    const contentLines = content ? renderNode(content, width) : [];
-    const footerLines = footer ? renderNode(footer, width) : [];
-    return [...contentLines, ...Array(contentLines.length && footerLines.length ? gap : 0).fill(''), ...footerLines];
+    const contentResult = content ? asLayoutResult(renderNode(content, width)) : createLayoutResult();
+    const footerResult = footer ? asLayoutResult(renderNode(footer, width)) : createLayoutResult();
+    const effectiveGap = contentResult.lines.length && footerResult.lines.length ? gap : 0;
+    return createLayoutResult(
+      [...contentResult.lines, ...Array(effectiveGap).fill(''), ...footerResult.lines],
+      [
+        ...contentResult.pointerRegions,
+        ...translatePointerRegions(footerResult.pointerRegions, 0, contentResult.lines.length + effectiveGap, { width, height: Infinity }),
+      ],
+    );
   }
 
   if (!footer) {
-    return applyFixedHeight(content ? renderNode(withHeight(content, fixedHeight), width) : [], width, fixedHeight);
+    return applyFixedHeightResult(content ? renderNode(withHeight(content, fixedHeight), width) : createLayoutResult(), width, fixedHeight);
   }
 
-  const naturalFooterLines = renderNode(footer, width);
+  const naturalFooterResult = asLayoutResult(renderNode(footer, width));
   const minFooter = Math.max(0, Number(props.footerMinHeight) || 0);
   const rawMaxFooter = Number(props.footerMaxHeight);
   const maxFooter = Number.isFinite(rawMaxFooter) ? Math.max(minFooter, rawMaxFooter) : fixedHeight;
   const footerHeight = Math.min(
     fixedHeight,
-    Math.max(minFooter, Math.min(maxFooter, naturalFooterLines.length)),
+    Math.max(minFooter, Math.min(maxFooter, naturalFooterResult.lines.length)),
   );
   const effectiveGap = footerHeight > 0 && fixedHeight > footerHeight ? Math.min(gap, fixedHeight - footerHeight) : 0;
   const contentHeight = Math.max(0, fixedHeight - footerHeight - effectiveGap);
 
-  const contentLines = contentHeight > 0 && content
-    ? renderNode(withHeight(content, contentHeight), width)
-    : [];
-  const footerLines = footerHeight > 0
-    ? renderNode(withHeight(footer, footerHeight), width)
-    : [];
+  const contentResult = contentHeight > 0 && content
+    ? asLayoutResult(renderNode(withHeight(content, contentHeight), width))
+    : createLayoutResult();
+  const footerResult = footerHeight > 0
+    ? asLayoutResult(renderNode(withHeight(footer, footerHeight), width))
+    : createLayoutResult();
+  const footerY = contentResult.lines.length + effectiveGap;
 
-  return applyFixedHeight([
-    ...contentLines,
+  return applyFixedHeightResult(createLayoutResult([
+    ...contentResult.lines,
     ...Array(effectiveGap).fill(''),
-    ...footerLines,
-  ], width, fixedHeight);
+    ...footerResult.lines,
+  ], [
+    ...contentResult.pointerRegions,
+    ...translatePointerRegions(footerResult.pointerRegions, 0, footerY, { width, height: fixedHeight }),
+  ]), width, fixedHeight);
 }

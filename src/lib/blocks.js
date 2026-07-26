@@ -2,7 +2,7 @@ let nextBlockId = 1;
 
 export const BLOCK_TYPES = new Set(['text', 'code', 'diff', 'command', 'warning', 'tool_result']);
 
-export function createBlock({ id = null, type = 'text', content = '', language = '', filename = '', syntaxHighlight = undefined, title = '', command = '', name = '', status = '', meta = {} } = {}) {
+export function createBlock({ id = null, type = 'text', content = '', language = '', filename = '', syntaxHighlight = undefined, unicodeSecurity = undefined, contentKind = undefined, title = '', command = '', name = '', status = '', meta = {} } = {}) {
   const safeType = BLOCK_TYPES.has(type) ? type : 'text';
   return {
     id: id ?? `b_${String(nextBlockId++).padStart(5, '0')}`,
@@ -11,6 +11,8 @@ export function createBlock({ id = null, type = 'text', content = '', language =
     language: String(language ?? ''),
     filename: String(filename ?? ''),
     syntaxHighlight: typeof syntaxHighlight === 'boolean' ? syntaxHighlight : undefined,
+    unicodeSecurity: typeof unicodeSecurity === 'string' ? unicodeSecurity : undefined,
+    contentKind: typeof contentKind === 'string' ? contentKind : undefined,
     title: String(title ?? ''),
     command: String(command ?? ''),
     name: String(name ?? ''),
@@ -70,7 +72,7 @@ export function ensureTextBlock(message) {
 
 
 function blockView(block) {
-  if (typeof block === 'string') return { type: 'text', content: block, language: '', filename: '', syntaxHighlight: undefined, title: '', command: '', name: '', status: '' };
+  if (typeof block === 'string') return { type: 'text', content: block, language: '', filename: '', syntaxHighlight: undefined, unicodeSecurity: undefined, contentKind: undefined, title: '', command: '', name: '', status: '' };
   const raw = block && typeof block === 'object' ? block : {};
   const type = BLOCK_TYPES.has(raw.type) ? raw.type : 'text';
   return {
@@ -79,6 +81,8 @@ function blockView(block) {
     language: String(raw.language ?? ''),
     filename: String(raw.filename ?? ''),
     syntaxHighlight: typeof raw.syntaxHighlight === 'boolean' ? raw.syntaxHighlight : undefined,
+    unicodeSecurity: typeof raw.unicodeSecurity === 'string' ? raw.unicodeSecurity : undefined,
+    contentKind: typeof raw.contentKind === 'string' ? raw.contentKind : undefined,
     title: String(raw.title ?? ''),
     command: String(raw.command ?? ''),
     name: String(raw.name ?? ''),

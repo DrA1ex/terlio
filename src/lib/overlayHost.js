@@ -1,9 +1,9 @@
 import { Modal, Toast, ConfirmPrompt } from './ui/components/index.js';
 import { Box, PointerRegion, Text, createNode } from './ui/node.js';
 import { fit } from './ui/layout/utils.js';
+import { asLayoutResult, createLayoutResult, translatePointerRegions } from './ui/layout/result.js';
 import { composeOverlayLine } from './ui/layout/overlayCompose.js';
 import { stripAnsi, takeVisibleAnsi, visibleLength } from './ansi/text.js';
-import { stripPointerMarkers } from './pointer.js';
 
 export function createOverlayManager({ toasts = [] } = {}) {
   return new OverlayManager({ toasts });
@@ -81,16 +81,16 @@ export function renderOverlayHost(node, width, renderNode) {
   const theme = node.props.theme;
   const height = Math.max(1, Number(node.props.height) || 24);
   const content = node.children?.[0] ?? null;
-  let lines = fitLines(renderNode(content, width), width, height);
+  let result = fitResult(renderNode(content, width), width, height);
   const blocking = manager?.top?.();
   if (blocking) {
-    lines = lines.map((line) => stripPointerMarkers(line));
+    let lines = result.lines;
     if (node.props.dim !== false) lines = dimBackgroundLines(lines, theme, width);
     const requestedWidth = Number(blocking.width);
     const defaultWidth = Math.max(20, Math.min(width - 6, 72));
     const overlayWidth = Math.max(20, Math.min(width, Number.isFinite(requestedWidth) ? requestedWidth : defaultWidth));
-    lines = overlayCentered(
-      lines,
+    result = overlayCentered(
+      createLayoutResult(lines),
       renderNode(renderBlockingOverlay(blocking, theme, overlayWidth, Math.max(1, height - 2)), overlayWidth),
       width,
       height,
@@ -98,8 +98,8 @@ export function renderOverlayHost(node, width, renderNode) {
     );
   }
   const toasts = manager?.toasts?.slice(-3) ?? [];
-  if (toasts.length) lines = overlayToasts(lines, toasts, theme, width, height, Math.max(0, Number(node.props.toastBottomMargin) || 0), renderNode, manager);
-  return lines;
+  if (toasts.length) result = overlayToasts(result, toasts, theme, width, height, Math.max(0, Number(node.props.toastBottomMargin) || 0), renderNode, manager);
+  return result;
 }
 
 
@@ -108,22 +108,28 @@ function dimBackgroundLines(lines, theme, width) {
   return lines.map((line) => fit(`${muted}${stripAnsi(line)}\x1b[0m`, width));
 }
 
-function overlayCentered(lines, overlayLines, width, height, { opaqueRows = false } = {}) {
-  const clean = overlayLines.filter(Boolean);
-  const boxWidth = Math.min(width, Math.max(...clean.map((line) => visibleLength(stripAnsi(line))), 20));
-  const startRow = Math.max(1, Math.floor((height - clean.length) / 2));
+function overlayCentered(baseValue, overlayValue, width, height, { opaqueRows = false } = {}) {
+  const base = asLayoutResult(baseValue);
+  const overlay = compactNonEmptyResult(overlayValue);
+  const boxWidth = Math.min(width, Math.max(...overlay.lines.map((line) => visibleLength(stripAnsi(line))), 20));
+  const startRow = Math.max(1, Math.floor((height - overlay.lines.length) / 2));
   const startCol = Math.max(0, Math.floor((width - boxWidth) / 2));
-  const next = [...lines];
-  for (let i = 0; i < clean.length && startRow + i < height; i++) {
+  const next = [...base.lines];
+  for (let i = 0; i < overlay.lines.length && startRow + i < height; i++) {
     const background = opaqueRows ? ' '.repeat(width) : next[startRow + i];
-    next[startRow + i] = composeOverlayLine(background, fit(clean[i], boxWidth), startCol, width);
+    next[startRow + i] = composeOverlayLine(background, fit(overlay.lines[i], boxWidth), startCol, width);
   }
-  return next;
+  return createLayoutResult(next, [
+    ...base.pointerRegions,
+    ...translatePointerRegions(overlay.pointerRegions, startCol, startRow, { width, height }),
+  ]);
 }
 
-function overlayToasts(lines, toasts, theme, width, height, bottomMargin, renderNode, manager) {
+function overlayToasts(baseValue, toasts, theme, width, height, bottomMargin, renderNode, manager) {
+  const base = asLayoutResult(baseValue);
   const toastWidth = Math.max(28, Math.min(58, width - 4));
-  const rendered = [];
+  const renderedLines = [];
+  const renderedRegions = [];
   for (const toast of toasts) {
     const prepared = prepareToast(toast, toastWidth);
     const toastNode = Toast({ level: prepared.level, message: prepared.message, detail: prepared.detail, theme, width: toastWidth, shadow: true });
@@ -133,20 +139,29 @@ function overlayToasts(lines, toasts, theme, width, height, bottomMargin, render
       event.stopPropagation();
       return true;
     };
-    rendered.push(...renderNode(PointerRegion({
+    const rendered = asLayoutResult(renderNode(PointerRegion({
       pointerId: `toast:${toast.id ?? 'active'}`,
       pointerData: { kind: 'toast', id: toast.id ?? null },
       pointerWidth: 'fill',
       onClick: dismiss,
       onRelease: dismiss,
     }, toastNode), toastWidth));
+    const y = renderedLines.length;
+    renderedLines.push(...rendered.lines);
+    renderedRegions.push(...translatePointerRegions(rendered.pointerRegions, 0, y, { width: toastWidth, height: Infinity }));
   }
-  const stack = rendered.slice(-Math.max(1, height - bottomMargin - 1));
+  const maxStackRows = Math.max(1, height - bottomMargin - 1);
+  const sliceStart = Math.max(0, renderedLines.length - maxStackRows);
+  const stack = renderedLines.slice(sliceStart);
+  const stackRegions = translatePointerRegions(renderedRegions, 0, -sliceStart, { width: toastWidth, height: stack.length });
   const startRow = Math.max(0, height - bottomMargin - stack.length);
   const startCol = Math.max(0, width - toastWidth - 2);
-  const next = [...lines];
+  const next = [...base.lines];
   for (let i = 0; i < stack.length && startRow + i < height; i++) next[startRow + i] = composeOverlayLine(next[startRow + i], fit(stack[i], toastWidth), startCol, width);
-  return next;
+  return createLayoutResult(next, [
+    ...base.pointerRegions,
+    ...translatePointerRegions(stackRegions, startCol, startRow, { width, height }),
+  ]);
 }
 
 
@@ -189,10 +204,35 @@ function splitToastMessage(message, width) {
   return lines.length ? lines : [''];
 }
 
-function fitLines(source, width, height) {
-  const lines = source.slice(0, height).map((line) => fit(line, width));
+function fitResult(source, width, height) {
+  const result = asLayoutResult(source);
+  const lines = result.lines.slice(0, height).map((line) => fit(line, width));
   while (lines.length < height) lines.push(' '.repeat(width));
-  return lines;
+  return createLayoutResult(lines, translatePointerRegions(result.pointerRegions, 0, 0, { width, height }));
+}
+
+function compactNonEmptyResult(source) {
+  const result = asLayoutResult(source);
+  const pointerRows = new Set(result.pointerRegions.flatMap((region) => region.segments?.map((segment) => segment.y) ?? []));
+  const keptIndexes = result.lines.map((line, index) => (line || pointerRows.has(index)) ? index : -1).filter((index) => index >= 0);
+  if (!keptIndexes.length) return createLayoutResult();
+  const rowMap = new Map(keptIndexes.map((sourceRow, targetRow) => [sourceRow, targetRow]));
+  const pointerRegions = [];
+  for (const region of result.pointerRegions) {
+    const segments = (region.segments ?? [])
+      .filter((segment) => rowMap.has(segment.y))
+      .map((segment) => ({ ...segment, y: rowMap.get(segment.y) }));
+    if (segments.length) pointerRegions.push({ ...region, segments, bounds: boundsForSegments(segments) });
+  }
+  return createLayoutResult(keptIndexes.map((index) => result.lines[index]), pointerRegions);
+}
+
+function boundsForSegments(segments) {
+  const minX = Math.min(...segments.map((item) => item.x));
+  const minY = Math.min(...segments.map((item) => item.y));
+  const maxX = Math.max(...segments.map((item) => item.x + item.width));
+  const maxY = Math.max(...segments.map((item) => item.y + (item.height ?? 1)));
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
 function renderBlockingOverlay(overlay, theme, width = 80, height = 22) {

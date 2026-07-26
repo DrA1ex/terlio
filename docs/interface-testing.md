@@ -37,7 +37,7 @@ Each golden contains:
 - width and height;
 - pointer-region geometry and handler metadata.
 
-This catches regressions in layout, wrapping, borders, truncation, styling, overlay composition, hit-testing geometry, editor cursors, list windows, and responsive chat/workspace output.
+This catches regressions in layout, wrapping, borders, truncation, styling, overlay composition, hit-testing geometry, editor cursors, list windows, and responsive chat/workspace output. The suite also renders the complete catalog in both `UTC` and `Asia/Yekaterinburg` and requires byte-equivalent snapshots, preventing host-time-zone drift in committed goldens.
 
 ## Coverage
 
@@ -45,6 +45,8 @@ The catalog has an explicit inventory of public visual components and fails belo
 
 Component coverage is not the same as JavaScript line or branch coverage. Existing unit tests remain responsible for behavioral branches, event handling, state transitions, and parser logic.
 
+The repository's `test:coverage` command measures the regular library suite and excludes the interface golden file from Node's experimental coverage collector. The interface suite still runs as part of `npm test` and `npm run verify`, as well as through `test:interface`. Keeping its child timezone renderers outside the experimental collector avoids nondeterministic Node worker hangs without changing the library coverage thresholds.
+
 ## Golden review
 
-See [`interface-golden-audit.md`](./interface-golden-audit.md) for the review method and the list of known pre-existing visual issues captured by the baseline.
+See [`interface-golden-audit.md`](./interface-golden-audit.md) for the review method and the reviewed baseline and the visual regressions that are explicitly protected by the current goldens.

@@ -22,6 +22,7 @@ import {
   SectionTabs,
   SelectList,
   SplitPane,
+  stripAnsi,
   Text,
   Timeline,
   Toast,
@@ -208,6 +209,24 @@ test('viewport, timeline and live job components explain edge states', () => {
   for (const status of ['idle', 'running', 'paused', 'completed', 'failed', 'error']) {
     assert.match(render(LiveJobBlock({ status, running: status === 'running', activeIndex: 1, progress: 50, frame: 3, steps: ['one', 'two', 'three'] })), new RegExp(status));
   }
+});
+
+
+test('LiveJobBlock keeps its progress bar and percentage on one line in a narrow panel', () => {
+  const output = stripAnsi(renderToString(LiveJobBlock({
+    status: 'running',
+    running: true,
+    activeIndex: 0,
+    progress: 75,
+    frame: 0,
+    steps: ['one', 'two'],
+  }), { width: 24, height: 6 }));
+  const lines = output.split('\n');
+  const statusLine = lines.find((line) => line.includes('running')) ?? '';
+
+  assert.match(statusLine, /75%/);
+  assert.match(statusLine, /\[[#-]+\]/);
+  assert.equal(lines.some((line) => line.trim() === '75%'), false);
 });
 
 test('overlay manager exposes non-blocking toasts and traps the top blocking surface', () => {

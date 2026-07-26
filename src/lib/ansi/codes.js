@@ -17,6 +17,8 @@ export const ansi = {
   mouseMotionOff: `${ESC}?1003l`,
   mouseSgrOn: `${ESC}?1006h`,
   mouseSgrOff: `${ESC}?1006l`,
+  bracketedPasteOn: `${ESC}?2004h`,
+  bracketedPasteOff: `${ESC}?2004l`,
   reset: `${ESC}0m`,
   bold: `${ESC}1m`,
   dim: `${ESC}2m`,

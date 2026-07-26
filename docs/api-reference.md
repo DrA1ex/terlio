@@ -13,7 +13,7 @@ When developing inside this repository, import from `src/lib/index.js`.
 ### RichTerminalApp
 
 ```js
-new RichTerminalApp({ input, output, onExit, sessionStore })
+new RichTerminalApp({ input, output, onExit, sessionStore, terminalPolicy, processHandlers })
 ```
 
 A complete reference AI chat terminal app. It owns terminal raw mode, alternate screen rendering, command execution, mock provider streaming, sessions, skills, suggestions, debug state, and command palette integration.
@@ -57,7 +57,7 @@ Creates a raw UI node.
 Text(value, props = {})
 ```
 
-Creates a text node.
+Creates a text node. Terminal controls in string values are filtered by the safe terminal policy. Validated SGR styling is preserved for compatibility. Pass an `unsafeRawAnsi()` value only together with an explicit trusted renderer policy.
 
 ### Box
 
@@ -106,9 +106,9 @@ Flattens children, removes empty values, and converts strings/numbers into text 
 ### layout / renderNode / measureNodeHeight
 
 ```js
-layout(node, { width, height })
-renderNode(node, width)
-measureNodeHeight(node, width)
+layout(node, { width, height, terminalPolicy })
+renderNode(node, width, { terminalPolicy })
+measureNodeHeight(node, width, { terminalPolicy })
 ```
 
 `layout()` returns a fixed-size frame. `renderNode()` returns rendered lines for a node at a given width. `measureNodeHeight()` renders the node at the same width and returns the number of rows it would occupy; use it when calculating available space for adaptive terminal layouts.
@@ -151,12 +151,12 @@ renderToFrame(node, options)
 renderToString(node, options)
 ```
 
-Render a UI tree to a `Frame` or string.
+Render a UI tree to a `Frame` or string. `options.terminalPolicy` accepts `'safe'`, `'trusted'`, or a policy from `createTerminalPolicy()`. Safe mode is the default.
 
 ### TerminalRenderer
 
 ```js
-new TerminalRenderer({ output })
+new TerminalRenderer({ output, policy })
 ```
 
 Methods:
@@ -166,6 +166,29 @@ Methods:
 - `renderFrame(frame)`
 - `reset()`
 
+### createTerminalPolicy
+
+```js
+createTerminalPolicy({
+  mode: 'safe' | 'trusted',
+  blockedControlRendering: 'visible' | 'remove',
+  hyperlinks,
+  clipboard: 'disabled' | 'native' | 'osc52' | 'auto' | 'legacy',
+  unicodeControls: 'normal' | 'visible-controls' | 'code-safe',
+  limits,
+})
+```
+
+Creates an immutable terminal policy. Invalid or omitted modes fall back to `safe`; unrelated options such as `sanitize: false` cannot implicitly enable trusted output. Clipboard defaults to `native`; OSC 52 requires `osc52` or `auto`. Stream-retention and terminal-payload limits have finite defaults, while application-owned render, syntax, native clipboard, session-shape and pointer caps are opt-in.
+
+### unsafeRawAnsi
+
+```js
+unsafeRawAnsi(value)
+```
+
+Marks intentionally raw terminal output. The marker remains harmless under safe mode and emits raw bytes only under an explicit trusted terminal policy.
+
 ### diffFrames / patchFrames
 
 ```js
@@ -174,6 +197,12 @@ patchFrames(previous, next)
 ```
 
 Compute frame differences or an ANSI patch string.
+
+## Security and limits
+
+Public security helpers include `DEFAULT_SECURITY_LIMITS`, `normalizeSecurityLimits()`, `mergeSecurityLimits()`, `TerlioLimitError`, `applyUnicodeSecurity()` and `normalizeUnicodeSecurity()`. A limit error has `code: 'TERLIO_LIMIT_EXCEEDED'` plus `resource`, `limit` and `actual`.
+
+`Text` accepts `unicodeSecurity` and `contentKind`; `SyntaxText` defaults to `code-safe`. Code, diff, filename and command blocks use `code-safe`; ordinary tool results use normal Unicode unless their `contentKind` marks them as code, log or security-sensitive output. `SessionStore({ limits, durability })` and `TerminalInputDecoder({ limits, pasteOverflow })` consume the relevant limit names. The legacy `inputPolicy` option is accepted for compatibility but paste data is no longer altered by it. Bracketed paste emits one `paste` event whose embedded newlines remain text; input after the closing paste marker is decoded normally.
 
 ## ANSI and text width
 
@@ -312,7 +341,7 @@ isScrollAtBottom(scroll, totalRows, visibleRows)
 scrollMax(totalRows, visibleRows)
 ```
 
-Render or calculate a scroll window. Long sources are viewport-virtualized: `ScrollPane` converts and ANSI-clips only the visible rows instead of remapping the entire source on every wheel event. Arrays, array-like values, and `createTextLineSource()` objects are accepted. Pass a state from `createTextSelectionState()` as `selection` to make text drag-selectable without disabling mouse reporting. `SelectableText` can be used directly for non-scrolling text. For virtualized or scrolling content, pass the complete content as `selectionLines` and the first visible content row as `selectionOffsetY`; `ScrollPane` does this automatically. The selection remains in content coordinates across wheel, keyboard, and page scrolling, including while a drag is active. A short click inside the highlighted range calls `onCopy`; returning `true` or `{ copied: true }` clears the range, while a failed result keeps it for retry. A short click outside clears the range without copying. Set `copyOnSelectionClick: false` to disable that behavior, or `copyOnRelease: true` only when immediate copy after dragging is intentionally desired. `Ctrl+C` remains `SIGINT`. `nativeSelectionModifier` is disabled by default but can explicitly reserve a modifier for terminal-specific native selection. `copyTextToClipboard()` first uses the native platform clipboard when available (`pbcopy`, `wl-copy`, `xclip`/`xsel`, or the Windows clipboard) and falls back to OSC 52 for remote terminals. `writeClipboardText()` is the low-level boolean OSC 52 writer and always writes to the supplied terminal output stream.
+Render or calculate a scroll window. Long sources are viewport-virtualized: `ScrollPane` converts and ANSI-clips only the visible rows instead of remapping the entire source on every wheel event. Arrays, array-like values, and `createTextLineSource()` objects are accepted. Pass a state from `createTextSelectionState()` as `selection` to make text drag-selectable without disabling mouse reporting. `SelectableText` can be used directly for non-scrolling text. For virtualized or scrolling content, pass the complete content as `selectionLines` and the first visible content row as `selectionOffsetY`; `ScrollPane` does this automatically. The selection remains in content coordinates across wheel, keyboard, and page scrolling, including while a drag is active. A short click inside the highlighted range calls `onCopy`; returning `true` or `{ copied: true }` clears the range, while a failed result keeps it for retry. A short click outside clears the range without copying. Set `copyOnSelectionClick: false` to disable that behavior, or `copyOnRelease: true` only when immediate copy after dragging is intentionally desired. `Ctrl+C` remains `SIGINT`. `nativeSelectionModifier` is disabled by default but can explicitly reserve a modifier for terminal-specific native selection. `copyTextToClipboard()` uses the native platform clipboard by default (`pbcopy`, `wl-copy`, `xclip`/`xsel`, or the Windows clipboard). OSC 52 fallback is enabled only when `clipboardPolicy: 'auto'` is selected explicitly; `clipboardPolicy: 'osc52'` forces the bounded terminal fallback. `writeClipboardText()` is the low-level boolean OSC 52 writer and always writes to the supplied terminal output stream.
 
 Use `resolveAutoScrollOffset()` for log/transcript panes that should follow new output only while the user is already at the bottom. Use `resolveScrollKeyOffset()` for read-only panes that should handle `up`, `down`, `page-up`, and `page-down` consistently. Once the user scrolls up, keep `sticky: false`; when they scroll or page back to the bottom, set it to `true` again.
 

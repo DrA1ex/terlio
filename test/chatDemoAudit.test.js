@@ -41,6 +41,19 @@ test('chat composer supports Ctrl+J multiline input and bracketed paste without 
   assert.equal(app.messages.length, 0);
 });
 
+test('bracketed paste keeps clipboard newlines as text without changing later Enter semantics', () => {
+  let submissions = 0;
+  const app = new RichTerminalApp({ input: fakeInput(), output: fakeOutput() });
+  app.submitInput = async () => { submissions += 1; };
+
+  app.onData('\x1b[200~first line\nsecond line\x1b[201~');
+  assert.equal(app.editor.value, 'first line\nsecond line');
+  assert.equal(submissions, 0);
+
+  app.onData('\r');
+  assert.equal(submissions, 1);
+});
+
 test('chat slash completion accepts with Tab and Esc clears only command input', () => {
   const app = new RichTerminalApp({ input: fakeInput(), output: fakeOutput() });
   app.onData('/');

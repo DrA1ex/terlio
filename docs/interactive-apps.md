@@ -106,7 +106,7 @@ A normalized pointer event includes:
 
 The runtime enables basic mouse tracking plus SGR 1006 encoding and automatically restores terminal modes in `stop()`, `exit()`, and fatal cleanup paths. Call `app.setPointerEnabled(true | false | 'auto')` to change the configured preference while running.
 
-Terminal mouse reporting consumes the terminal emulator's native drag gesture, but applications can provide selection themselves. `SelectableText` and `ScrollPane({ selection })` keep reporting enabled, draw the selected range in the component, and capture drag events outside its bounds. Scrollable selections use content coordinates, so wheel or keyboard scrolling can move through multiple viewports without losing the range. A short click inside the highlighted range invokes `onCopy`; a successful result clears it, while a failed copy keeps it for retry. A short click elsewhere clears it without copying. Do not bind `Ctrl+C`: it remains `SIGINT`. Native clipboard tools are preferred for explicit copy actions, while OSC 52 remains the fallback for remote terminals. `copyOnRelease: true` remains available for applications that deliberately want immediate copy, and `nativeSelectionModifier` can be configured for terminal-specific behavior when needed.
+Terminal mouse reporting consumes the terminal emulator's native drag gesture, but applications can provide selection themselves. `SelectableText` and `ScrollPane({ selection })` keep reporting enabled, draw the selected range in the component, and capture drag events outside its bounds. Scrollable selections use content coordinates, so wheel or keyboard scrolling can move through multiple viewports without losing the range. A short click inside the highlighted range invokes `onCopy`; a successful result clears it, while a failed copy keeps it for retry. A short click elsewhere clears it without copying. Do not bind `Ctrl+C`: it remains `SIGINT`. Native clipboard tools are the default for explicit copy actions. OSC 52 is used only when the application selects `clipboard: 'osc52'` or `clipboard: 'auto'`. `copyOnRelease: true` remains available for applications that deliberately want immediate copy, and `nativeSelectionModifier` can be configured for terminal-specific behavior when needed.
 
 Use `app.setPointerOverride(true | false | null)` or `app.togglePointerOverride()` only for temporary exceptions. `true` forces reporting, `false` restores the terminal emulator's native selection, and `null` returns to the configured automatic behavior. The packaged demos bind this fallback to `Ctrl+T`.
 
@@ -162,6 +162,8 @@ Common methods:
 - `getParts()` returns `{ before, current, after }`
 
 Use `insertPaste()` for bracketed paste so CRLF and tabs are normalized while embedded newlines remain data rather than being routed as shortcuts.
+
+Managed runtimes enable bracketed paste only after input startup succeeds and disable it during every cleanup path. `TerminalInputDecoder` keeps each paste atomic and bounds its byte size. Newlines inside `event.text` are editor data; input after the closing paste marker is decoded normally.
 
 A typical key handler:
 

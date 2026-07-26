@@ -14,6 +14,7 @@ import {
   beginTextSelection,
   completeTextSelection,
   copyTextToClipboard,
+  createTerminalPolicy,
   createMessage,
   createOverlayManager,
   createTextSelectionState,
@@ -94,6 +95,22 @@ test('text selection extracts ANSI-styled multiline text and renders an inverse 
   assert.equal(selectedText(lines, reverse), 'lpha\nβet');
 });
 
+
+test('selection highlighting follows non-contiguous transcript row maps', () => {
+  const source = ['header', 'hidden body', 'tail'];
+  const state = createTextSelectionState();
+  beginTextSelection(state, { x: 0, y: 0 }, source);
+  updateTextSelection(state, { x: 2, y: 0 }, source);
+
+  const rendered = renderTextSelectionLines(['header', 'tail'], state, {
+    sourceLines: source,
+    rowMap: [0, 2],
+  });
+
+  assert.equal(rendered[0].includes(ansi.inverse), true);
+  assert.equal(rendered[1].includes(ansi.inverse), false);
+});
+
 test('a plain click does not create or copy a one-character selection', () => {
   const state = createTextSelectionState();
   beginTextSelection(state, { x: 2, y: 0 }, ['hello']);
@@ -131,7 +148,7 @@ test('clipboard copy prefers the native platform backend and falls back to OSC 5
       return { status: 0 };
     },
   });
-  assert.deepEqual(native, { copied: true, method: 'pbcopy' });
+  assert.deepEqual(native, { copied: true, backend: 'pbcopy' });
   assert.deepEqual(calls, [{ command: 'pbcopy', args: [], input: 'native copy' }]);
   assert.equal(output.buffer, '');
 
@@ -139,9 +156,10 @@ test('clipboard copy prefers the native platform backend and falls back to OSC 5
     platform: 'linux',
     env: {},
     output,
+    clipboardPolicy: 'auto',
     spawnSync() { return { status: 1 }; },
   });
-  assert.deepEqual(fallback, { copied: true, method: 'osc52' });
+  assert.deepEqual(fallback, { copied: true, backend: 'osc52' });
   assert.match(output.buffer, new RegExp(escapeRegExp(osc52ClipboardSequence('remote copy'))));
 });
 
@@ -289,7 +307,11 @@ test('selection click keeps the highlight when clipboard copy fails', () => {
 
 test('chat keeps pointer scrolling active while drag-selecting transcript text', () => {
   const output = new FakeOutput();
-  const app = new RichTerminalApp({ input: new FakeInput(), output });
+  const app = new RichTerminalApp({
+    input: new FakeInput(),
+    output,
+    terminalPolicy: createTerminalPolicy({ clipboard: 'auto' }),
+  });
   app.running = true;
   app.messages = [createMessage({ role: 'assistant', content: 'selectable words here' })];
   app.render();

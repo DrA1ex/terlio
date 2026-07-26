@@ -15,6 +15,8 @@ import { renderCursorCell, renderTextEditorLines } from '../ui/components/editor
 import { normalizeBlocks } from '../blocks.js';
 import { packageDisplayName } from '../packageMetadata.js';
 import { detectSyntaxLanguage, highlightSyntaxLines } from '../syntaxHighlight.js';
+import { applyUnicodeSecurity } from '../unicodeSecurity.js';
+import { enforceLimit, normalizeSecurityLimits, utf8ByteLength } from '../securityLimits.js';
 
 export const DEFAULT_SUGGESTION_WINDOW_SIZE = 6;
 export const CHAT_MIN_COLUMNS = 56;
@@ -101,11 +103,12 @@ export function createChatScreen(props = {}) {
         content,
         overlay: suggestions,
         height: rows,
-        bottom: debugHeight + statusHeight + composerHeight,
-        left: 0,
-        right: 0,
+        bottom: debugHeight + statusHeight + composerHeight + 1,
+        left: 2,
+        right: 2,
         align: 'stretch',
         opaque: true,
+        isolate: true,
       })
     : content;
   const manager = chatOverlayManager({
@@ -180,22 +183,20 @@ export function Header({
   const rowOne = joinSides(color(theme, 'text', title), color(theme, 'textMuted', meta), innerWidth);
   const pointerForced = pointerOverride === true;
   const selectionForced = pointerOverride === false || selectionMode;
-  const shortcuts = selectionForced
-    ? 'NATIVE SELECTION FALLBACK · Ctrl+T smart mode'
+  const shortcutVariants = selectionForced
+    ? ['NATIVE SELECTION FALLBACK · Ctrl+T smart mode', 'native selection · Ctrl+T smart mode', 'Ctrl+T smart mode']
     : pointerForced
-      ? 'POINTER OVERRIDE · wheel/click · Ctrl+T smart mode'
+      ? ['POINTER OVERRIDE · wheel/click · Ctrl+T smart mode', 'pointer override · Ctrl+T smart mode', 'Ctrl+T smart mode']
       : pointerActive
-        ? compact
-          ? 'wheel/click + drag selection · Ctrl+T native mode · Ctrl+P palette'
-          : columns < 124
-            ? 'wheel/click + drag selection · Ctrl+T native mode · Ctrl+P palette'
-            : 'wheel/trackpad, clicks, and drag selection active  ·  Ctrl+T native fallback  ·  Ctrl+P palette  ·  / commands'
-        : compact
-          ? 'native terminal selection · Ctrl+T smart mode'
-          : columns < 124
-            ? 'native terminal selection · Ctrl+T smart mode'
-            : 'native terminal selection fallback  ·  Ctrl+T restores smart mouse mode  ·  Ctrl+P palette';
+        ? columns < 124
+          ? ['wheel/click + drag selection · Ctrl+T native mode · Ctrl+P palette', 'wheel/click · Ctrl+T native · Ctrl+P palette', 'Ctrl+T native · Ctrl+P palette', 'Ctrl+P palette']
+          : ['wheel/trackpad, clicks, and drag selection active  ·  Ctrl+T native fallback  ·  Ctrl+P palette  ·  / commands', 'wheel/click · Ctrl+T native · Ctrl+P palette', 'Ctrl+P palette']
+        : columns < 124
+          ? ['native terminal selection · Ctrl+T smart mode', 'native selection · Ctrl+T smart mode', 'Ctrl+T smart mode']
+          : ['native terminal selection fallback  ·  Ctrl+T restores smart mouse mode  ·  Ctrl+P palette', 'native selection · Ctrl+T smart mode', 'Ctrl+T smart mode'];
   const skillText = compact ? `${safeSkills}` : `skills: ${safeSkills}`;
+  const shortcutBudget = Math.max(0, innerWidth - visibleLength(skillText) - 1);
+  const shortcuts = chooseFittingLabel(shortcutVariants, shortcutBudget);
   const rowTwo = joinSides(color(theme, 'textMuted', shortcuts), color(theme, 'textAccent', skillText), innerWidth);
 
   return Box({
@@ -209,28 +210,33 @@ export function Header({
   compact ? null : Text(rowTwo, { wrap: false }));
 }
 
-export function TranscriptPane({ columns = 80, height = 10, messages = [], theme = themes.dark, frame = 0, scrollOffset = 0, busy = false, transcriptSelection = null, onTranscriptWheel = null, onTranscriptCopy = null, syntaxHighlight = false } = {}) {
+export function TranscriptPane({ columns = 80, height = 10, messages = [], theme = themes.dark, frame = 0, scrollOffset = 0, busy = false, transcriptSelection = null, onTranscriptWheel = null, onTranscriptCopy = null, syntaxHighlight = false, securityLimits = null } = {}) {
   const safeHeight = Math.max(4, Number(height) || 4);
   const contentHeight = Math.max(1, safeHeight - 3);
-  const transcript = Transcript({ columns: Math.max(20, columns - 4), height: contentHeight, messages, theme, frame, scrollOffset, syntaxHighlight });
+  const transcript = Transcript({ columns: Math.max(20, columns - 4), height: contentHeight, messages, theme, frame, scrollOffset, syntaxHighlight, securityLimits });
   const scrollSummary = [
     transcript.hiddenAbove > 0 ? `↑${transcript.hiddenAbove} earlier` : '',
     transcript.hiddenBelow > 0 ? `↓${transcript.hiddenBelow} newer` : '',
   ].filter(Boolean).join(' · ');
-  const state = transcript.scrollOffset > 0
-    ? `reading history${scrollSummary ? ` · ${scrollSummary}` : ''}`
-    : busy
-      ? `following live response${scrollSummary ? ` · ${scrollSummary}` : ''}`
-      : `at latest${scrollSummary ? ` · ${scrollSummary}` : ''}`;
   const title = ` CONVERSATION · ${messages.length} message${messages.length === 1 ? '' : 's'} `;
   const selectedText = String(transcriptSelection?.text ?? '');
   const selectionHint = selectedText
     ? `${Array.from(selectedText).length} selected · click the highlight to copy`
     : `${transcript.totalRows} rows · drag to select · wheel to scroll`;
+  const footerWidth = Math.max(1, columns - 4);
+  const stateBudget = Math.max(0, footerWidth - visibleLength(selectionHint) - 1);
+  const state = transcriptStateLabel({
+    scrollOffset: transcript.scrollOffset,
+    busy,
+    hiddenAbove: transcript.hiddenAbove,
+    hiddenBelow: transcript.hiddenBelow,
+    scrollSummary,
+    budget: stateBudget,
+  });
   const footer = joinSides(
     color(theme, 'textMuted', state),
     color(theme, selectedText ? 'textAccent' : 'textMuted', selectionHint),
-    Math.max(1, columns - 4),
+    footerWidth,
   );
   return {
     node: Box({
@@ -243,6 +249,7 @@ export function TranscriptPane({ columns = 80, height = 10, messages = [], theme
       lines: transcript.lines,
       selectionLines: transcript.allLines,
       selectionOffsetY: transcript.start,
+      selectionRowMap: transcript.rowMap,
       selection: transcriptSelection,
       pointerId: 'chat-transcript',
       pointerWidth: 'fill',
@@ -258,7 +265,7 @@ export function TranscriptPane({ columns = 80, height = 10, messages = [], theme
   };
 }
 
-export function Transcript({ columns = 80, height = 10, messages = [], theme = themes.dark, frame = 0, scrollOffset = 0, syntaxHighlight = false } = {}) {
+export function Transcript({ columns = 80, height = 10, messages = [], theme = themes.dark, frame = 0, scrollOffset = 0, syntaxHighlight = false, securityLimits = null } = {}) {
   if (!messages.length) {
     const rendered = renderWelcomeLines({ columns, height, theme });
     const sliced = rendered.slice(0, height);
@@ -267,6 +274,7 @@ export function Transcript({ columns = 80, height = 10, messages = [], theme = t
       lines: visibleLines,
       allLines: visibleLines,
       start: 0,
+      rowMap: visibleLines.map((_, index) => index),
       node: Lines(visibleLines),
       scrollOffset: 0,
       totalRows: rendered.length,
@@ -275,18 +283,17 @@ export function Transcript({ columns = 80, height = 10, messages = [], theme = t
     };
   }
 
-  const rendered = renderTranscriptLines({ columns, messages, theme, frame, syntaxHighlight });
+  const transcriptLayout = renderTranscriptLayout({ columns, messages, theme, frame, syntaxHighlight, securityLimits });
+  const rendered = transcriptLayout.lines;
   const maxOffset = Math.max(0, rendered.length - height);
   const nextScrollOffset = Math.min(Math.max(0, Number(scrollOffset) || 0), maxOffset);
-  const end = Math.max(height, rendered.length - nextScrollOffset);
-  const sliced = rendered.slice(Math.max(0, end - height), end);
-  const missing = height - sliced.length;
-  const visibleLines = [...Array(Math.max(0, missing)).fill(''), ...sliced];
+  const window = buildTranscriptWindow(rendered, transcriptLayout.framedRanges, height, nextScrollOffset);
   return {
-    lines: visibleLines,
+    lines: window.lines,
     allLines: rendered,
-    start: Math.max(0, end - height) - missing,
-    node: Lines(visibleLines),
+    start: window.start,
+    rowMap: window.rowMap,
+    node: Lines(window.lines),
     scrollOffset: nextScrollOffset,
     totalRows: rendered.length,
     hiddenAbove: Math.max(0, rendered.length - height - nextScrollOffset),
@@ -294,11 +301,63 @@ export function Transcript({ columns = 80, height = 10, messages = [], theme = t
   };
 }
 
-export function renderTranscriptLines({ columns = 80, messages = [], theme = themes.dark, frame = 0, syntaxHighlight = false } = {}) {
+
+function buildTranscriptWindow(lines, framedRanges, height, scrollOffset) {
+  const safeHeight = Math.max(1, Number(height) || 1);
+  const end = Math.max(safeHeight, lines.length - scrollOffset);
+  const start = Math.max(0, end - safeHeight);
+  const sourceRows = Array.from({ length: Math.max(0, end - start) }, (_, index) => start + index);
+  const missing = Math.max(0, safeHeight - sourceRows.length);
+  let rowMap = [...Array(missing).fill(null), ...sourceRows];
+  const ranges = Array.from(framedRanges ?? []);
+  const mappedRows = rowMap.filter(Number.isInteger);
+  let frame = ranges.find((range) => mappedRows.some((row) => row >= range.start && row <= range.end));
+
+  if (!frame && mappedRows.length && mappedRows.every((row) => String(lines[row] ?? '').trim() === '')) {
+    frame = ranges.find((range) => range.end === mappedRows[0] - 1);
+  }
+
+  if (frame && !rowMap.includes(frame.start)) {
+    const leadingPadding = rowMap.findIndex(Number.isInteger);
+    const paddingCount = leadingPadding < 0 ? rowMap.length : leadingPadding;
+    const capacity = Math.max(1, safeHeight - paddingCount);
+    const tailRows = mappedRows.filter((row) => row >= frame.start && row <= frame.end);
+    const afterRows = mappedRows.filter((row) => row > frame.end);
+    let visibleRows = capacity === 1
+      ? [frame.start]
+      : [frame.start, ...tailRows.filter((row) => row !== frame.start)];
+    if (visibleRows.length > capacity) {
+      visibleRows = [frame.start, ...visibleRows.slice(-(capacity - 1))];
+    }
+    for (const row of afterRows) {
+      if (visibleRows.length >= capacity) break;
+      if (!visibleRows.includes(row)) visibleRows.push(row);
+    }
+    rowMap = [...Array(paddingCount).fill(null), ...visibleRows];
+    while (rowMap.length < safeHeight) rowMap.push(null);
+  }
+
+  const visibleLines = rowMap.map((row) => Number.isInteger(row) ? String(lines[row] ?? '') : '');
+  const firstRow = rowMap.find(Number.isInteger);
+  return {
+    lines: visibleLines,
+    rowMap,
+    start: Number.isInteger(firstRow) ? firstRow : 0,
+  };
+}
+
+export function renderTranscriptLines({ columns = 80, messages = [], theme = themes.dark, frame = 0, syntaxHighlight = false, securityLimits = null } = {}) {
+  return renderTranscriptLayout({ columns, messages, theme, frame, syntaxHighlight, securityLimits }).lines;
+}
+
+function renderTranscriptLayout({ columns = 80, messages = [], theme = themes.dark, frame = 0, syntaxHighlight = false, securityLimits = null } = {}) {
+  const limits = normalizeSecurityLimits(securityLimits);
+  enforceTranscriptSourceLimits(messages, limits);
   const readingWidth = Math.max(20, Math.min(MAX_READING_WIDTH, columns - 4));
   const leftMargin = columns > readingWidth + 2 ? Math.min(3, Math.floor((columns - readingWidth) / 5)) : 0;
   const indent = ' '.repeat(leftMargin);
   const rendered = [];
+  const framedRanges = [];
 
   for (const message of messages) {
     const roleKey = message.role === 'user' ? 'user' : message.role === 'assistant' ? 'assistant' : 'system';
@@ -308,42 +367,68 @@ export function renderTranscriptLines({ columns = 80, messages = [], theme = the
       ? color(theme, 'accent', streamingMarker(frame))
       : color(theme, statusToken(message.status), statusMarker(message.status));
     const contentWidth = Math.max(12, readingWidth - 13);
-    const lines = renderMessageContentLines({ message, width: contentWidth, theme, syntaxHighlight });
+    const content = renderMessageContentLayout({ message, width: contentWidth, theme, syntaxHighlight, securityLimits: limits });
+    const messageStart = rendered.length;
 
-    if (lines.length === 0) {
+    if (content.lines.length === 0) {
       rendered.push(indent + prefix + marker);
     } else {
-      lines.forEach((line, index) => {
+      content.lines.forEach((line, index) => {
         const left = index === 0 ? indent + prefix + marker + ' ' : indent + ' '.repeat(12);
         rendered.push(fit(left + line, columns));
       });
     }
+    framedRanges.push(...content.framedRanges.map((range) => ({
+      start: messageStart + range.start,
+      end: messageStart + range.end,
+    })));
     rendered.push('');
   }
 
-  return rendered;
+  return { lines: rendered, framedRanges };
 }
 
-export function renderMessageContentLines({ message, width = 70, theme = themes.dark, syntaxHighlight = false } = {}) {
+export function renderMessageContentLines({ message, width = 70, theme = themes.dark, syntaxHighlight = false, securityLimits = null } = {}) {
+  return renderMessageContentLayout({ message, width, theme, syntaxHighlight, securityLimits }).lines;
+}
+
+function renderMessageContentLayout({ message, width = 70, theme = themes.dark, syntaxHighlight = false, securityLimits = null } = {}) {
+  const limits = normalizeSecurityLimits(securityLimits);
   const blocks = normalizeBlocks(message?.blocks);
-  if (blocks.length) return renderBlocksLines({ blocks, width, theme, syntaxHighlight });
+  if (blocks.length) return renderBlocksLayout({ blocks, width, theme, syntaxHighlight, securityLimits: limits });
 
   const content = message?.content || (message?.status === 'streaming' ? 'Thinking…' : '');
+  enforceLimit('renderedTextBytes', utf8ByteLength(content), limits.renderedTextBytes);
   const token = message?.role === 'system' ? 'textMuted' : 'text';
-  return wrapText(content, width, '  ').map((line) => color(theme, token, line));
+  return {
+    lines: wrapText(content, width, '  ').map((line) => color(theme, token, line)),
+    framedRanges: [],
+  };
 }
 
-export function renderBlocksLines({ blocks = [], width = 70, theme = themes.dark, syntaxHighlight = false } = {}) {
+export function renderBlocksLines({ blocks = [], width = 70, theme = themes.dark, syntaxHighlight = false, securityLimits = null } = {}) {
+  return renderBlocksLayout({ blocks, width, theme, syntaxHighlight, securityLimits }).lines;
+}
+
+function renderBlocksLayout({ blocks = [], width = 70, theme = themes.dark, syntaxHighlight = false, securityLimits = null } = {}) {
   const lines = [];
+  const framedRanges = [];
   normalizeBlocks(blocks).forEach((block, index) => {
     if (index > 0 && lines.at(-1) !== '') lines.push('');
-    lines.push(...renderBlockLines({ block, width, theme, syntaxHighlight }));
+    const start = lines.length;
+    const blockLines = renderBlockLines({ block, width, theme, syntaxHighlight, securityLimits });
+    lines.push(...blockLines);
+    if ((block.type === 'code' || block.type === 'diff') && blockLines.length) {
+      framedRanges.push({ start, end: start + blockLines.length - 1 });
+    }
   });
-  return lines;
+  return { lines, framedRanges };
 }
 
-export function renderBlockLines({ block, width = 70, theme = themes.dark, syntaxHighlight = false } = {}) {
-  if (block.type === 'code') return renderCodeBlock(block, width, theme, syntaxHighlight);
+export function renderBlockLines({ block, width = 70, theme = themes.dark, syntaxHighlight = false, securityLimits = null } = {}) {
+  const limits = normalizeSecurityLimits(securityLimits);
+  enforceBlockSourceLimits(block, limits);
+  if (block.type === 'code') return renderCodeBlock(block, width, theme, syntaxHighlight, limits);
   if (block.type === 'diff') return renderDiffBlock(block, width, theme);
   if (block.type === 'command') return renderCommandBlock(block, width, theme);
   if (block.type === 'warning') return renderWarningBlock(block, width, theme);
@@ -351,9 +436,17 @@ export function renderBlockLines({ block, width = 70, theme = themes.dark, synta
   return wrapText(block.content || ' ', width, '  ').map((line) => color(theme, 'text', line));
 }
 
-function renderCodeBlock(block, width, theme, syntaxHighlight = false) {
-  const filename = String(block.filename || block.meta?.filename || '');
-  const title = block.title || filename || `code${block.language ? ` · ${block.language}` : ''}`;
+function renderCodeBlock(block, width, theme, syntaxHighlight = false, securityLimits = null) {
+  const unicodeMode = blockUnicodeSecurity(block, 'code-safe');
+  const filename = applyUnicodeSecurity(block.filename || block.meta?.filename || '', {
+    mode: unicodeMode,
+    contentKind: 'filename',
+  });
+  const source = applyUnicodeSecurity(block.content || '', { mode: unicodeMode, contentKind: 'code' });
+  const title = applyUnicodeSecurity(
+    block.title || filename || `code${block.language ? ` · ${block.language}` : ''}`,
+    { mode: unicodeMode, contentKind: filename ? 'filename' : 'code' },
+  );
   const requested = typeof block.syntaxHighlight === 'boolean'
     ? block.syntaxHighlight
     : typeof block.meta?.syntaxHighlight === 'boolean'
@@ -362,13 +455,14 @@ function renderCodeBlock(block, width, theme, syntaxHighlight = false) {
   const enabled = requested && Boolean(detectSyntaxLanguage({
     language: block.language,
     filename,
-    source: block.content,
+    source,
   }));
-  const body = highlightSyntaxLines(block.content || '', {
+  const body = highlightSyntaxLines(source, {
     language: block.language,
     filename,
     theme,
     enabled,
+    securityLimits,
   });
   return [
     color(theme, 'border', blockTop(title, width)),
@@ -388,8 +482,9 @@ function renderHighlightedCodeBodyLine(line, width, theme) {
 }
 
 function renderDiffBlock(block, width, theme) {
-  const title = block.title || 'diff';
-  const body = String(block.content || '').split('\n');
+  const unicodeMode = blockUnicodeSecurity(block, 'code-safe');
+  const title = applyUnicodeSecurity(block.title || 'diff', { mode: unicodeMode, contentKind: 'diff' });
+  const body = applyUnicodeSecurity(block.content || '', { mode: unicodeMode, contentKind: 'diff' }).split('\n');
   return [
     color(theme, 'border', blockTop(title, width)),
     ...body.map((line) => color(theme, diffLineToken(line), blockBodyLine(line, width))),
@@ -406,8 +501,9 @@ function diffLineToken(line) {
 }
 
 function renderCommandBlock(block, width, theme) {
-  const title = block.title || 'command';
-  const command = block.command || block.content || '';
+  const unicodeMode = blockUnicodeSecurity(block, 'code-safe');
+  const title = applyUnicodeSecurity(block.title || 'command', { mode: unicodeMode, contentKind: 'command' });
+  const command = applyUnicodeSecurity(block.command || block.content || '', { mode: unicodeMode, contentKind: 'command' });
   return [
     color(theme, 'accent', truncateVisible(`$ ${command}`, width)),
     ...wrapText(title, Math.max(1, width - 2), '  ').map((line) => color(theme, 'muted', line)),
@@ -420,12 +516,48 @@ function renderWarningBlock(block, width, theme) {
 }
 
 function renderToolResultBlock(block, width, theme) {
-  const header = [block.name || 'tool', block.status].filter(Boolean).join(' · ');
-  const body = String(block.content || '').split('\n');
+  const contentKind = toolResultContentKind(block);
+  const fallback = ['code', 'diff', 'log', 'security-log', 'security'].includes(contentKind)
+    ? 'code-safe'
+    : 'normal';
+  const unicodeMode = blockUnicodeSecurity(block, fallback);
+  const header = applyUnicodeSecurity(
+    [block.name || 'tool', block.status].filter(Boolean).join(' · '),
+    { mode: unicodeMode, contentKind },
+  );
+  const body = applyUnicodeSecurity(block.content || '', { mode: unicodeMode, contentKind }).split('\n');
   return [
     color(theme, 'accent', fitBlockLine(`tool: ${truncateVisible(header, Math.max(1, width - 6))}`, width)),
     ...body.map((line) => color(theme, 'muted', fitBlockLine(`  ${truncateVisible(line, Math.max(1, width - 2))}`, width))),
   ];
+}
+
+function enforceTranscriptSourceLimits(messages, limits) {
+  let bytes = 0;
+  for (const message of Array.from(messages ?? [])) {
+    bytes += utf8ByteLength(message?.content ?? '');
+    for (const block of normalizeBlocks(message?.blocks)) bytes += blockSourceBytes(block);
+    enforceLimit('renderedTextBytes', bytes, limits.renderedTextBytes);
+  }
+}
+
+function enforceBlockSourceLimits(block, limits) {
+  enforceLimit('renderedTextBytes', blockSourceBytes(block), limits.renderedTextBytes);
+}
+
+function blockSourceBytes(block) {
+  return ['content', 'title', 'filename', 'language', 'command', 'name', 'status', 'contentKind']
+    .reduce((total, key) => total + utf8ByteLength(block?.[key] ?? block?.meta?.[key] ?? ''), 0);
+}
+
+function toolResultContentKind(block) {
+  const value = block?.contentKind ?? block?.meta?.contentKind ?? block?.meta?.kind ?? block?.meta?.format;
+  return String(value ?? 'text').toLowerCase();
+}
+
+function blockUnicodeSecurity(block, fallback) {
+  const configured = block?.unicodeSecurity ?? block?.meta?.unicodeSecurity;
+  return typeof configured === 'string' ? configured : fallback;
 }
 
 function blockTop(title, width) {
@@ -734,6 +866,27 @@ function shortSessionId(sessionId) {
   const stamp = parts[0]?.replace(/[^0-9TZ]/g, '') ?? '';
   const time = stamp.slice(-8);
   return `${time ? `${time}-` : ''}${suffix.slice(-5)}` || 'session';
+}
+
+
+function transcriptStateLabel({ scrollOffset, busy, hiddenAbove, hiddenBelow, scrollSummary, budget }) {
+  const direction = [
+    hiddenAbove > 0 ? `↑${hiddenAbove} earlier` : '',
+    hiddenBelow > 0 ? `↓${hiddenBelow} newer` : '',
+  ].filter(Boolean).join(' · ');
+  const variants = scrollOffset > 0
+    ? [`reading history${scrollSummary ? ` · ${scrollSummary}` : ''}`, `history${direction ? ` · ${direction}` : ''}`, direction, 'history']
+    : busy
+      ? [`following live response${scrollSummary ? ` · ${scrollSummary}` : ''}`, `live${direction ? ` · ${direction}` : ''}`, direction, 'live']
+      : [`at latest${scrollSummary ? ` · ${scrollSummary}` : ''}`, `latest${direction ? ` · ${direction}` : ''}`, direction, 'latest'];
+  return chooseFittingLabel(variants, budget);
+}
+
+function chooseFittingLabel(values, width) {
+  const safeWidth = Math.max(0, Number(width) || 0);
+  const candidates = Array.from(values ?? [], (value) => String(value ?? '')).filter(Boolean);
+  if (!candidates.length || safeWidth <= 0) return '';
+  return candidates.find((value) => visibleLength(value) <= safeWidth) ?? '';
 }
 
 function joinSides(left, right, width) {

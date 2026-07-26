@@ -1,7 +1,8 @@
 import { ansi } from './codes.js';
+import { sanitizeSgrStyle } from '../terminal/controlParser.js';
 
 export function color(theme, token, text) {
-  const open = theme?.[token] ?? '';
+  const open = sanitizeSgrStyle(theme?.[token] ?? '');
   return `${open}${text}${ansi.reset}`;
 }
 

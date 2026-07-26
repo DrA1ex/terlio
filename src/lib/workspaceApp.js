@@ -1,4 +1,6 @@
-import { ansi, mouseReportingSequence } from './ansi/codes.js';
+import { createTerminalPolicy } from './terminal/policy.js';
+import { resolveTerminalSink } from './terminal/sink.js';
+import { TerminalSessionGuard } from './terminal/sessionGuard.js';
 import { TerminalInputDecoder } from './inputParser.js';
 import { renderToFrame, TerminalRenderer } from './ui/renderer.js';
 import { createActionRegistry } from './actionRegistry.js';
@@ -11,7 +13,7 @@ export function createWorkspaceApp(config = {}) {
 }
 
 export class WorkspaceApp {
-  constructor({ title = 'Workspace App', state = {}, render, actions = [], overlays = null, onKey = null, onPointer = null, pointer = 'auto', tick = null, tickMs = 0, animationMs = 80, input = process.stdin, output = process.stdout, onExit = null } = {}) {
+  constructor({ title = 'Workspace App', state = {}, render, actions = [], overlays = null, onKey = null, onPointer = null, pointer = 'auto', tick = null, tickMs = 0, animationMs = 80, input = process.stdin, output = process.stdout, onExit = null, terminalPolicy = createTerminalPolicy(), terminalSink = null, processHandlers = 'none', inputPolicy = 'safe' } = {}) {
     if (typeof render !== 'function') throw new Error('createWorkspaceApp requires a render function.');
     this.title = title;
     this.state = state;
@@ -30,9 +32,13 @@ export class WorkspaceApp {
     this.animationRequested = false;
     this.input = input;
     this.output = output;
+    this.terminalPolicy = terminalPolicy;
+    this.processHandlers = normalizeProcessHandlers(processHandlers);
+    this.terminalSink = resolveTerminalSink({ sink: terminalSink, output, policy: terminalPolicy });
+    this.terminalSession = new TerminalSessionGuard({ input, output, sink: this.terminalSink });
     this.onExit = typeof onExit === 'function' ? onExit : null;
-    this.renderer = new TerminalRenderer({ output });
-    this.inputDecoder = new TerminalInputDecoder();
+    this.renderer = new TerminalRenderer({ output, sink: this.terminalSink, policy: this.terminalPolicy });
+    this.inputDecoder = new TerminalInputDecoder({ limits: this.terminalPolicy.limits, inputPolicy });
     this.running = false;
     this.dirty = true;
     this.lastSnapshot = '';
@@ -42,45 +48,60 @@ export class WorkspaceApp {
     this.boundData = (data) => this.handleData(data);
     this.boundResize = () => this.handleResize();
     this.boundFatal = (error) => this.handleFatal(error);
+    this.boundSignal = (signal) => this.handleSignal(signal);
   }
 
   start() {
     if (this.running) return this;
     if (!this.input.isTTY || !this.output.isTTY) throw new Error(`${this.title} requires an interactive TTY.`);
     this.running = true;
-    this.output.write(ansi.altScreen + ansi.hideCursor + ansi.autoWrapOff + ansi.clear + ansi.home);
-    this.input.setEncoding('utf8');
-    this.input.setRawMode(true);
-    this.input.resume();
-    this.input.on('data', this.boundData);
-    this.output.on('resize', this.boundResize);
-    process.once('uncaughtException', this.boundFatal);
-    process.once('unhandledRejection', this.boundFatal);
-    if (this.onTick && this.tickMs > 0) {
-      this.timer = setInterval(() => { if (this.onTick(this.context()) !== false) this.invalidate(); }, this.tickMs);
-      this.timer.unref?.();
+    try {
+      this.terminalSession.start();
+      this.input.setEncoding('utf8');
+      this.terminalSession.enableRawMode();
+      this.terminalSession.setBracketedPaste(true);
+      this.input.resume();
+      this.input.on('data', this.boundData);
+      this.output.on('resize', this.boundResize);
+      this.installProcessHandlers();
+      if (this.onTick && this.tickMs > 0) {
+        this.timer = setInterval(() => this.runGuarded(() => {
+          if (this.onTick(this.context()) !== false) this.invalidate();
+        }), this.tickMs);
+        this.timer.unref?.();
+      }
+      this.invalidate();
+      return this;
+    } catch (error) {
+      try {
+        this.stop();
+      } catch (cleanupError) {
+        attachCleanupError(error, cleanupError);
+      }
+      throw error;
     }
-    this.invalidate();
-    return this;
   }
 
   stop() {
-    if (!this.running) return;
+    if (!this.running && !this.terminalSession.active && !this.terminalSession.rawMode) return false;
     this.running = false;
+    let failure = null;
+    const attempt = (callback) => {
+      try { callback(); } catch (error) { failure ??= error; }
+    };
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
     if (this.animationTimer) clearTimeout(this.animationTimer);
     this.animationTimer = null;
-    this.input.off('data', this.boundData);
-    this.output.off('resize', this.boundResize);
-    process.off('uncaughtException', this.boundFatal);
-    process.off('unhandledRejection', this.boundFatal);
-    this.setPointerActive(false);
-    if (this.input.isTTY) this.input.setRawMode(false);
-    this.input.pause();
-    this.inputDecoder.reset();
-    this.renderer.reset();
-    this.output.write(ansi.autoWrapOn + ansi.showCursor + ansi.normalScreen + ansi.reset + '\n');
+    attempt(() => this.input.off('data', this.boundData));
+    attempt(() => this.output.off('resize', this.boundResize));
+    attempt(() => this.setPointerActive(false));
+    attempt(() => this.input.pause());
+    attempt(() => this.inputDecoder.reset());
+    attempt(() => this.renderer.reset());
+    attempt(() => this.terminalSession.cleanup({ newline: true }));
+    if (failure) throw failure;
+    return true;
   }
 
   exit(code = 0) {
@@ -100,12 +121,16 @@ export class WorkspaceApp {
   }
 
   render() {
+    return this.runGuarded(() => this.renderUnsafe());
+  }
+
+  renderUnsafe() {
     if (!this.running || !this.dirty) return false;
     const width = Math.max(1, Number(this.output.columns) || 90);
     const height = Math.max(1, Number(this.output.rows) || 28);
     this.animationRequested = false;
     const view = this.renderView(this.context({ width, height }, { trackAnimation: true }));
-    const frame = renderToFrame(view, { width, height });
+    const frame = renderToFrame(view, { width, height, terminalPolicy: this.terminalPolicy });
     const snapshot = frame.toString();
     if (snapshot === this.lastSnapshot) {
       this.renderer.pointerRegions = frame.pointerRegions;
@@ -116,7 +141,7 @@ export class WorkspaceApp {
     }
     this.lastSnapshot = snapshot;
     this.renderer.renderFrame(frame);
-    this.output.write(ansi.reset);
+    this.terminalSession.resetStyles();
     this.syncPointerMode();
     this.dirty = false;
     this.syncAnimationTimer();
@@ -124,21 +149,25 @@ export class WorkspaceApp {
   }
 
   handleResize() {
-    if (!this.running) return;
-    this.renderer.reset();
-    this.output.write(ansi.clear + ansi.home);
-    this.lastSnapshot = '';
-    this.invalidate();
+    return this.runGuarded(() => {
+      if (!this.running) return;
+      this.renderer.reset();
+      this.terminalSession.clear();
+      this.lastSnapshot = '';
+      this.invalidate();
+    });
   }
 
   handleData(data) {
-    this.inputBatchDepth += 1;
-    try {
-      for (const event of this.inputDecoder.write(data)) this.handleInputEvent(event);
-    } finally {
-      this.inputBatchDepth = Math.max(0, this.inputBatchDepth - 1);
-      if (this.inputBatchDepth === 0 && this.dirty) this.render();
-    }
+    return this.runGuarded(() => {
+      this.inputBatchDepth += 1;
+      try {
+        for (const event of this.inputDecoder.write(data)) this.handleInputEvent(event);
+      } finally {
+        this.inputBatchDepth = Math.max(0, this.inputBatchDepth - 1);
+        if (this.inputBatchDepth === 0 && this.dirty) this.render();
+      }
+    });
   }
 
   handleInputEvent(event) {
@@ -161,14 +190,16 @@ export class WorkspaceApp {
   }
 
   handlePointer(pointer) {
-    const baseContext = this.context({ pointer });
-    const routed = this.renderer.dispatchPointer(pointer, baseContext);
-    const event = routed.event;
-    if (!event.propagationStopped && this.onPointer) {
-      const result = this.onPointer({ pointer: event, ...this.context({ pointer: event }) });
-      if (result !== false) event.handled = true;
-    }
-    return event;
+    return this.runGuarded(() => {
+      const baseContext = this.context({ pointer });
+      const routed = this.renderer.dispatchPointer(pointer, baseContext);
+      const event = routed.event;
+      if (!event.propagationStopped && this.onPointer) {
+        const result = this.onPointer({ pointer: event, ...this.context({ pointer: event }) });
+        if (result !== false) event.handled = true;
+      }
+      return event;
+    });
   }
 
   setPointerEnabled(value) {
@@ -206,7 +237,7 @@ export class WorkspaceApp {
     const next = Boolean(enabled);
     if (next === this.pointerActive) return false;
     this.pointerActive = next;
-    this.output.write(mouseReportingSequence(next, this.pointerOptions));
+    this.terminalSession.setPointerReporting(next, this.pointerOptions);
     return true;
   }
 
@@ -243,22 +274,67 @@ export class WorkspaceApp {
       return false;
     }
     if (this.animationTimer) return true;
-    this.animationTimer = setTimeout(() => {
+    this.animationTimer = setTimeout(() => this.runGuarded(() => {
       this.animationTimer = null;
       if (!this.running) return;
       this.animationFrame = (this.animationFrame + 1) % Number.MAX_SAFE_INTEGER;
       this.invalidate();
-    }, this.animationMs);
+    }), this.animationMs);
     this.animationTimer.unref?.();
     return true;
   }
 
+  runGuarded(callback) {
+    try {
+      return callback();
+    } catch (error) {
+      try {
+        this.stop();
+      } catch (cleanupError) {
+        attachCleanupError(error, cleanupError);
+      }
+      throw error;
+    }
+  }
+
+  installProcessHandlers() {
+    if (this.processHandlers === 'signals' || this.processHandlers === 'full') {
+      this.terminalSession.trackSignalHandler(process, 'SIGINT', this.boundSignal, { removeOnCleanup: true });
+      this.terminalSession.trackSignalHandler(process, 'SIGTERM', this.boundSignal, { removeOnCleanup: true });
+    }
+    if (this.processHandlers === 'full') {
+      this.terminalSession.trackSignalHandler(process, 'uncaughtException', this.boundFatal, { once: true, removeOnCleanup: true });
+      this.terminalSession.trackSignalHandler(process, 'unhandledRejection', this.boundFatal, { once: true, removeOnCleanup: true });
+    }
+  }
+
+  handleSignal(signal) {
+    this.exit(signal === 'SIGINT' ? 130 : 143);
+  }
+
   handleFatal(error) {
-    this.stop();
+    let cleanupError = null;
+    try {
+      this.stop();
+    } catch (failure) {
+      cleanupError = failure;
+      attachCleanupError(error, failure);
+    }
     console.error(error);
+    if (cleanupError && error?.cleanupError !== cleanupError) console.error(cleanupError);
     process.exitCode = 1;
     this.onExit?.(1, error);
   }
+}
+
+function attachCleanupError(error, cleanupError) {
+  if (!error || !['object', 'function'].includes(typeof error)) return;
+  try {
+    Object.defineProperty(error, 'cleanupError', {
+      value: cleanupError,
+      configurable: true,
+    });
+  } catch { /* preserve the original thrown value */ }
 }
 
 function normalizePointerOptions(pointer) {
@@ -275,4 +351,8 @@ function normalizePointerOptions(pointer) {
     drag: true,
     motion: false,
   };
+}
+
+function normalizeProcessHandlers(value) {
+  return ['none', 'signals', 'full'].includes(value) ? value : 'none';
 }

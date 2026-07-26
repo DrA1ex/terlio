@@ -1,5 +1,8 @@
 import { ansi } from '../ansi/codes.js';
 import { dispatchPointerEvent, hitTestPointerRegions } from '../pointer.js';
+import { createTerminalOutputFrame, terminalControl } from '../terminal/outputModel.js';
+import { createTerminalPolicy } from '../terminal/policy.js';
+import { resolveTerminalSink } from '../terminal/sink.js';
 import { patchFrames } from './diff.js';
 import { layout } from './layout/index.js';
 
@@ -12,21 +15,23 @@ export function renderToString(node, options = {}) {
 }
 
 export class TerminalRenderer {
-  constructor({ output } = {}) {
+  constructor({ output, sink = null, policy = createTerminalPolicy() } = {}) {
     this.output = output;
+    this.policy = policy;
+    this.sink = resolveTerminalSink({ sink, output, policy });
     this.previousFrame = null;
     this.pointerRegions = [];
     this.pointerCaptureToken = null;
   }
 
   renderLines(lines, options) {
-    const frame = renderToFrame({ type: 'column', props: {}, children: lines.map((line) => ({ type: 'text', props: { value: line, wrap: false }, children: [] })) }, options);
+    const frame = renderToFrame({ type: 'column', props: {}, children: lines.map((line) => ({ type: 'text', props: { value: line, wrap: false }, children: [] })) }, { ...options, terminalPolicy: options?.terminalPolicy ?? this.policy });
     this.renderFrame(frame);
     return frame;
   }
 
   renderNode(node, options) {
-    const frame = renderToFrame(node, options);
+    const frame = renderToFrame(node, { ...options, terminalPolicy: options?.terminalPolicy ?? this.policy });
     this.renderFrame(frame);
     return frame;
   }
@@ -38,7 +43,13 @@ export class TerminalRenderer {
       // nominal row. Repaint one neighboring row instead of clearing the screen.
       bleedRows: 1,
     });
-    if (this.output && patch) this.output.write(`${ansi.autoWrapOff}${patch}${ansi.autoWrapOn}`);
+    if (patch) {
+      const bytes = `${ansi.autoWrapOff}${patch}${ansi.autoWrapOn}`;
+      this.sink.writeFrame(createTerminalOutputFrame({
+        operations: [terminalControl(bytes, { trusted: true, kind: 'render-patch' })],
+        regions: frame?.pointerRegions ?? [],
+      }), this.policy);
+    }
     this.previousFrame = frame;
     this.pointerRegions = Array.isArray(frame?.pointerRegions) ? frame.pointerRegions : [];
     return patch;

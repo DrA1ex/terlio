@@ -80,6 +80,7 @@ export function parseKey(data) {
   const csi = /^\x1b\[1;(\d+)([A-DHF])$/.exec(sequence);
   if (csi) {
     const modifier = Number(csi[1]);
+    if (!isSupportedModifier(modifier)) return key({ name: 'unknown', sequence });
     return key({ sequence, name: ARROW_BY_FINAL[csi[2]], ...modifierFlags(modifier), word: modifier === 3 || modifier === 7 });
   }
 
@@ -88,13 +89,18 @@ export function parseKey(data) {
   if (csiU) {
     const code = Number(csiU[1]);
     const modifier = Number(csiU[2]);
+    if (!isSupportedModifier(modifier)) return key({ name: 'unknown', sequence });
     if (code === 13 || code === 10) return key({ sequence, name: 'enter', ...modifierFlags(modifier) });
     const normalized = keyFromCsiU({ code, modifier, sequence });
     if (normalized) return key(normalized);
   }
 
   const modifiedEnter = /^\x1b\[27;(\d+);13~$/.exec(sequence);
-  if (modifiedEnter) return key({ sequence, name: 'enter', ...modifierFlags(Number(modifiedEnter[1])) });
+  if (modifiedEnter) {
+    const modifier = Number(modifiedEnter[1]);
+    if (!isSupportedModifier(modifier)) return key({ name: 'unknown', sequence });
+    return key({ sequence, name: 'enter', ...modifierFlags(modifier) });
+  }
 
   if (isPrintable(sequence)) {
     return key({ name: sequence, sequence, text: sequence, printable: true });
@@ -116,7 +122,8 @@ export function isPrintable(value) {
 
 
 function keyFromCsiU({ code, modifier, sequence }) {
-  if (!Number.isFinite(code)) return null;
+  if (!Number.isSafeInteger(code) || code < 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) return null;
+  if (!isSupportedModifier(modifier)) return null;
   const flags = modifierFlags(modifier);
   const text = String.fromCodePoint(code);
   const lower = text.toLowerCase();
@@ -129,6 +136,10 @@ function keyFromCsiU({ code, modifier, sequence }) {
     return { sequence, name: text, text, printable: true, ...flags };
   }
   return null;
+}
+
+function isSupportedModifier(value) {
+  return Number.isInteger(value) && value >= 1 && value <= 9;
 }
 
 function key(overrides) {

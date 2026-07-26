@@ -291,7 +291,7 @@ export const INTERFACE_SCENARIOS = Object.freeze([
     covers: ['WorkspaceHeader', 'WorkspaceTabs', 'WorkspacePane', 'KeyHintBar', 'WorkspaceCommandBar', 'WorkspaceFooter', 'WorkspaceShell', 'SummaryList'],
     render: () => WorkspaceShell({
       title: 'Release Workspace',
-      subtitle: 'v1.1.3 verification',
+      subtitle: 'v1.2.0 verification',
       stats: [{ label: 'Tests', value: '269' }, { label: 'Coverage', value: '97%' }],
       right: ['branch main', 'clean'],
       focus: 'changes',

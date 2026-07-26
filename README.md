@@ -69,6 +69,12 @@ npx terlio.js components
 - Opt-in zero-dependency syntax highlighting for common JavaScript, Python, C/C++, Swift, Objective-C and configuration files.
 - No runtime dependencies; Node.js built-ins only.
 
+## Secure defaults
+
+Terlio.js treats rendered text, pointer metadata, terminal input, clipboard access and persisted sessions as separate boundaries. Untrusted text cannot emit arbitrary terminal controls, pointer regions never come from displayed text, bracketed paste remains a text transaction, and terminal state is restored when managed runtimes stop or fail. Raw ANSI, OSC 52 fallback and process-global handlers require explicit opt-in.
+
+See [Security model](docs/security-model.md) for the complete behavior and configuration options. Projects upgrading from an older release can use the separate [1.2.0 migration guide](docs/security-migration-1.2.md).
+
 ## Repository development
 
 ```bash
@@ -261,3 +267,11 @@ Use the `terlio.js` CLI rather than importing an interactive example when the go
 ## License
 
 [MIT](LICENSE)
+
+## Terminal security
+
+Terlio.js renders public text with the safe terminal policy by default. Arbitrary CSI, OSC, DCS, APC, PM, SOS and C1 controls are blocked at both layout and terminal-sink boundaries, while validated SGR styling remains available. See [Safe terminal rendering](docs/safe-terminal-rendering.md).
+
+Pointer hit regions are stored as structured layout metadata rather than encoded in rendered text. Geometry is validated at the frame boundary, overlays retain structural z-order, and each frame has a configurable region limit. See [Pointer metadata isolation](docs/pointer-isolation.md).
+
+The security behavior is covered by the ordinary test suite and the focused checks described in [Security contract testing](docs/security-contract-testing.md). The complete trust boundaries and configuration options are documented in [Security model](docs/security-model.md).

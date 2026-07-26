@@ -12,6 +12,8 @@ npm run test:coverage
 npm run test:package
 ```
 
+Test commands run through a terminal-state guard. The guard restores the original `stty` flags and resets bracketed paste, mouse reporting, autowrap, cursor visibility, alternate-screen mode, and SGR state after success, failure, or interruption.
+
 `npm run test:package` creates the real npm tarball, installs it into a temporary consumer project, imports the public API, lists the packaged examples and runs the one-shot component example.
 
 ## Pull requests

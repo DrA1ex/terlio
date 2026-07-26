@@ -28,7 +28,7 @@ export function LiveJobBlock({ title = ' Job ', status = 'idle', steps = [], act
   });
   const statusIcon = running ? Spinner({ frame, label: status }) : Text(`${statusGlyph(status)} ${status}`);
   return Box({ border: true, padding: { left: 1, right: 1 }, title },
-    Row({ gap: 2 }, statusIcon, ProgressBar({ value: progress, total: 100, width: 18 })),
+    Row({ gap: 2 }, statusIcon, ProgressBar({ value: progress, total: 100, width: 18, grow: true })),
     Column(...rows),
   );
 }

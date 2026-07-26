@@ -1,4 +1,8 @@
 import { ansi } from './ansi/codes.js';
+import { sanitizeSgrStyle } from './terminal/controlParser.js';
+import { enforceLimit, normalizeSecurityLimits } from './securityLimits.js';
+
+const TOKEN_LIMITS = new WeakMap();
 
 export const SYNTAX_TOKEN_TYPES = Object.freeze([
   'text',
@@ -205,9 +209,14 @@ export function detectSyntaxLanguage({ language = '', filename = '', source = ''
 export function tokenizeSyntax(source, options = {}) {
   const text = String(source ?? '');
   const language = detectSyntaxLanguage({ ...options, source: text });
-  if (!language) return [{ type: 'text', value: text }];
-  if (language === 'xml') return tokenizeMarkup(text);
-  return tokenizeGeneric(text, DEFINITIONS[language] ?? DEFINITIONS.javascript);
+  const limits = normalizeSecurityLimits(options.securityLimits);
+  const tokens = !language
+    ? createTokenList(limits.syntaxTokens, 'text', text)
+    : language === 'xml'
+      ? tokenizeMarkup(text, limits.syntaxTokens)
+      : tokenizeGeneric(text, DEFINITIONS[language] ?? DEFINITIONS.javascript, limits.syntaxTokens);
+  enforceLimit('syntaxTokens', tokens.length, limits.syntaxTokens);
+  return tokens;
 }
 
 export function highlightSyntax(source, options = {}) {
@@ -219,6 +228,7 @@ export function highlightSyntaxLines(source, {
   filename = '',
   theme = {},
   enabled = true,
+  securityLimits = null,
 } = {}) {
   const text = String(source ?? '');
   if (!enabled) return text.split('\n');
@@ -226,7 +236,7 @@ export function highlightSyntaxLines(source, {
   if (!detected) return text.split('\n');
 
   const lines = [''];
-  for (const token of tokenizeSyntax(text, { language: detected })) {
+  for (const token of tokenizeSyntax(text, { language: detected, securityLimits })) {
     const parts = String(token.value ?? '').split('\n');
     for (let index = 0; index < parts.length; index += 1) {
       if (parts[index]) lines[lines.length - 1] += styleSyntaxToken({ ...token, value: parts[index] }, theme);
@@ -239,7 +249,7 @@ export function highlightSyntaxLines(source, {
 export function styleSyntaxToken(token, theme = {}) {
   const type = SYNTAX_TOKEN_TYPES.includes(token?.type) ? token.type : 'text';
   const value = String(token?.value ?? '');
-  const open = syntaxStyle(theme, type);
+  const open = sanitizeSgrStyle(syntaxStyle(theme, type));
   if (!open || !value) return value;
   return `${open}${value}${ansi.reset}`;
 }
@@ -251,8 +261,8 @@ function syntaxStyle(theme, type) {
   return theme?.[fallbackToken] ?? theme?.text ?? '';
 }
 
-function tokenizeGeneric(text, config) {
-  const tokens = [];
+function tokenizeGeneric(text, config, tokenLimit) {
+  const tokens = createTokenList(tokenLimit);
   let index = 0;
   let lineStart = true;
 
@@ -394,8 +404,8 @@ function tokenizeGeneric(text, config) {
   return tokens;
 }
 
-function tokenizeMarkup(text) {
-  const tokens = [];
+function tokenizeMarkup(text, tokenLimit) {
+  const tokens = createTokenList(tokenLimit);
   let index = 0;
   while (index < text.length) {
     if (text.startsWith('<!--', index)) {
@@ -476,7 +486,17 @@ function push(tokens, type, value) {
   if (!value) return;
   const last = tokens.at(-1);
   if (last?.type === type) last.value += value;
-  else tokens.push({ type, value });
+  else {
+    enforceLimit('syntaxTokens', tokens.length + 1, TOKEN_LIMITS.get(tokens) ?? Infinity);
+    tokens.push({ type, value });
+  }
+}
+
+function createTokenList(limit, type = null, value = '') {
+  const tokens = [];
+  TOKEN_LIMITS.set(tokens, limit);
+  if (type && value) push(tokens, type, value);
+  return tokens;
 }
 
 function propertyAfterDot(tokens) {

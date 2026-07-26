@@ -9,7 +9,6 @@
     "\u001b[38;5;141m│\u001b[0m \u001b[38;5;244mwheel/click + drag selection · Ctrl+T native mode · Ctrl+P palette\u001b[0m        \u001b[38;5;141mskills: code, terminal\u001b[0m \u001b[38;5;141m│\u001b[0m",
     "\u001b[38;5;141m└──────────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
     "\u001b[38;5;238m┌  CONVERSATION · 2 messages                                                                       ┐\u001b[0m",
-    "\u001b[38;5;238m│\u001b[0m                                                                                                  \u001b[38;5;238m│\u001b[0m",
     "\u001b[38;5;238m│\u001b[0m \u001b[38;5;111myou       \u001b[0m\u001b[38;5;114m✓\u001b[0m \u001b[38;5;252mCan you review the retry loop and keep the output concise?\u001b[0m                           \u001b[38;5;238m│\u001b[0m",
     "\u001b[38;5;238m│\u001b[0m                                                                                                  \u001b[38;5;238m│\u001b[0m",
     "\u001b[38;5;238m│\u001b[0m \u001b[38;5;120massistant \u001b[0m\u001b[38;5;114m✓\u001b[0m \u001b[38;5;252mThe retry loop should cap attempts and preserve the original error.\u001b[0m                  \u001b[38;5;238m│\u001b[0m",
@@ -17,13 +16,14 @@
     "\u001b[38;5;238m│\u001b[0m             \u001b[38;5;238m┌─ retry.js ──────────────────────────────────────────────────────────────────┐\u001b[0m      \u001b[38;5;238m│\u001b[0m",
     "\u001b[38;5;238m│\u001b[0m             \u001b[38;5;238m│ \u001b[0m\u001b[38;5;141mfor\u001b[0m\u001b[38;5;252m \u001b[0m\u001b[38;5;244m(\u001b[0m\u001b[38;5;141mlet\u001b[0m\u001b[38;5;252m attempt \u001b[0m\u001b[38;5;245m=\u001b[0m\u001b[38;5;252m \u001b[0m\u001b[38;5;215m0\u001b[0m\u001b[38;5;244m;\u001b[0m\u001b[38;5;252m attempt \u001b[0m\u001b[38;5;245m<\u001b[0m\u001b[38;5;252m \u001b[0m\u001b[38;5;215m3\u001b[0m\u001b[38;5;244m;\u001b[0m\u001b[38;5;252m attempt \u001b[0m\u001b[38;5;245m+=\u001b[0m\u001b[38;5;252m \u001b[0m\u001b[38;5;215m1\u001b[0m\u001b[38;5;244m)\u001b[0m\u001b[38;5;252m \u001b[0m\u001b[38;5;244m{\u001b[0m                         \u001b[38;5;238m │\u001b[0m      \u001b[38;5;238m│\u001b[0m",
     "\u001b[38;5;238m│\u001b[0m             \u001b[38;5;238m│ \u001b[0m\u001b[38;5;252m  \u001b[0m\u001b[38;5;141mawait\u001b[0m\u001b[38;5;252m run\u001b[0m\u001b[38;5;244m();\u001b[0m                                                             \u001b[38;5;238m │\u001b[0m      \u001b[38;5;238m│\u001b[0m",
-    "\u001b[38;5;141m┌  COMMANDS · 2 matches                                                                            ┐\u001b[0m",
-    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;244m↑/↓ select · Tab/Enter complete · Esc dismiss                                                   \u001b[0m \u001b[38;5;141m│\u001b[0m",
-    "\u001b[38;5;141m│\u001b[0m \u001b[48;5;238m\u001b[38;5;255m › /help              /help                              Show command help                      \u001b[0m \u001b[38;5;141m│\u001b[0m",
-    "\u001b[38;5;141m│\u001b[0m \u001b[38;5;250m   /history           /history                           Browse sessions                        \u001b[0m \u001b[38;5;141m│\u001b[0m",
-    "\u001b[38;5;141m│\u001b[0m                                                                                                  \u001b[38;5;141m│\u001b[0m",
-    "\u001b[38;5;141m│\u001b[0m                                                                                                  \u001b[38;5;141m│\u001b[0m",
-    "\u001b[38;5;141m└──────────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;238m│\u001b[0m \u001b[0m\u001b[38;5;141m┌  COMMANDS · 2 matches                                                                        ┐\u001b[0m\u001b[0m \u001b[38;5;238m│\u001b[0m",
+    "\u001b[38;5;238m│\u001b[0m \u001b[0m\u001b[38;5;141m│\u001b[0m \u001b[38;5;244m↑/↓ select · Tab/Enter complete · Esc dismiss                                               \u001b[0m \u001b[38;5;141m│\u001b[0m\u001b[0m \u001b[38;5;238m│\u001b[0m",
+    "\u001b[38;5;238m│\u001b[0m \u001b[0m\u001b[38;5;141m│\u001b[0m \u001b[48;5;238m\u001b[38;5;255m › /help              /help                              Show command help                  \u001b[0m \u001b[38;5;141m│\u001b[0m\u001b[0m \u001b[38;5;238m│\u001b[0m",
+    "\u001b[38;5;238m│\u001b[0m \u001b[0m\u001b[38;5;141m│\u001b[0m \u001b[38;5;250m   /history           /history                           Browse sessions                    \u001b[0m \u001b[38;5;141m│\u001b[0m\u001b[0m \u001b[38;5;238m│\u001b[0m",
+    "\u001b[38;5;238m│\u001b[0m \u001b[0m\u001b[38;5;141m│\u001b[0m                                                                                              \u001b[38;5;141m│\u001b[0m\u001b[0m \u001b[38;5;238m│\u001b[0m",
+    "\u001b[38;5;238m│\u001b[0m \u001b[0m\u001b[38;5;141m│\u001b[0m                                                                                              \u001b[38;5;141m│\u001b[0m\u001b[0m \u001b[38;5;238m│\u001b[0m",
+    "\u001b[38;5;238m│\u001b[0m \u001b[0m\u001b[38;5;141m└──────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m\u001b[0m \u001b[38;5;238m│\u001b[0m",
+    "\u001b[38;5;238m└──────────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
     "\u001b[38;5;244m● Ready.\u001b[0m                                                                               \u001b[38;5;244mlatest · mock\u001b[0m",
     "\u001b[38;5;141m┌  COMPOSER · COMMAND                                                                              ┐\u001b[0m",
     "\u001b[38;5;141m│\u001b[0m \u001b[38;5;255m/he\u001b[7m \u001b[27m                                                                                            \u001b[0m \u001b[38;5;141m│\u001b[0m",
@@ -37,7 +37,6 @@
     "│ wheel/click + drag selection · Ctrl+T native mode · Ctrl+P palette        skills: code, terminal │",
     "└──────────────────────────────────────────────────────────────────────────────────────────────────┘",
     "┌  CONVERSATION · 2 messages                                                                       ┐",
-    "│                                                                                                  │",
     "│ you       ✓ Can you review the retry loop and keep the output concise?                           │",
     "│                                                                                                  │",
     "│ assistant ✓ The retry loop should cap attempts and preserve the original error.                  │",
@@ -45,12 +44,13 @@
     "│             ┌─ retry.js ──────────────────────────────────────────────────────────────────┐      │",
     "│             │ for (let attempt = 0; attempt < 3; attempt += 1) {                          │      │",
     "│             │   await run();                                                              │      │",
-    "┌  COMMANDS · 2 matches                                                                            ┐",
-    "│ ↑/↓ select · Tab/Enter complete · Esc dismiss                                                    │",
-    "│  › /help              /help                              Show command help                       │",
-    "│    /history           /history                           Browse sessions                         │",
-    "│                                                                                                  │",
-    "│                                                                                                  │",
+    "│ ┌  COMMANDS · 2 matches                                                                        ┐ │",
+    "│ │ ↑/↓ select · Tab/Enter complete · Esc dismiss                                                │ │",
+    "│ │  › /help              /help                              Show command help                   │ │",
+    "│ │    /history           /history                           Browse sessions                     │ │",
+    "│ │                                                                                              │ │",
+    "│ │                                                                                              │ │",
+    "│ └──────────────────────────────────────────────────────────────────────────────────────────────┘ │",
     "└──────────────────────────────────────────────────────────────────────────────────────────────────┘",
     "● Ready.                                                                               latest · mock",
     "┌  COMPOSER · COMMAND                                                                              ┐",
@@ -72,7 +72,7 @@
         "x": 2,
         "y": 5,
         "width": 96,
-        "height": 8
+        "height": 13
       },
       "segments": [
         {
@@ -122,6 +122,36 @@
           "y": 12,
           "width": 96,
           "height": 1
+        },
+        {
+          "x": 2,
+          "y": 13,
+          "width": 96,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 14,
+          "width": 96,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 15,
+          "width": 96,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 16,
+          "width": 96,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 17,
+          "width": 96,
+          "height": 1
         }
       ],
       "handlers": [
@@ -140,52 +170,52 @@
       "autoEnable": true,
       "parentToken": null,
       "bounds": {
-        "x": 0,
-        "y": 13,
-        "width": 100,
+        "x": 2,
+        "y": 12,
+        "width": 96,
         "height": 7
       },
       "segments": [
         {
-          "x": 0,
+          "x": 2,
+          "y": 12,
+          "width": 96,
+          "height": 1
+        },
+        {
+          "x": 2,
           "y": 13,
-          "width": 100,
+          "width": 96,
           "height": 1
         },
         {
-          "x": 0,
+          "x": 2,
           "y": 14,
-          "width": 100,
+          "width": 96,
           "height": 1
         },
         {
-          "x": 0,
+          "x": 2,
           "y": 15,
-          "width": 100,
+          "width": 96,
           "height": 1
         },
         {
-          "x": 0,
+          "x": 2,
           "y": 16,
-          "width": 100,
+          "width": 96,
           "height": 1
         },
         {
-          "x": 0,
+          "x": 2,
           "y": 17,
-          "width": 100,
+          "width": 96,
           "height": 1
         },
         {
-          "x": 0,
+          "x": 2,
           "y": 18,
-          "width": 100,
-          "height": 1
-        },
-        {
-          "x": 0,
-          "y": 19,
-          "width": 100,
+          "width": 96,
           "height": 1
         }
       ],
@@ -206,16 +236,16 @@
       "autoEnable": true,
       "parentToken": 2,
       "bounds": {
-        "x": 2,
-        "y": 15,
-        "width": 96,
+        "x": 4,
+        "y": 14,
+        "width": 92,
         "height": 1
       },
       "segments": [
         {
-          "x": 2,
-          "y": 15,
-          "width": 96,
+          "x": 4,
+          "y": 14,
+          "width": 92,
           "height": 1
         }
       ],
@@ -235,16 +265,16 @@
       "autoEnable": true,
       "parentToken": 2,
       "bounds": {
-        "x": 2,
-        "y": 16,
-        "width": 96,
+        "x": 4,
+        "y": 15,
+        "width": 92,
         "height": 1
       },
       "segments": [
         {
-          "x": 2,
-          "y": 16,
-          "width": 96,
+          "x": 4,
+          "y": 15,
+          "width": 92,
           "height": 1
         }
       ],

@@ -1,6 +1,6 @@
-import { spawnSync as nodeSpawnSync } from 'node:child_process';
 import { ansi } from './ansi/codes.js';
 import { stripAnsi, visibleLength, wcwidth } from './ansi/text.js';
+import { copyWithClipboardPolicy, createLegacyClipboard, osc52ClipboardSequence as buildOsc52ClipboardSequence, writeOsc52Clipboard } from './clipboardBackend.js';
 
 const TEXT_LINE_SOURCE = Symbol('terlio.textLineSource');
 
@@ -90,6 +90,7 @@ export function renderTextSelectionLines(lines = [], state = null, {
   close = '\x1b[27m',
   sourceLines = lines,
   rowOffset = 0,
+  rowMap = null,
 } = {}) {
   const visible = Array.from(lines ?? [], (line) => String(line ?? ''));
   const source = asTextLineSource(sourceLines);
@@ -97,7 +98,9 @@ export function renderTextSelectionLines(lines = [], state = null, {
   if (!range) return visible;
   const offset = Math.trunc(Number(rowOffset) || 0);
   return visible.map((line, row) => {
-    const sourceRow = offset + row;
+    const mapped = Array.isArray(rowMap) ? rowMap[row] : offset + row;
+    if (!Number.isInteger(mapped)) return line;
+    const sourceRow = mapped;
     if (sourceRow < range.start.y || sourceRow > range.end.y) return line;
     const start = sourceRow === range.start.y ? range.start.x : 0;
     const end = sourceRow === range.end.y ? range.end.x : visibleLength(line);
@@ -180,81 +183,46 @@ export function styleVisibleRange(value, start, end, { open = ansi.inverse, clos
   return output;
 }
 
-export function osc52ClipboardSequence(text, { target = 'c' } = {}) {
-  const value = String(text ?? '');
-  return `\x1b]52;${target};${Buffer.from(value, 'utf8').toString('base64')}\x07`;
+export function osc52ClipboardSequence(text, options = {}) {
+  return buildOsc52ClipboardSequence(text, options);
 }
 
 export function copyTextToClipboard(text, {
   output = process.stdout,
   platform = process.platform,
   env = process.env,
-  spawnSync = nodeSpawnSync,
+  spawnSync,
   osc52 = true,
   target = 'c',
   timeout = 1200,
+  clipboard = null,
+  clipboardBackend = null,
+  clipboardPolicy = undefined,
+  securityLimits = null,
+  sink = null,
 } = {}) {
   const value = String(text ?? '');
-  if (!value) return { copied: false, method: null };
-
-  for (const candidate of clipboardCommands(platform, env)) {
-    const result = runClipboardCommand(candidate, value, { spawnSync, timeout });
-    if (result) return { copied: true, method: candidate.method };
+  if (clipboard?.copy) return clipboard.copy(value, { osc52, target });
+  if (clipboardPolicy === 'legacy') {
+    const adapter = createLegacyClipboard({ output, sink, platform, env, spawnSync, osc52, target, timeout, securityLimits });
+    return adapter.copy(value, { osc52, target });
   }
-
-  if (osc52 && output && typeof output.write === 'function') {
-    output.write(osc52ClipboardSequence(value, { target }));
-    return { copied: true, method: 'osc52' };
-  }
-
-  return { copied: false, method: null };
+  return copyWithClipboardPolicy(value, {
+    output,
+    sink,
+    platform,
+    env,
+    spawnSync,
+    target,
+    timeout,
+    clipboardBackend,
+    clipboardPolicy: clipboardPolicy ?? 'native',
+    securityLimits,
+  });
 }
 
-export function writeClipboardText(text, output = process.stdout, { target = 'c' } = {}) {
-  const value = String(text ?? '');
-  if (!value || !output || typeof output.write !== 'function') return false;
-  output.write(osc52ClipboardSequence(value, { target }));
-  return true;
-}
-
-function clipboardCommands(platform, env = {}) {
-  if (platform === 'darwin') return [
-    { method: 'pbcopy', command: 'pbcopy', args: [] },
-  ];
-
-  if (platform === 'win32') return [
-    {
-      method: 'powershell',
-      command: 'powershell.exe',
-      args: ['-NoProfile', '-NonInteractive', '-Command', '[Console]::In.ReadToEnd() | Set-Clipboard'],
-    },
-    { method: 'clip.exe', command: 'clip.exe', args: [] },
-  ];
-
-  const commands = [];
-  if (env?.WSL_DISTRO_NAME || env?.WSL_INTEROP) commands.push({ method: 'clip.exe', command: 'clip.exe', args: [] });
-  if (env?.WAYLAND_DISPLAY) commands.push({ method: 'wl-copy', command: 'wl-copy', args: ['--type', 'text/plain;charset=utf-8'] });
-  commands.push(
-    { method: 'xclip', command: 'xclip', args: ['-selection', 'clipboard', '-in'] },
-    { method: 'xsel', command: 'xsel', args: ['--clipboard', '--input'] },
-  );
-  return commands;
-}
-
-function runClipboardCommand(candidate, value, { spawnSync, timeout }) {
-  if (typeof spawnSync !== 'function') return false;
-  try {
-    const result = spawnSync(candidate.command, candidate.args, {
-      input: value,
-      encoding: 'utf8',
-      stdio: ['pipe', 'ignore', 'ignore'],
-      windowsHide: true,
-      timeout: Math.max(100, Number(timeout) || 1200),
-    });
-    return !result?.error && Number(result?.status) === 0;
-  } catch {
-    return false;
-  }
+export function writeClipboardText(text, output = process.stdout, { target = 'c', sink = null } = {}) {
+  return writeOsc52Clipboard(text, { output, sink, target });
 }
 
 function asTextLineSource(lines) {

@@ -1,11 +1,23 @@
 import { stripAnsi, visibleLength } from '../ansi/text.js';
+import { normalizePointerRegions } from '../pointer.js';
+import { DEFAULT_TERMINAL_LIMITS } from '../terminal/policy.js';
 
 export class Frame {
-  constructor(lines, { width, height, pointerRegions = [] }) {
+  constructor(lines, {
+    width,
+    height,
+    pointerRegions = [],
+    pointerRegionLimit = DEFAULT_TERMINAL_LIMITS.pointerRegions,
+  }) {
     this.width = Math.max(1, Number(width) || 1);
     this.height = Math.max(1, Number(height) || 1);
     this.lines = normalizeLines(lines, this.width, this.height);
-    this.pointerRegions = Array.isArray(pointerRegions) ? pointerRegions : [];
+    this.pointerRegions = normalizePointerRegions(pointerRegions, {
+      width: this.width,
+      height: this.height,
+      maxRegions: pointerRegionLimit,
+      preserveUnknownParents: false,
+    });
   }
 
   toLines() {

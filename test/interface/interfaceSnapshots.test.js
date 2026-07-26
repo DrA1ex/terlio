@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { INTERFACE_SCENARIOS, VISUAL_COMPONENTS } from '../../scripts/interface-testing/scenarios.js';
 import { auditSnapshot, goldenPath, readGolden, renderScenario } from '../../scripts/interface-testing/snapshotUtils.js';
 
@@ -19,9 +19,9 @@ test('interface snapshot catalog covers at least 90% of the public visual compon
 
 
 
-test('interface scenarios are deterministic across host time zones', () => {
-  const utc = renderCatalogInTimezone('UTC');
-  const yekaterinburg = renderCatalogInTimezone('Asia/Yekaterinburg');
+test('interface scenarios are deterministic across host time zones', async () => {
+  const utc = await renderCatalogInTimezone('UTC');
+  const yekaterinburg = await renderCatalogInTimezone('Asia/Yekaterinburg');
   assert.deepEqual(yekaterinburg, utc);
 });
 
@@ -56,10 +56,30 @@ function renderCatalogInTimezone(timeZone) {
     import { renderScenario } from ${JSON.stringify(utilsUrl)};
     process.stdout.write(JSON.stringify(INTERFACE_SCENARIOS.map(renderScenario)));
   `;
-  const result = spawnSync(process.execPath, ['--input-type=module', '--eval', source], {
-    encoding: 'utf8',
-    env: { ...process.env, TZ: timeZone },
+
+  return new Promise((resolve, reject) => {
+    const { NODE_TEST_CONTEXT: _testContext, ...childEnv } = process.env;
+    const child = spawn(process.execPath, ['--input-type=module', '--eval', source], {
+      env: { ...childEnv, TZ: timeZone },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.once('error', reject);
+    child.once('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(stderr || `interface render failed in ${timeZone} with exit code ${code}`));
+        return;
+      }
+      try {
+        resolve(JSON.parse(stdout));
+      } catch (error) {
+        reject(new Error(`invalid interface render output in ${timeZone}: ${error.message}`));
+      }
+    });
   });
-  assert.equal(result.status, 0, result.stderr || `interface render failed in ${timeZone}`);
-  return JSON.parse(result.stdout);
 }
