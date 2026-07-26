@@ -8,7 +8,8 @@ import {
   createFrame, createListState, createOverlayManager, createScrollState, createTimelineEvent,
   createWorkspaceApp, diffFrames, getCommandPaletteMatches, getListWindow, getPaletteQuery,
   getResponsiveMode, handleCommandPaletteKey, handleInputEditorKey, handleListKey, handleScrollKey,
-  renderBlocksLines, renderCommandPalette, renderToString, responsiveColumns, stripAnsi, themes,
+  measureNodeHeight,
+  renderBlocksLines, renderCommandPalette, renderNode, renderToString, responsiveColumns, stripAnsi, themes,
   truncateVisible, updateScrollState, visibleLength, visibleWindowLines, wcwidth,
 } from '../src/lib/index.js';
 import { packageDisplayName } from '../src/lib/packageMetadata.js';
@@ -220,7 +221,8 @@ function renderNavPane({ state, theme, height }) {
         getLabel: (item) => item.title,
         getDescription: (item) => item.category,
         wrapItems: true,
-        maxItemLines: 3,
+        rowLines: 2,
+        reserveItemLines: true,
         theme,
         pointerId: 'kit:showcases',
         onSelect: (_entry, index) => {
@@ -255,9 +257,25 @@ function renderNavPane({ state, theme, height }) {
 }
 
 function renderPreviewPane({ state, entry, theme, width, height }) {
-  const contentHeight = Math.max(4, height - 3);
-  const preview = makeGrow(entry.render(showcaseCtx(state, entry, null, width, contentHeight, theme)));
   const controls = (entry.controls ?? []).map((item) => [item.key, item.action]);
+  const footerNode = KeyHintBar({
+    title: ' LOCAL CONTROLS ',
+    hints: controls.length ? controls : [['—', 'No local controls']],
+    columns: 'auto',
+    adaptive: true,
+    minColumnWidth: 20,
+    maxColumns: 3,
+    theme,
+  });
+  const paneInnerWidth = Math.max(1, width - 4);
+  const paneInnerHeight = Math.max(0, height - 2);
+  const footerMaxHeight = Math.max(3, Math.min(9, height - 6));
+  const footerHeight = Math.min(
+    paneInnerHeight,
+    Math.max(3, Math.min(footerMaxHeight, measureNodeHeight(footerNode, paneInnerWidth))),
+  );
+  const contentHeight = Math.max(1, paneInnerHeight - footerHeight);
+  const preview = makeGrow(entry.render(showcaseCtx(state, entry, null, width, contentHeight, theme)));
   return WorkspacePane({
     title: ` PREVIEW · ${entry.title} `,
     active: state.focus.current() === 'preview',
@@ -269,17 +287,35 @@ function renderPreviewPane({ state, entry, theme, width, height }) {
       state.status = `Preview focused: ${entry.title}.`;
     },
     children: [preview],
-    footerNode: KeyHintBar({
-      title: ' LOCAL CONTROLS ',
-      hints: controls.length ? controls : [['—', 'No local controls']],
-      columns: 'auto',
-      adaptive: true,
-      minColumnWidth: 20,
-      maxColumns: 3,
-      theme,
-    }),
+    footerNode,
     footerMinHeight: 3,
-    footerMaxHeight: Math.max(3, Math.min(9, height - 6)),
+    footerMaxHeight,
+  });
+}
+
+function renderScrollableShowcase({
+  node,
+  scroll,
+  width,
+  height,
+  title,
+  pointerId,
+}) {
+  const safeWidth = Math.max(16, Number(width) || 16);
+  const safeHeight = Math.max(6, Number(height) || 6);
+  const contentWidth = Math.max(1, safeWidth - 4);
+  const lines = renderNode(node, contentWidth);
+  const visibleRows = Math.max(1, safeHeight - 3);
+  updateScrollState(scroll, { totalRows: lines.length, visibleRows });
+  return ScrollPane({
+    title,
+    lines,
+    width: safeWidth,
+    height: safeHeight,
+    scroll: scroll.scroll,
+    footer: true,
+    pointerId,
+    onWheel: (event) => scrollStateByWheel(scroll, event),
   });
 }
 
@@ -517,33 +553,112 @@ const SHOWCASES = [
     return false;
   } },
 
-  { id: 'progress-live-jobs', title: 'Progress and Live Jobs', category: 'Feedback', summary: 'Shows deterministic long-running task visualization with live metrics and explicit running/completed states.', components: ['ProgressBar', 'Spinner', 'LiveJobBlock', 'MetricBlock'], controls: [{ key: 'Space', action: 'start/pause' }, { key: 'r', action: 'reset' }, { key: 'f', action: 'finish' }], createInitialState: () => progressState(), render: ({ state, app, theme }) => Column({ gap: 1 }, LiveJobBlock({ title: ' Simulated deployment ', status: state.progress >= 100 ? 'completed' : state.status, running: state.progress < 100 && state.running, steps: state.steps, activeIndex: state.activeIndex, progress: state.progress, frame: app.frame }), Row({ gap: 2, distribute: true }, MetricBlock({ title: ' Elapsed ', value: `${state.elapsed}s`, detail: 'fake clock', pulse: state.running }), MetricBlock({ title: ' Lifecycle ', value: state.running ? 'running' : state.status, detail: state.progress >= 100 ? 'spinner stopped' : 'local timer' }), MetricBlock({ title: ' Throughput ', value: `${state.processed}/${state.totalFiles}`, detail: 'files' })), Column({ gap: 0 }, ProgressBar({ value: state.progress, total: 100, width: 26, label: 'compact', variant: 'compact' }), ProgressBar({ value: state.progress, total: 100, width: 26, label: 'line track', variant: 'line' }), ProgressBar({ value: state.progress, total: 100, width: 26, label: 'inset rail', variant: 'inset' }), ProgressBar({ value: state.progress, total: 100, width: 42, label: 'boxed', variant: 'boxed' })), p('Compact, line, and inset variants occupy one row. Boxed progress is a real three-row component and participates in layout height normally.', theme, 'textMuted')), handleKey: ({ state, overlays }, key) => {
-    if (key.name === 'space' || (key.printable && key.text === ' ')) { if (state.progress >= 100) Object.assign(state, progressState()); state.running = !state.running; state.status = state.running ? 'running' : 'paused'; overlays.toast(state.running ? 'Job started.' : 'Job paused.'); return true; }
+  { id: 'progress-live-jobs', title: 'Progress and Live Jobs', category: 'Feedback', summary: 'Shows deterministic long-running task visualization with live metrics and explicit running/completed states.', components: ['ProgressBar', 'Spinner', 'LiveJobBlock', 'MetricBlock'], controls: [{ key: 'Space', action: 'start/pause' }, { key: '↑/↓ Pg', action: 'scroll' }, { key: 'r', action: 'reset' }, { key: 'f', action: 'finish' }], createInitialState: () => progressState(), render: ({ state, app, theme, width, height }) => {
+    const content = Column({ gap: 1 },
+      LiveJobBlock({
+        title: ' Simulated deployment ',
+        status: state.progress >= 100 ? 'completed' : state.status,
+        running: state.progress < 100 && state.running,
+        steps: state.steps,
+        activeIndex: state.activeIndex,
+        progress: state.progress,
+        frame: app.frame,
+      }),
+      Row({ gap: 2, distribute: true },
+        MetricBlock({ title: ' Elapsed ', value: `${state.elapsed}s`, detail: 'fake clock', pulse: state.running }),
+        MetricBlock({ title: ' Lifecycle ', value: state.running ? 'running' : state.status, detail: state.progress >= 100 ? 'spinner stopped' : 'local timer' }),
+        MetricBlock({ title: ' Throughput ', value: `${state.processed}/${state.totalFiles}`, detail: 'files' }),
+      ),
+      WorkspacePane({ title: ' PROGRESS BAR VARIANTS ', theme, children: [
+        Column({ gap: 1 },
+          ProgressBar({ value: state.progress, total: 100, width: 26, label: 'compact', variant: 'compact' }),
+          ProgressBar({ value: state.progress, total: 100, width: 26, label: 'line track', variant: 'line' }),
+          ProgressBar({ value: state.progress, total: 100, width: 26, label: 'inset rail', variant: 'inset' }),
+          ProgressBar({ value: state.progress, total: 100, width: 42, label: 'boxed', variant: 'boxed' }),
+        ),
+      ] }),
+      p('Compact, line, and inset variants occupy one row. Boxed progress is a real three-row component and participates in layout height normally.', theme, 'textMuted'),
+    );
+    return renderScrollableShowcase({
+      node: content,
+      scroll: state.scroll,
+      width,
+      height,
+      title: ' PROGRESS AND LIVE JOBS ',
+      pointerId: 'kit:progress-live-jobs-scroll',
+    });
+  }, handleKey: ({ state, overlays }, key) => {
+    const scrollResult = handleScrollKey(state.scroll, key, { includeHomeEnd: true });
+    if (scrollResult.handled) return true;
+    if (key.name === 'space' || (key.printable && key.text === ' ')) {
+      if (state.progress >= 100) Object.assign(state, progressState());
+      state.running = !state.running;
+      state.status = state.running ? 'running' : 'paused';
+      overlays.toast(state.running ? 'Job started.' : 'Job paused.');
+      return true;
+    }
     if (key.printable && key.text === 'r') { Object.assign(state, progressState()); return true; }
-    if (key.printable && key.text === 'f') { state.progress = 100; state.running = false; state.status = 'completed'; state.activeIndex = state.steps.length; state.processed = state.totalFiles; overlays.toast('Job finished immediately.', 'success'); return true; }
+    if (key.printable && key.text === 'f') {
+      state.progress = 100;
+      state.running = false;
+      state.status = 'completed';
+      state.activeIndex = state.steps.length;
+      state.processed = state.totalFiles;
+      overlays.toast('Job finished immediately.', 'success');
+      return true;
+    }
     return false;
   } },
 
-  { id: 'progress-status-controller', title: 'Progress Status and Batching', category: 'Feedback', summary: 'Demonstrates controller-owned progress state, throttled invalidation, rate and ETA calculation, batching, lifecycle states, and LiveJobBlock integration.', components: ['ProgressStatus', 'ProgressStatus.create', 'LiveJobBlock', 'ProgressBar'], controls: [{ key: 'Space', action: 'pause/resume' }, { key: 'b', action: 'add batch' }, { key: 'c', action: 'complete' }, { key: 'f', action: 'fail' }, { key: 'r', action: 'reset' }], createInitialState: () => progressStatusState(), render: ({ state, app, theme }) => {
+  { id: 'progress-status-controller', title: 'Progress Status and Batching', category: 'Feedback', summary: 'Demonstrates controller-owned progress state, throttled invalidation, rate and ETA calculation, batching, lifecycle states, and LiveJobBlock integration.', components: ['ProgressStatus', 'ProgressStatus.create', 'LiveJobBlock', 'ProgressBar'], controls: [{ key: 'Space', action: 'pause/resume' }, { key: '↑/↓ Pg', action: 'scroll' }, { key: 'b', action: 'complete one batch' }, { key: 'c', action: 'complete all' }, { key: 'f', action: 'fail' }, { key: 'r', action: 'reset' }], createInitialState: () => progressStatusState(), render: ({ state, app, theme, width, height }) => {
     const download = state.download.snapshot();
     const batch = state.batch.snapshot();
-    return Column({ gap: 1 },
+    const content = Column({ gap: 1 },
       WorkspacePane({ title: ' CONTROLLER-DRIVEN DOWNLOAD ', theme, children: [
         ProgressStatus({ progress: state.download, label: 'Assets', width: 30, variant: 'inset', format: 'bytes', frame: app.frame }),
         Text('set()/add() update exact state; invalidate() is throttled independently from the task callback.'),
       ] }),
       Row({ gap: 2, distribute: true },
-        WorkspacePane({ title: ' BATCHES ', theme, children: [ProgressStatus({ progress: state.batch, label: 'Compile', width: 14, variant: 'line', frame: app.frame, showElapsed: false, showEta: false })] }),
+        WorkspacePane({ title: ' BATCHES ', theme, children: [
+          ProgressStatus({ progress: state.batch, label: 'Compile', width: 14, variant: 'line', frame: app.frame, showElapsed: false, showEta: false }),
+          Text(color(theme, 'textMuted', 'b marks one additional batch as complete.'), { wrap: true }),
+          Text(color(theme, 'textAccent', state.batchNotice), { wrap: true }),
+        ] }),
         WorkspacePane({ title: ' LIFECYCLE STATES ', theme, children: [
           ProgressStatus({ progress: state.paused, label: 'Paused', width: 12, variant: 'compact', showRate: false, showElapsed: false, showEta: false }),
           ProgressStatus({ progress: state.completed, label: 'Done', width: 12, variant: 'compact', showRate: false, showElapsed: false, showEta: false }),
           ProgressStatus({ progress: state.failed, label: 'Failed', width: 12, variant: 'compact', showRate: false, showElapsed: false, showEta: false, showValue: false }),
         ] }),
       ),
-      LiveJobBlock({ title: ' Controller-backed job ', progress: state.download, progressVariant: 'inset', showProgressDetails: true, frame: app.frame, activeIndex: Math.min(3, Math.floor(download.ratio * 4)), steps: ['Open stream', 'Decode chunks', 'Write cache', 'Verify artifact'] }),
-      KeyValueBlock({ title: ' Controller snapshot ', rows: [['state', download.state], ['value', `${Math.round(download.value / 1024 / 1024)} / ${Math.round(download.total / 1024 / 1024)} MiB`], ['rate', download.rate > 0 ? `${(download.rate / 1024 / 1024).toFixed(1)} MiB/s` : 'n/a'], ['eta', download.etaMs === null ? 'n/a' : `${Math.ceil(download.etaMs / 1000)}s`], ['batch', `${batch.value}/${batch.total}`]] }),
+      LiveJobBlock({
+        title: ' Controller-backed job ',
+        progress: state.download,
+        progressVariant: 'inset',
+        showProgressDetails: true,
+        frame: app.frame,
+        activeIndex: Math.min(3, Math.floor(download.ratio * 4)),
+        steps: ['Open stream', 'Decode chunks', 'Write cache', 'Verify artifact'],
+      }),
+      KeyValueBlock({ title: ' Controller snapshot ', rows: [
+        ['state', download.state],
+        ['value', `${Math.round(download.value / 1024 / 1024)} / ${Math.round(download.total / 1024 / 1024)} MiB`],
+        ['rate', download.rate > 0 ? `${(download.rate / 1024 / 1024).toFixed(1)} MiB/s` : 'n/a'],
+        ['eta', download.etaMs === null ? 'n/a' : `${Math.ceil(download.etaMs / 1000)}s`],
+        ['batch', `${batch.value}/${batch.total}`],
+        ['manual batch actions', String(state.manualBatchAdds)],
+      ] }),
     );
+    return renderScrollableShowcase({
+      node: content,
+      scroll: state.scroll,
+      width,
+      height,
+      title: ' PROGRESS STATUS AND BATCHING ',
+      pointerId: 'kit:progress-status-scroll',
+    });
   }, handleKey: ({ state, overlays }, key) => {
+    const scrollResult = handleScrollKey(state.scroll, key, { includeHomeEnd: true });
+    if (scrollResult.handled) return true;
     if (key.name === 'space' || (key.printable && key.text === ' ')) {
       if (state.download.state === 'completed' || state.download.state === 'failed') resetProgressStatusState(state);
       state.running = !state.running;
@@ -551,9 +666,34 @@ const SHOWCASES = [
       overlays.toast(state.running ? 'Controller resumed.' : 'Controller paused.');
       return true;
     }
-    if (key.printable && key.text === 'b') { state.batch.add(1); overlays.toast('Added one batch.', 'info'); return true; }
-    if (key.printable && key.text === 'c') { state.download.complete(); state.batch.complete(); state.running = false; overlays.toast('Controllers completed.', 'success'); return true; }
-    if (key.printable && key.text === 'f') { state.download.fail(new Error('simulated network failure')); state.running = false; overlays.toast('Controller failed.', 'error'); return true; }
+    if (key.printable && key.text === 'b') {
+      const before = state.batch.snapshot();
+      state.batch.add(1);
+      const after = state.batch.snapshot();
+      if (after.value > before.value) {
+        state.manualBatchAdds += 1;
+        state.batchNotice = `Manual batch completed: ${after.value}/${after.total}.`;
+        overlays.toast(state.batchNotice, 'info');
+      } else {
+        state.batchNotice = `All ${after.total} batches are already complete.`;
+        overlays.toast(state.batchNotice, 'warning');
+      }
+      return true;
+    }
+    if (key.printable && key.text === 'c') {
+      state.download.complete();
+      state.batch.complete();
+      state.batchNotice = 'All batches completed together with the download.';
+      state.running = false;
+      overlays.toast('Controllers completed.', 'success');
+      return true;
+    }
+    if (key.printable && key.text === 'f') {
+      state.download.fail(new Error('simulated network failure'));
+      state.running = false;
+      overlays.toast('Controller failed.', 'error');
+      return true;
+    }
     if (key.printable && key.text === 'r') { resetProgressStatusState(state); return true; }
     return false;
   } },
@@ -744,9 +884,29 @@ function blockTypeCounts(blocks) {
 function ticketItems() { return Array.from({ length: 24 }, (_, index) => ({ title: `TKT-${String(index + 1).padStart(3, '0')} ${['Login issue', 'Renderer edge case', 'Palette request', 'Theme polish', 'Scroll report', 'Editor question'][index % 6]}`, priority: ['low', 'medium', 'high'][index % 3], disabled: index % 7 === 4 })); }
 function localPaletteItems() { return [{ id: 'jump.editor', title: 'Jump to editor', description: 'Navigate to input mechanics', category: 'Navigation', keywords: ['input', 'editor'], keys: ['j e'], value: { jump: 'text-editor-input' } }, { id: 'jump.jobs', title: 'Jump to live jobs', description: 'Navigate to progress visualization', category: 'Navigation', keywords: ['progress', 'jobs'], keys: ['j p'], value: { jump: 'progress-live-jobs' } }, { id: 'theme.preview', title: 'Preview theme command', description: 'Example command without side effects', category: 'Theme', keywords: ['theme'] }, { id: 'disabled.remote', title: 'Remote network command', description: 'Disabled because examples do not call services', category: 'Disabled', keywords: ['network'], disabled: true }]; }
 function logLines(count) { return Array.from({ length: count }, (_, index) => `${String(index + 1).padStart(3, '0')}  transcript event ${index + 1}: ${['queued', 'streamed token', 'rendered frame', 'patched row'][index % 4]}`); }
-function progressState() { return { running: false, progress: 0, status: 'idle', activeIndex: 0, elapsed: 0, ticks: 0, processed: 0, totalFiles: 420, steps: ['Resolve config', 'Compile views', 'Render frames', 'Run smoke checks', 'Publish artifact'] }; }
+function progressState() {
+  return {
+    running: false,
+    progress: 0,
+    status: 'idle',
+    activeIndex: 0,
+    elapsed: 0,
+    ticks: 0,
+    processed: 0,
+    totalFiles: 420,
+    steps: ['Resolve config', 'Compile views', 'Render frames', 'Run smoke checks', 'Publish artifact'],
+    scroll: createScrollState({ totalRows: 0, visibleRows: 12, sticky: false }),
+  };
+}
 function progressStatusState() {
-  const state = { clockMs: 0, ticks: 0, running: true };
+  const state = {
+    clockMs: 0,
+    ticks: 0,
+    running: true,
+    manualBatchAdds: 0,
+    batchNotice: 'Press b to mark one batch complete.',
+    scroll: createScrollState({ totalRows: 0, visibleRows: 12, sticky: false }),
+  };
   const now = () => state.clockMs;
   state.download = ProgressStatus.create({ total: 96 * 1024 * 1024, now, updateIntervalMs: 50, format: 'bytes' });
   state.batch = ProgressStatus.create({ total: 12, now, updateIntervalMs: 50, unit: 'batches' });
@@ -761,6 +921,10 @@ function resetProgressStatusState(state) {
   state.clockMs = 0;
   state.ticks = 0;
   state.running = true;
+  state.manualBatchAdds = 0;
+  state.batchNotice = 'Press b to mark one batch complete.';
+  state.scroll.scroll = 0;
+  state.scroll.sticky = false;
   state.download.reset({ total: 96 * 1024 * 1024, state: 'running' });
   state.batch.reset({ total: 12, state: 'running' });
 }

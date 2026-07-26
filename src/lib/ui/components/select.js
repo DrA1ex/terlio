@@ -22,6 +22,7 @@ export function SelectList({
   maxItemLines = 3,
   rowLines = undefined,
   reserveItemLines = false,
+  height = undefined,
   windowStart = null,
   onSelect = null,
   onActivate = null,
@@ -46,6 +47,7 @@ export function SelectList({
     maxItemLines,
     rowLines,
     reserveItemLines,
+    height,
     windowStart,
     onSelect,
     onActivate,
@@ -57,6 +59,9 @@ export function SelectList({
 
 export function renderSelectList(node, width, renderNode) {
   const props = node.props || {};
+  const fixedHeight = props.height === undefined || props.height === 'fill'
+    ? undefined
+    : Math.max(0, Number(props.height) || 0);
   const theme = props.theme ?? null;
   const normalized = Array.from(props.items ?? []).map((item, index) => normalizeItem(item, index, props));
   const selected = resolveSelectedIndex(normalized, props.selectedIndex);
@@ -70,7 +75,13 @@ export function renderSelectList(node, width, renderNode) {
   if (!normalized.length) {
     rows.push(Text(theme ? color(theme, 'textMuted', props.emptyText ?? 'No items.') : props.emptyText ?? 'No items.', { wrap: false }));
     while (rows.length < itemCount) rows.push(Text('', { wrap: false }));
-    return renderBox(Box({ border: true, borderColor: theme?.border ?? undefined, padding: { left: 1, right: 1 }, title: ` ${props.title ?? 'Select'} 0/0 ` }, ...rows.slice(0, itemCount)), width, renderNode);
+    return renderBox(Box({
+      border: true,
+      borderColor: theme?.border ?? undefined,
+      padding: { left: 1, right: 1 },
+      title: ` ${props.title ?? 'Select'} 0/0 `,
+      ...(fixedHeight !== undefined ? { height: fixedHeight } : {}),
+    }, ...rows.slice(0, itemCount)), width, renderNode);
   }
 
   const window = resolveListWindow({ total: normalized.length, selected, rows: itemCount, start: props.windowStart });
@@ -113,6 +124,7 @@ export function renderSelectList(node, width, renderNode) {
     borderColor: theme?.border ?? undefined,
     padding: { left: 1, right: 1 },
     title: ` ${props.title ?? 'Select'} ${suffix} `,
+    ...(fixedHeight !== undefined ? { height: fixedHeight } : {}),
     pointerId: `${props.pointerId ?? 'select-list'}:surface`,
     pointerWidth: 'fill',
     pointerAutoEnable: props.pointerAutoEnable !== false,

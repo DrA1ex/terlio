@@ -84,6 +84,27 @@ test('SelectList can wrap long item labels into reserved item rows', () => {
   assert.match(output, /Runtime, Frames/);
 });
 
+test('SelectList honors an assigned fixed height inside docked layouts', () => {
+  const list = SelectList({
+    title: 'Entries',
+    items: Array.from({ length: 8 }, (_, index) => ({
+      title: `Long showcase entry ${index + 1}`,
+      category: 'Feedback and navigation',
+    })),
+    getLabel: (item) => item.title,
+    getDescription: (item) => item.category,
+    selectedIndex: 4,
+    windowSize: 4,
+    rowLines: 2,
+    reserveItemLines: true,
+    height: 10,
+  });
+  const lines = stripAnsi(renderToString(list, { width: 34, height: 10 })).split('\n');
+  assert.equal(lines.length, 10);
+  assert.equal(lines[0].startsWith('┌'), true);
+  assert.equal(lines.at(-1).startsWith('└'), true);
+});
+
 test('single-cell symbols used by toast icons do not collapse borders', () => {
   assert.equal(wcwidth('✓'), 1);
   const output = stripAnsi(renderToString(Toast({ level: 'success', message: 'Saved', theme: themes.ocean, width: 40 }), { width: 40, height: 4 }));

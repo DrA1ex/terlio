@@ -94,6 +94,20 @@ test('showcase navigation wraps long entries into reserved second rows', () => {
   assert.match(output, /Rendering — Runtime/);
 });
 
+test('showcase navigation keeps its selection footer docked across wrapped entries', () => {
+  const rows = [];
+  for (const index of [0, 4, 10, 15]) {
+    const state = createInteractionKitState();
+    select(state, index);
+    state.focus.focus('nav');
+    const lines = render(state, 136, 39).split('\n');
+    const footerRow = lines.findIndex((line) => line.includes('Enter preview'));
+    assert.ok(footerRow > 0, `screen ${index + 1} should show the navigation footer`);
+    rows.push(footerRow);
+  }
+  assert.equal(new Set(rows).size, 1);
+});
+
 test('the last toast expires and invalidates the rendered frame', () => {
   const state = createInteractionKitState();
   state.overlays.toast('One final toast', 'success', 3);
@@ -250,4 +264,39 @@ test('progress status showcase demonstrates controller lifecycle, batching and r
   handleInteractionKitKey({ key: { name: 'r', printable: true, text: 'r' }, state, runtime });
   assert.equal(demo.download.state, 'running');
   assert.equal(demo.download.value, 0);
+});
+
+test('progress showcase pages scroll and keep progress variants visually separated', () => {
+  const state = createInteractionKitState();
+  const jobsIndex = state.list.items.findIndex((item) => item.id === 'progress-live-jobs');
+  select(state, jobsIndex);
+  state.focus.focus('preview');
+
+  let output = render(state, 136, 39);
+  const jobs = state.showcaseState['progress-live-jobs'];
+  assert.ok(jobs.scroll.totalRows > jobs.scroll.visibleRows);
+  const lines = output.split('\n');
+  const compactRow = lines.findIndex((line) => line.includes('compact ['));
+  const lineRow = lines.findIndex((line) => line.includes('line track ['));
+  assert.equal(lineRow - compactRow, 2);
+  assert.equal(lines[compactRow + 1].includes('line track'), false);
+
+  handleInteractionKitKey({ key: { name: 'page-down' }, state, runtime });
+  assert.ok(jobs.scroll.scroll > 0);
+  output = render(state, 136, 39);
+  assert.match(output, /boxed/);
+
+  const statusIndex = state.list.items.findIndex((item) => item.id === 'progress-status-controller');
+  select(state, statusIndex);
+  const status = state.showcaseState['progress-status-controller'];
+  render(state, 136, 39);
+  assert.ok(status.scroll.totalRows > status.scroll.visibleRows);
+  handleInteractionKitKey({ key: { name: 'page-down' }, state, runtime });
+  assert.ok(status.scroll.scroll > 0);
+
+  status.scroll.scroll = 0;
+  handleInteractionKitKey({ key: { name: 'b', printable: true, text: 'b' }, state, runtime });
+  assert.equal(status.manualBatchAdds, 1);
+  assert.equal(status.batchNotice, 'Manual batch completed: 1/12.');
+  assert.match(render(state, 136, 39), /Manual batch completed: 1\/12\./);
 });
