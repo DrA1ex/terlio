@@ -5,7 +5,7 @@
   "height": 17,
   "lines": [
     "┌  Throughput           ┐  ┌  Details              ┐  ┌  Publish             ┐",
-    "│ ● 1,284               │  │ branch main           │  │ ⠹ running  [#--] 42% │",
+    "│ ● 1,284               │  │ branch main           │  │ ⠹ running  [█▎░] 42% │",
     "│ events/min            │  │ commit a1b2c3d        │  │ ✓ Build package      │",
     "│ healthy               │  │ owner team            │  │ … Run checks         │",
     "└───────────────────────┘  └───────────────────────┘  │ · Publish            │",
@@ -24,7 +24,7 @@
   ],
   "plain": [
     "┌  Throughput           ┐  ┌  Details              ┐  ┌  Publish             ┐",
-    "│ ● 1,284               │  │ branch main           │  │ ⠹ running  [#--] 42% │",
+    "│ ● 1,284               │  │ branch main           │  │ ⠹ running  [█▎░] 42% │",
     "│ events/min            │  │ commit a1b2c3d        │  │ ✓ Build package      │",
     "│ healthy               │  │ owner team            │  │ … Run checks         │",
     "└───────────────────────┘  └───────────────────────┘  │ · Publish            │",

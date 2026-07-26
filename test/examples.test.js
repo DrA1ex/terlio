@@ -360,6 +360,10 @@ test('interaction kit uses action registry, palette, theme switching and local p
 
   const output = renderToString(createInteractionKitView({ state, width: 128, height: 35 }), { width: 128, height: 35 });
   assert.match(output, /Progress and Live Jobs/);
+  assert.match(output, /compact \[██████████████████████████\] 100%/);
+  assert.match(output, /line track \[██████████████████████████\] 100%/);
+  assert.match(output, /┌ boxed .* 100% ┐/);
+  assert.match(output, /└─+┘/);
   assert.match(output, /LOCAL CONTROLS/);
 });
 test('interaction kit polish fixes local ownership for workspace, feedback and structured screens', () => {

@@ -5,9 +5,11 @@ import {
   SelectList,
   ScrollPane,
   ConfirmPrompt,
+  Column,
   Modal,
   Toast,
   ProgressBar,
+  Row,
   Spinner,
   HelpOverlay,
   renderToString,
@@ -33,6 +35,16 @@ import {
   resolveScrollKeyOffset,
   isScrollAtBottom,
 } from '../src/lib/index.js';
+
+test('ProgressBar variants expose one-row and three-row layout heights', () => {
+  assert.equal(measureNodeHeight(ProgressBar({ value: 42, width: 16, variant: 'compact' }), 40), 1);
+  assert.equal(measureNodeHeight(ProgressBar({ value: 42, width: 16, variant: 'line' }), 40), 1);
+  const boxed = ProgressBar({ value: 42, width: 16, variant: 'boxed' });
+  assert.equal(measureNodeHeight(boxed, 40), 3);
+  assert.equal(measureNodeHeight(Row({ gap: 1 }, Text('status'), boxed), 40), 3);
+  assert.equal(measureNodeHeight(Column(Text('status'), boxed), 40), 4);
+  assert.equal(measureNodeHeight(boxed, 2), 1);
+});
 
 test('SelectList renders a scrollable selected window', () => {
   const items = Array.from({ length: 12 }, (_, index) => ({
@@ -104,7 +116,7 @@ test('status components render modal, toast, progress and spinner', () => {
   assert.match(accentToast, /\x1b\[38;2;/);
   assert.match(accentToast, /theme aware/);
   assert.ok(visibleLength(shadowLine) >= 54);
-  assert.match(progress, /Loading \[###/);
+  assert.match(progress, /Loading \[██▌░░░░░░░/);
   assert.match(progress, /25%/);
   assert.match(spinner, /Thinking/);
   assert.match(help, /Esc/);

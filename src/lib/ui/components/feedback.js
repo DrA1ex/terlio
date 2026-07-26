@@ -85,8 +85,8 @@ export function Toast({
   }, [body]);
 }
 
-export function ProgressBar({ value = 0, total = 100, width = 24, label = '', grow = false } = {}) {
-  return createNode('progressBar', { value, total, width, label, grow }, []);
+export function ProgressBar({ value = 0, total = 100, width = 24, label = '', grow = false, variant = 'compact' } = {}) {
+  return createNode('progressBar', { value, total, width, label, grow, variant }, []);
 }
 
 export function Spinner({ frame = 0, label = '' } = {}) {

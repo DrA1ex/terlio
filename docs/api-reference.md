@@ -278,10 +278,16 @@ Renders an info/success/warning/error toast. Toasts managed by `OverlayManager` 
 ### ProgressBar
 
 ```js
-ProgressBar({ value, total, width, label })
+ProgressBar({ value, total, width, label, variant })
 ```
 
-Renders a text progress bar.
+Renders a Unicode progress bar with eighth-cell precision. `variant` supports:
+
+- `compact` (default): block fill with a shaded `░` remainder;
+- `line`: block fill with a continuous `─` remainder;
+- `boxed`: a bordered three-row bar with the label and percentage in its top border.
+
+The `compact` and `line` variants occupy one layout row. `boxed` occupies three real layout rows, so columns, rows, panels, clipping, and height measurement account for it normally.
 
 ### Spinner
 

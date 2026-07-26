@@ -104,6 +104,20 @@ test('feedback components render every state, tone and optional surface', () => 
 
   assert.match(render(ProgressBar({ value: -10, total: 0, width: 0, label: 'job' })), /0%/);
   assert.match(render(ProgressBar({ value: 150, total: 100, width: 8 })), /100%/);
+  assert.match(stripAnsi(render(ProgressBar({ value: 0, total: 100, width: 8 }), 20, 1)), /\[░░░░░░░░\] 0%/);
+  assert.match(stripAnsi(render(ProgressBar({ value: 1, total: 16, width: 8 }), 20, 1)), /\[▌░░░░░░░\] 6%/);
+  assert.match(stripAnsi(render(ProgressBar({ value: 100, total: 100, width: 8 }), 20, 1)), /\[████████\] 100%/);
+  assert.match(stripAnsi(render(ProgressBar({ value: 1, total: 16, width: 8, variant: 'line' }), 20, 1)), /\[▌───────\] 6%/);
+  assert.match(stripAnsi(render(ProgressBar({ value: 50, total: 100, width: 12, label: 'Build', variant: 'invalid' }), 28, 1)), /Build \[██████░░░░░░\] 50%/);
+
+  const boxed = stripAnsi(render(ProgressBar({ value: 42, total: 100, width: 16, label: 'Build', variant: 'boxed' }), 24, 3)).split('\n');
+  assert.deepEqual(boxed, [
+    '┌ Build ──── 42% ┐      ',
+    '│██████▊         │      ',
+    '└────────────────┘      ',
+  ]);
+  assert.match(stripAnsi(render(ProgressBar({ value: 42, width: 16, label: 'Build', variant: 'boxed' }), 7, 3)), /^┌ 42% ┐/);
+  assert.match(stripAnsi(render(ProgressBar({ value: 42, width: 16, label: 'Build', variant: 'boxed' }), 6, 3)), /^┌────┐/);
   assert.match(render(HelpOverlay({ shortcuts: [] })), /No shortcuts/);
   assert.match(render(HelpOverlay({ shortcuts: [['?', 'help']] })), /help/);
 });
@@ -225,7 +239,7 @@ test('LiveJobBlock keeps its progress bar and percentage on one line in a narrow
   const statusLine = lines.find((line) => line.includes('running')) ?? '';
 
   assert.match(statusLine, /75%/);
-  assert.match(statusLine, /\[[#-]+\]/);
+  assert.match(statusLine, /\[[█▉▊▋▌▍▎▏░]+\]/);
   assert.equal(lines.some((line) => line.trim() === '75%'), false);
 });
 
