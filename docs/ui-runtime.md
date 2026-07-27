@@ -173,6 +173,8 @@ Methods:
 
 The renderer does not own raw mode, alternate screen mode, signal handling, or application state. Your app decides when to enter or leave alternate screen mode and when to call `renderNode()`.
 
+Partial frame patches preserve a small neighboring-row bleed area. Rows containing Unicode block-element glyphs are emitted after ordinary rows in the same patch, so fonts that draw those glyphs slightly above or below the cell do not have their overhang erased by a later neighboring-row update.
+
 ## Diff rendering
 
 The lower-level diff exports are:

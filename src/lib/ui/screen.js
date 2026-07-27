@@ -2,6 +2,9 @@ import { stripAnsi, visibleLength } from '../ansi/text.js';
 import { normalizePointerRegions } from '../pointer.js';
 import { DEFAULT_TERMINAL_LIMITS } from '../terminal/policy.js';
 
+const OVERDRAW_GLYPH_RE = /[\u2580-\u259f■]/u;
+const frameRowPaintPriorities = new WeakMap();
+
 export class Frame {
   constructor(lines, {
     width,
@@ -12,6 +15,7 @@ export class Frame {
     this.width = Math.max(1, Number(width) || 1);
     this.height = Math.max(1, Number(height) || 1);
     this.lines = normalizeLines(lines, this.width, this.height);
+    frameRowPaintPriorities.set(this, this.lines.map(inferRowPaintPriority));
     this.pointerRegions = normalizePointerRegions(pointerRegions, {
       width: this.width,
       height: this.height,
@@ -36,6 +40,14 @@ export class Frame {
 
 export function createFrame(lines = [], options = {}) {
   return new Frame(lines, options);
+}
+
+export function getFrameRowPaintPriority(frame, rowIndex) {
+  return Number(frameRowPaintPriorities.get(frame)?.[rowIndex]) || 0;
+}
+
+function inferRowPaintPriority(line) {
+  return OVERDRAW_GLYPH_RE.test(stripAnsi(String(line ?? ''))) ? 1 : 0;
 }
 
 export function normalizeLines(lines, width, height) {

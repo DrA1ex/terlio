@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Box, Column, Row, Text, renderToFrame, renderToString, createFrame, diffFrames, patchFrames } from '../src/lib/index.js';
+import { Box, Column, Row, Text, TerminalRenderer, renderToFrame, renderToString, createFrame, diffFrames, patchFrames } from '../src/lib/index.js';
 
 test('renderToFrame renders bordered boxes into a fixed-size virtual frame', () => {
   const frame = renderToFrame(Box({ border: true, padding: 1 }, Text('Hello')), { width: 12, height: 5 });
@@ -83,4 +83,63 @@ test('fixed-height rows pass the assigned height to child boxes', () => {
   const lines = frame.toLines();
   assert.match(lines[0], /┌──────┐ ┌──────┐/);
   assert.match(lines[3], /└──────┘ └──────┘/);
+});
+
+
+test('patchFrames paints block-glyph rows after ordinary neighboring rows', () => {
+  const frame = createFrame([
+    'above ',
+    '████  ',
+    'below ',
+  ], { width: 6, height: 3 });
+
+  const patch = patchFrames(null, frame);
+  const above = patch.indexOf('\x1b[1;1H');
+  const below = patch.indexOf('\x1b[3;1H');
+  const progress = patch.indexOf('\x1b[2;1H');
+
+  assert.ok(above >= 0 && below >= 0 && progress >= 0);
+  assert.ok(progress > above);
+  assert.ok(progress > below);
+});
+
+test('patchFrames repaints an unchanged block row after a changed neighbor', () => {
+  const previous = createFrame([
+    'above ',
+    '████  ',
+    'before',
+  ], { width: 6, height: 3 });
+  const next = createFrame([
+    'above ',
+    '████  ',
+    'after ',
+  ], { width: 6, height: 3 });
+
+  const patch = patchFrames(previous, next, { bleedRows: 1 });
+  const neighbor = patch.indexOf('\x1b[3;1H');
+  const progress = patch.indexOf('\x1b[2;1H');
+
+  assert.ok(neighbor >= 0 && progress >= 0);
+  assert.ok(progress > neighbor);
+});
+
+
+test('TerminalRenderer emits block rows last when a neighboring row changes', () => {
+  const writes = [];
+  const renderer = new TerminalRenderer({ output: { write: (chunk) => writes.push(String(chunk)) } });
+  renderer.renderFrame(createFrame([
+    'above ',
+    '████  ',
+    'before',
+  ], { width: 6, height: 3 }));
+  writes.length = 0;
+
+  renderer.renderFrame(createFrame([
+    'above ',
+    '████  ',
+    'after ',
+  ], { width: 6, height: 3 }));
+
+  const patch = writes.join('');
+  assert.ok(patch.indexOf('\x1b[2;1H') > patch.indexOf('\x1b[3;1H'));
 });

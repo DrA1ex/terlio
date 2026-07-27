@@ -2,6 +2,8 @@
 
 `ProgressBar` is a stateless visual primitive. It renders the `value` and `total` supplied during the current render, but it does not own timers, calculate throughput, or request another frame.
 
+Block-based variants use glyphs that some terminal fonts paint slightly outside their nominal cell row. `TerminalRenderer` detects rows containing Unicode block elements and repaints those rows after ordinary neighboring rows. This preserves the visible top and bottom edges during partial frame updates without changing the layout height or requiring application-specific render ordering.
+
 `ProgressStatus` adds the higher-level behavior needed by downloads, build jobs, batch processing, indexing and other long-running work:
 
 - current value and total;

@@ -1,11 +1,16 @@
 import { ansi } from '../ansi/codes.js';
-import { createFrame } from './screen.js';
+import { createFrame, getFrameRowPaintPriority } from './screen.js';
 
 export function diffFrames(previous, next, {
   bleedRows = 0,
   includeRegionChanges = false,
 } = {}) {
-  if (!previous) return next.toLines().map((line, index) => ({ row: index + 1, line }));
+  if (!previous) {
+    return sortPaintOperations(
+      next.toLines().map((line, index) => ({ row: index + 1, line })),
+      next,
+    );
+  }
 
   const height = Math.max(previous.height, next.height);
   const dirty = new Set();
@@ -19,9 +24,18 @@ export function diffFrames(previous, next, {
   if (includeRegionChanges) markChangedRegionRows(previous, next, dirty, height);
   expandDirtyRows(dirty, height, bleedRows);
 
-  return [...dirty]
-    .sort((a, b) => a - b)
-    .map((index) => ({ row: index + 1, line: next.lines[index] ?? '' }));
+  return sortPaintOperations(
+    [...dirty].map((index) => ({ row: index + 1, line: next.lines[index] ?? '' })),
+    next,
+  );
+}
+
+function sortPaintOperations(operations, frame) {
+  return operations.sort((a, b) => {
+    const aPriority = getFrameRowPaintPriority(frame, a.row - 1);
+    const bPriority = getFrameRowPaintPriority(frame, b.row - 1);
+    return aPriority - bPriority || a.row - b.row;
+  });
 }
 
 export function patchFrames(previous, next, options = {}) {
