@@ -138,6 +138,7 @@ test('WorkspaceApp traps input in the top blocking overlay', () => {
   const app = createWorkspaceApp({
     input,
     output,
+    escapeTimeoutMs: 0,
     overlays,
     render: () => Text('background'),
     onKey: ({ key }) => backgroundKeys.push(key.name),

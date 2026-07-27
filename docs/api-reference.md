@@ -13,7 +13,7 @@ When developing inside this repository, import from `src/lib/index.js`.
 ### RichTerminalApp
 
 ```js
-new RichTerminalApp({ input, output, onExit, sessionStore, terminalPolicy, processHandlers })
+new RichTerminalApp({ input, output, onExit, sessionStore, terminalPolicy, processHandlers, escapeTimeoutMs = 40 })
 ```
 
 A complete reference AI chat terminal app. It owns terminal raw mode, alternate screen rendering, command execution, mock provider streaming, sessions, skills, suggestions, debug state, and command palette integration.
@@ -633,7 +633,7 @@ parseInputEvents(data)
 new TerminalInputDecoder()
 ```
 
-`parsePointer()` decodes SGR 1006 sequences. `TerminalInputDecoder.write(data)` preserves incomplete SGR and bracketed-paste sequences across chunks and returns an ordered array of normalized keyboard and pointer events.
+`parsePointer()` decodes SGR 1006 sequences. `TerminalInputDecoder.write(data)` preserves incomplete CSI, SS3, SGR pointer and bracketed-paste sequences across chunks and returns an ordered array of normalized keyboard and pointer events. A lone `Esc` is retained because it may be the prefix of a later chunk; call `flushPendingEscape()` after a short application-owned timeout. Managed runtimes use `escapeTimeoutMs` for this automatically, while `parseInputEvents(data)` flushes it immediately for one-shot decoding.
 
 ### hitTestPointerRegions / dispatchPointerEvent
 
@@ -696,13 +696,14 @@ createWorkspaceApp({
   tick,
   tickMs,
   animationMs = 80,
+  escapeTimeoutMs = 40,
   input,
   output,
   onExit,
 })
 ```
 
-The runtime owns alternate-screen setup, raw input, resize redraws, overlay focus trapping, optional mouse reporting and terminal cleanup. `render` receives the actual viewport width and height together with a demand-driven `animationFrame`. The animation clock runs only while the current render reads that value or calls `requestAnimationFrame()`. `animationMs` controls the active cadence and can be set to `0` to disable animation. Calling `start()` more than once is safe. `onExit(code)` is optional; without it, `exit()` restores the terminal and terminates the process.
+The runtime owns alternate-screen setup, raw input, resize redraws, overlay focus trapping, optional mouse reporting and terminal cleanup. `render` receives the actual viewport width and height together with a demand-driven `animationFrame`. The animation clock runs only while the current render reads that value or calls `requestAnimationFrame()`. `animationMs` controls the active cadence and can be set to `0` to disable animation. `escapeTimeoutMs` distinguishes a standalone Escape key from a legacy CSI/SS3 sequence whose initial `Esc` arrived in a separate input chunk. Calling `start()` more than once is safe. `onExit(code)` is optional; without it, `exit()` restores the terminal and terminates the process.
 
 Pointer ownership methods:
 

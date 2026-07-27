@@ -374,8 +374,11 @@ test('reordering showcase distinguishes selection arrows from Shift+Arrow moveme
   assert.deepEqual(demo.list.items.map((item) => item.id), initialOrder, 'ordinary arrows must not reorder items');
 
   const decoder = new TerminalInputDecoder();
-  const [shiftUp] = decoder.write('\x1b[1;2A');
+  state.focus.focus('nav');
+  assert.deepEqual(decoder.write('\x1b'), []);
+  const [shiftUp] = decoder.write('[1;2A');
   handleInteractionKitKey({ key: shiftUp, state, runtime });
+  assert.equal(state.focus.current(), 'preview', 'reordering shortcuts should activate the preview even from navigation focus');
   assert.equal(demo.list.selectedIndex, 0);
   assert.deepEqual(demo.list.items.map((item) => item.id).slice(0, 3), ['compile', 'resolve', 'unit']);
   assert.equal(demo.lastShift, true);

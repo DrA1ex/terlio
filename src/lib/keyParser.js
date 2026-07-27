@@ -39,6 +39,10 @@ const NAMED = new Map([
   ['\x1b[B', { name: 'down' }],
   ['\x1b[C', { name: 'right' }],
   ['\x1b[D', { name: 'left' }],
+  ['\x1bOA', { name: 'up' }],
+  ['\x1bOB', { name: 'down' }],
+  ['\x1bOC', { name: 'right' }],
+  ['\x1bOD', { name: 'left' }],
   ['\x1b[H', { name: 'home' }],
   ['\x1b[1~', { name: 'home' }],
   ['\x1bOH', { name: 'home' }],
@@ -84,6 +88,14 @@ export function parseKey(data) {
     return key({ sequence, name: ARROW_BY_FINAL[csi[2]], ...modifierFlags(modifier), word: modifier === 3 || modifier === 7 });
   }
 
+  // Application cursor mode uses SS3 rather than CSI. A few terminal
+  // emulators also retain the xterm modifier parameter in that form.
+  const modifiedSs3 = /^\x1bO(?:1;)?(\d+)([A-DHF])$/.exec(sequence);
+  if (modifiedSs3) {
+    const modifier = Number(modifiedSs3[1]);
+    if (!isSupportedModifier(modifier)) return key({ name: 'unknown', sequence });
+    return key({ sequence, name: ARROW_BY_FINAL[modifiedSs3[2]], ...modifierFlags(modifier), word: modifier === 3 || modifier === 7 });
+  }
 
   const csiU = /^\x1b\[(\d+);(\d+)u$/.exec(sequence);
   if (csiU) {

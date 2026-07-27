@@ -370,7 +370,7 @@ test('RichTerminalApp keeps wheel and custom transcript selection active by defa
 test('RichTerminalApp smart mode toggles pointer overrides and line-scrolls with Shift+arrows', () => {
   const input = new FakeInput();
   const output = new FakeOutput({ columns: 80, rows: 24 });
-  const app = new RichTerminalApp({ input, output });
+  const app = new RichTerminalApp({ input, output, escapeTimeoutMs: 0 });
   app.messages = Array.from({ length: 20 }, (_, index) => ({
     id: `selection-${index}`,
     role: index % 2 ? 'assistant' : 'user',
@@ -412,6 +412,27 @@ test('RichTerminalApp smart mode toggles pointer overrides and line-scrolls with
   input.emit('data', '\x1b');
   assert.equal(app.editor.value, '');
   assert.equal(app.pointerActive, true);
+  app.stop();
+});
+
+test('RichTerminalApp preserves Shift+Arrow across an Escape-only input chunk', () => {
+  const input = new FakeInput();
+  const output = new FakeOutput({ columns: 80, rows: 24 });
+  const app = new RichTerminalApp({ input, output });
+  app.messages = Array.from({ length: 20 }, (_, index) => ({
+    id: `split-shift-${index}`,
+    role: index % 2 ? 'assistant' : 'user',
+    content: `scrollable message ${index} `.repeat(8),
+    blocks: [],
+    status: 'complete',
+    meta: {},
+  }));
+
+  app.start();
+  const initial = app.scrollOffset;
+  input.emit('data', '\x1b');
+  input.emit('data', '[1;2A');
+  assert.equal(app.scrollOffset, initial + 1);
   app.stop();
 });
 

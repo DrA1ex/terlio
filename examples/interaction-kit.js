@@ -71,6 +71,11 @@ export function handleInteractionKitKey({ key, state, runtime }) {
 
   const entry = activeEntry(state);
 
+  if (entry.id === 'reordering-items' && key.shift && (key.name === 'up' || key.name === 'down')) {
+    state.focus.focus('preview');
+    if (entry.handleKey?.(showcaseCtx(state, entry, runtime), key)) return;
+  }
+
   if (state.focus.current() === 'preview') {
     if (entry.handleKey?.(showcaseCtx(state, entry, runtime), key)) return;
     if (key.name === 'escape') {
@@ -794,7 +799,8 @@ const SHOWCASES = [
           pointerId: 'kit:reordering-items',
           onSelect: (_item, index) => {
             state.list.selectedIndex = index;
-            state.lastAction = `Pointer selected position ${index + 1}.`;
+            state.focus.focus('preview');
+            state.lastAction = `Pointer selected position ${index + 1}; preview focused.`;
           },
           onWheel: (event) => moveListByWheel(state.list, event),
         }),

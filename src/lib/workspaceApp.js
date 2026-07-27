@@ -13,7 +13,7 @@ export function createWorkspaceApp(config = {}) {
 }
 
 export class WorkspaceApp {
-  constructor({ title = 'Workspace App', state = {}, render, actions = [], overlays = null, onKey = null, onPointer = null, pointer = 'auto', tick = null, tickMs = 0, animationMs = 80, input = process.stdin, output = process.stdout, onExit = null, terminalPolicy = createTerminalPolicy(), terminalSink = null, processHandlers = 'none', inputPolicy = 'safe' } = {}) {
+  constructor({ title = 'Workspace App', state = {}, render, actions = [], overlays = null, onKey = null, onPointer = null, pointer = 'auto', tick = null, tickMs = 0, animationMs = 80, escapeTimeoutMs = 40, input = process.stdin, output = process.stdout, onExit = null, terminalPolicy = createTerminalPolicy(), terminalSink = null, processHandlers = 'none', inputPolicy = 'safe' } = {}) {
     if (typeof render !== 'function') throw new Error('createWorkspaceApp requires a render function.');
     this.title = title;
     this.state = state;
@@ -28,6 +28,7 @@ export class WorkspaceApp {
     this.onTick = tick;
     this.tickMs = Number(tickMs) || 0;
     this.animationMs = Math.max(0, Number(animationMs) || 0);
+    this.escapeTimeoutMs = Math.max(0, Number(escapeTimeoutMs) || 0);
     this.animationFrame = 0;
     this.animationRequested = false;
     this.input = input;
@@ -44,6 +45,7 @@ export class WorkspaceApp {
     this.lastSnapshot = '';
     this.timer = null;
     this.animationTimer = null;
+    this.escapeTimer = null;
     this.inputBatchDepth = 0;
     this.boundData = (data) => this.handleData(data);
     this.boundResize = () => this.handleResize();
@@ -93,6 +95,8 @@ export class WorkspaceApp {
     this.timer = null;
     if (this.animationTimer) clearTimeout(this.animationTimer);
     this.animationTimer = null;
+    if (this.escapeTimer) clearTimeout(this.escapeTimer);
+    this.escapeTimer = null;
     attempt(() => this.input.off('data', this.boundData));
     attempt(() => this.output.off('resize', this.boundResize));
     attempt(() => this.setPointerActive(false));
@@ -160,6 +164,7 @@ export class WorkspaceApp {
 
   handleData(data) {
     return this.runGuarded(() => {
+      this.clearEscapeTimer();
       this.inputBatchDepth += 1;
       try {
         for (const event of this.inputDecoder.write(data)) this.handleInputEvent(event);
@@ -167,7 +172,29 @@ export class WorkspaceApp {
         this.inputBatchDepth = Math.max(0, this.inputBatchDepth - 1);
         if (this.inputBatchDepth === 0 && this.dirty) this.render();
       }
+      this.scheduleEscapeFlush();
     });
+  }
+
+  clearEscapeTimer() {
+    if (!this.escapeTimer) return false;
+    clearTimeout(this.escapeTimer);
+    this.escapeTimer = null;
+    return true;
+  }
+
+  scheduleEscapeFlush() {
+    if (!this.inputDecoder.hasPendingStandaloneEscape()) return false;
+    if (!this.running || this.escapeTimeoutMs <= 0) {
+      for (const event of this.inputDecoder.flushPendingEscape()) this.handleInputEvent(event);
+      return true;
+    }
+    this.escapeTimer = setTimeout(() => this.runGuarded(() => {
+      this.escapeTimer = null;
+      for (const event of this.inputDecoder.flushPendingEscape()) this.handleInputEvent(event);
+    }), this.escapeTimeoutMs);
+    this.escapeTimer.unref?.();
+    return true;
   }
 
   handleInputEvent(event) {

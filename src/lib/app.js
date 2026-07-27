@@ -26,7 +26,7 @@ const SUGGESTION_WINDOW_SIZE = 7;
 export { createAppPaletteItems };
 
 export class RichTerminalApp {
-  constructor({ input = process.stdin, output = process.stdout, onExit = null, onPointer = null, pointer = 'auto', animationMs = 80, syntaxHighlight = false, sessionStore = new SessionStore(), terminalPolicy = createTerminalPolicy(), terminalSink = null, processHandlers = 'none', inputPolicy = 'safe' } = {}) {
+  constructor({ input = process.stdin, output = process.stdout, onExit = null, onPointer = null, pointer = 'auto', animationMs = 80, escapeTimeoutMs = 40, syntaxHighlight = false, sessionStore = new SessionStore(), terminalPolicy = createTerminalPolicy(), terminalSink = null, processHandlers = 'none', inputPolicy = 'safe' } = {}) {
     this.input = input;
     this.output = output;
     this.terminalPolicy = terminalPolicy;
@@ -69,6 +69,7 @@ export class RichTerminalApp {
     this.frame = 0;
     this.animationFrame = 0;
     this.animationMs = Math.max(0, Number(animationMs) || 0);
+    this.escapeTimeoutMs = Math.max(0, Number(escapeTimeoutMs) || 0);
     this.syntaxHighlight = Boolean(syntaxHighlight);
     this.debug = { enabled: false, events: [] };
     this.focus = new FocusManager(['input', 'suggestions', 'transcript', 'debug']);
@@ -77,6 +78,7 @@ export class RichTerminalApp {
     this.overlays = createOverlayManager();
     this.tickTimer = null;
     this.animationTimer = null;
+    this.escapeTimer = null;
     this.renderBatchDepth = 0;
     this.renderPending = false;
     this.renderer = new TerminalRenderer({ output: this.output, sink: this.terminalSink, policy: this.terminalPolicy });
@@ -166,6 +168,10 @@ export class RichTerminalApp {
     if (this.animationTimer) {
       clearTimeout(this.animationTimer);
       this.animationTimer = null;
+    }
+    if (this.escapeTimer) {
+      clearTimeout(this.escapeTimer);
+      this.escapeTimer = null;
     }
 
     attempt(() => this.input.off('data', this.boundOnData));
@@ -446,20 +452,47 @@ export class RichTerminalApp {
   }
 
   onDataUnsafe(data) {
+    this.clearEscapeTimer();
     this.renderBatchDepth += 1;
     try {
-      for (const event of this.inputDecoder.write(data)) {
-        if (event?.type === 'pointer') {
-          this.handlePointer(event);
-          continue;
-        }
-        this.logDebug('key', formatDebugKey(event));
-        routeRichTerminalKey(this, event);
-      }
+      this.dispatchInputEvents(this.inputDecoder.write(data));
     } finally {
       this.renderBatchDepth = Math.max(0, this.renderBatchDepth - 1);
       if (this.renderBatchDepth === 0 && this.renderPending) this.render();
     }
+    this.scheduleEscapeFlush();
+  }
+
+  dispatchInputEvents(events) {
+    for (const event of events) {
+      if (event?.type === 'pointer') {
+        this.handlePointer(event);
+        continue;
+      }
+      this.logDebug('key', formatDebugKey(event));
+      routeRichTerminalKey(this, event);
+    }
+  }
+
+  clearEscapeTimer() {
+    if (!this.escapeTimer) return false;
+    clearTimeout(this.escapeTimer);
+    this.escapeTimer = null;
+    return true;
+  }
+
+  scheduleEscapeFlush() {
+    if (!this.inputDecoder.hasPendingStandaloneEscape()) return false;
+    if (!this.running || this.escapeTimeoutMs <= 0) {
+      this.dispatchInputEvents(this.inputDecoder.flushPendingEscape());
+      return true;
+    }
+    this.escapeTimer = setTimeout(() => this.runGuarded(() => {
+      this.escapeTimer = null;
+      this.dispatchInputEvents(this.inputDecoder.flushPendingEscape());
+    }), this.escapeTimeoutMs);
+    this.escapeTimer.unref?.();
+    return true;
   }
 
   handlePointer(pointer) {
