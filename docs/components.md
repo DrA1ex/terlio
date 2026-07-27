@@ -264,14 +264,16 @@ Renders an info/success/warning/error toast. Toasts managed by `OverlayManager` 
 ProgressBar({ value, total, width, label, variant })
 ```
 
-Renders a Unicode progress bar with eighth-cell precision. `variant` supports:
+Renders a Unicode progress bar. `variant` supports:
 
-- `compact` (default): block fill with an unpainted remainder;
+- `compact` (default): a narrow `▬`/`═` rail without brackets, intended for dense status rows;
+- `block`: the previous bracketed block-fill style with an unpainted remainder;
 - `line`: block fill with a continuous `─` remainder;
+- `squares`: discrete filled and empty cells using `■` and `□`;
 - `inset`: a one-row UI-style bar with subtle side caps and a lower `▁` rail behind the unfilled portion;
 - `boxed`: a bordered three-row bar with the label and percentage in its top border.
 
-The `compact`, `line`, and `inset` variants occupy one layout row. `boxed` occupies three real layout rows, so columns, rows, panels, clipping, and height measurement account for it normally.
+`block`, `line`, `inset`, and `boxed` retain eighth-cell fill precision. `compact` and `squares` use whole cells to keep their glyphs visually consistent. Every variant except `boxed` occupies one layout row. `boxed` occupies three real layout rows, so columns, rows, panels, clipping, and height measurement account for it normally.
 
 
 ### ProgressStatus

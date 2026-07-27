@@ -9,9 +9,13 @@ const LINE_TRACK = '─';
 const INSET_TRACK = '▁';
 const INSET_LEFT = '▏';
 const INSET_RIGHT = '▕';
+const COMPACT_FILL = '▬';
+const COMPACT_TRACK = '═';
+const SQUARE_FILL = '■';
+const SQUARE_TRACK = '□';
 const BOX_HORIZONTAL = '─';
 const UNITS_PER_CELL = 8;
-const PROGRESS_VARIANTS = new Set(['compact', 'line', 'inset', 'boxed']);
+const PROGRESS_VARIANTS = new Set(['compact', 'block', 'line', 'inset', 'squares', 'boxed']);
 
 export function renderProgressBar(node, assignedWidth) {
   const available = Math.max(1, Number(assignedWidth) || 1);
@@ -32,6 +36,58 @@ export function renderProgressBar(node, assignedWidth) {
     }));
   }
 
+  if (variant === 'compact') {
+    const labeled = renderDiscreteProgressLine({
+      ratio,
+      requestedBarWidth,
+      pct,
+      label,
+      available,
+      filledGlyph: COMPACT_FILL,
+      trackGlyph: COMPACT_TRACK,
+      open: '',
+      close: '',
+    });
+    const line = labeled ?? renderDiscreteProgressLine({
+      ratio,
+      requestedBarWidth,
+      pct,
+      label: '',
+      available,
+      filledGlyph: COMPACT_FILL,
+      trackGlyph: COMPACT_TRACK,
+      open: '',
+      close: '',
+    }) ?? pct;
+    return createLayoutResult([fit(line, available)]);
+  }
+
+  if (variant === 'squares') {
+    const labeled = renderDiscreteProgressLine({
+      ratio,
+      requestedBarWidth,
+      pct,
+      label,
+      available,
+      filledGlyph: SQUARE_FILL,
+      trackGlyph: SQUARE_TRACK,
+      open: '[',
+      close: ']',
+    });
+    const line = labeled ?? renderDiscreteProgressLine({
+      ratio,
+      requestedBarWidth,
+      pct,
+      label: '',
+      available,
+      filledGlyph: SQUARE_FILL,
+      trackGlyph: SQUARE_TRACK,
+      open: '[',
+      close: ']',
+    }) ?? pct;
+    return createLayoutResult([fit(line, available)]);
+  }
+
   const style = variant === 'line'
     ? { trackGlyph: LINE_TRACK, open: '[', close: ']' }
     : variant === 'inset'
@@ -40,6 +96,16 @@ export function renderProgressBar(node, assignedWidth) {
   const labeled = renderProgressLine({ ratio, requestedBarWidth, pct, label, available, ...style });
   const line = labeled ?? renderProgressLine({ ratio, requestedBarWidth, pct, label: '', available, ...style }) ?? pct;
   return createLayoutResult([fit(line, available)]);
+}
+
+
+function renderDiscreteProgressLine({ ratio, requestedBarWidth, pct, label, available, filledGlyph, trackGlyph, open, close }) {
+  const prefix = label ? `${label} ` : '';
+  const overhead = visibleLength(prefix) + visibleLength(open) + visibleLength(close) + 1 + visibleLength(pct);
+  const barWidth = Math.min(requestedBarWidth, available - overhead);
+  if (barWidth < 1) return null;
+  const bar = renderDiscreteBar(ratio, barWidth, filledGlyph, trackGlyph);
+  return `${prefix}${open}${bar}${close} ${pct}`;
 }
 
 function renderProgressLine({ ratio, requestedBarWidth, pct, label, available, trackGlyph, open, close }) {
@@ -75,6 +141,15 @@ function renderBoxTitle({ label, pct, width }) {
     return `${BOX_HORIZONTAL.repeat(safeWidth - visibleLength(pctToken))}${pctToken}`;
   }
   return BOX_HORIZONTAL.repeat(safeWidth);
+}
+
+
+function renderDiscreteBar(ratio, width, filledGlyph, trackGlyph) {
+  const safeWidth = Math.max(1, Math.floor(Number(width) || 1));
+  const filledCells = ratio >= 1
+    ? safeWidth
+    : Math.max(0, Math.min(safeWidth, Math.round(clamp(ratio, 0, 1) * safeWidth)));
+  return String(filledGlyph).repeat(filledCells) + String(trackGlyph).repeat(safeWidth - filledCells);
 }
 
 function renderSmoothBar(ratio, width, emptyGlyph) {

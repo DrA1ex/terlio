@@ -328,10 +328,12 @@ test('progress showcase pages scroll and keep progress variants visually separat
   const jobs = state.showcaseState['progress-live-jobs'];
   assert.ok(jobs.scroll.totalRows > jobs.scroll.visibleRows);
   const lines = output.split('\n');
-  const compactRow = lines.findIndex((line) => line.includes('compact ['));
+  const compactRow = lines.findIndex((line) => line.includes('compact rail '));
+  const blockRow = lines.findIndex((line) => line.includes('block fill ['));
   const lineRow = lines.findIndex((line) => line.includes('line track ['));
-  assert.equal(lineRow - compactRow, 2);
-  assert.equal(lines[compactRow + 1].includes('line track'), false);
+  assert.equal(blockRow - compactRow, 2);
+  assert.equal(lineRow - blockRow, 2);
+  assert.equal(lines[compactRow + 1].includes('block fill'), false);
 
   handleInteractionKitKey({ key: { name: 'page-down' }, state, runtime });
   assert.ok(jobs.scroll.scroll > 0);

@@ -382,12 +382,13 @@ test('interaction kit uses action registry, palette, theme switching and local p
 
   let output = renderToString(createInteractionKitView({ state, width: 128, height: 35 }), { width: 128, height: 35 });
   assert.match(output, /Progress and Live Jobs/);
-  assert.match(output, /compact \[██████████████████████████\] 100%/);
-  assert.match(output, /line track \[██████████████████████████\] 100%/);
+  assert.match(output, /compact rail ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬ 100%/);
+  assert.match(output, /block fill \[██████████████████████████\] 100%/);
   assert.doesNotMatch(output, /┌  PROGRESS AND LIVE JOBS/);
   handleInteractionKitKey({ key: { name: 'page-down' }, state, runtime: { exit() {} } });
   assert.ok(job.scroll.scroll > 0);
   output = renderToString(createInteractionKitView({ state, width: 128, height: 35 }), { width: 128, height: 35 });
+  assert.match(output, /square cells \[■■■■■■■■■■■■■■■■■■■■■■■■■■\] 100%/);
   assert.match(output, /inset rail ▏██████████████████████████▕ 100%/);
   assert.match(output, /┌ boxed .* 100% ┐/);
   assert.match(output, /└─+┘/);

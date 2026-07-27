@@ -128,7 +128,7 @@ ProgressStatus({
   progress,
   label: 'Download',
   width: 28,
-  variant: 'compact', // compact | line | inset | boxed
+  variant: 'compact', // compact | block | line | squares | inset | boxed
   frame: animationFrame,
   format: 'bytes',    // number | metric | bytes | formatter function
   precision: 1,

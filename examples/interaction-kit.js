@@ -551,13 +551,15 @@ const SHOWCASES = [
       ),
       WorkspacePane({ title: ' PROGRESS BAR VARIANTS ', theme, children: [
         Column({ gap: 1 },
-          ProgressBar({ value: state.progress, total: 100, width: 26, label: 'compact', variant: 'compact' }),
+          ProgressBar({ value: state.progress, total: 100, width: 26, label: 'compact rail', variant: 'compact' }),
+          ProgressBar({ value: state.progress, total: 100, width: 26, label: 'block fill', variant: 'block' }),
           ProgressBar({ value: state.progress, total: 100, width: 26, label: 'line track', variant: 'line' }),
+          ProgressBar({ value: state.progress, total: 100, width: 26, label: 'square cells', variant: 'squares' }),
           ProgressBar({ value: state.progress, total: 100, width: 26, label: 'inset rail', variant: 'inset' }),
           ProgressBar({ value: state.progress, total: 100, width: 42, label: 'boxed', variant: 'boxed' }),
         ),
       ] }),
-      p('Compact, line, and inset variants occupy one row. Boxed progress is a real three-row component and participates in layout height normally.', theme, 'textMuted'),
+      p('Compact, block, line, squares, and inset variants occupy one row. Boxed progress is a real three-row component and participates in layout height normally.', theme, 'textMuted'),
     );
     return content;
   }, handleKey: ({ state, overlays }, key) => {
