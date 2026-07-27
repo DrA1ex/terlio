@@ -58,13 +58,12 @@ test('WorkspaceApp forwards unhandled raw input to the configured onKey handler'
 
 
 
-test('example:kit wires WorkspaceApp input into the showcase key handler', async () => {
+test('example:kit wires WorkspaceApp input into the showcase key handler', () => {
   const input = new FakeInput();
   const output = new FakeOutput();
   output.columns = 120;
   output.rows = 35;
   const app = createInteractionKitApp({ input, output });
-  app.escapeTimeoutMs = 5;
 
   app.start();
   assert.equal(app.state.selectedShowcaseIndex, 0);
@@ -73,61 +72,6 @@ test('example:kit wires WorkspaceApp input into the showcase key handler', async
   input.emit('data', '\r');
   assert.equal(app.state.focus.current(), 'preview');
   input.emit('data', '\x1b');
-  await delay(15);
   assert.equal(app.state.focus.current(), 'nav');
   app.stop();
 });
-
-test('WorkspaceApp preserves Shift+Arrow when Escape arrives in its own terminal chunk', () => {
-  const input = new FakeInput();
-  const output = new FakeOutput();
-  const seen = [];
-  const app = createWorkspaceApp({
-    title: 'split input',
-    state: {},
-    input,
-    output,
-    render: () => Text('ready'),
-    onKey: ({ key }) => seen.push(key),
-  });
-
-  app.start();
-  input.emit('data', '\x1b');
-  input.emit('data', '[1;2A');
-  app.stop();
-
-  assert.equal(seen.length, 1);
-  assert.equal(seen[0].name, 'up');
-  assert.equal(seen[0].shift, true);
-  assert.equal(seen[0].sequence, '\x1b[1;2A');
-});
-
-test('example:kit reorders from navigation focus with split macOS-style Shift+Arrow input', () => {
-  const input = new FakeInput();
-  const output = new FakeOutput();
-  output.columns = 120;
-  output.rows = 35;
-  const app = createInteractionKitApp({ input, output });
-  const index = app.state.list.items.findIndex((item) => item.id === 'reordering-items');
-  const demo = app.state.showcaseState['reordering-items'];
-
-  app.state.selectedShowcaseIndex = index;
-  app.state.list.selectedIndex = index;
-  app.state.focus.focus('nav');
-  const initial = demo.list.items.map((item) => item.id);
-
-  app.start();
-  input.emit('data', '\x1b');
-  input.emit('data', '[1;2A');
-  app.stop();
-
-  assert.equal(app.state.focus.current(), 'preview');
-  assert.equal(demo.lastShift, true);
-  assert.equal(demo.lastKey, 'Shift+↑');
-  assert.deepEqual(demo.list.items.map((item) => item.id).slice(0, 3), ['resolve', 'unit', 'compile']);
-  assert.notDeepEqual(demo.list.items.map((item) => item.id), initial);
-});
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}

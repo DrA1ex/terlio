@@ -41,9 +41,7 @@ Common `name` values include:
 
 Printable input returns `printable: true` and `text` set to the typed text.
 
-The parser recognizes common modified arrow and enter escape sequences, including CSI and application-cursor SS3 forms with Shift, Alt/Meta, Ctrl, and some macOS Command-arrow forms.
-
-Legacy terminal key sequences begin with the same `Esc` byte used by the standalone Escape key. `createWorkspaceApp()`, `RichTerminalApp`, and the packaged interactive examples therefore retain a lone `Esc` briefly (`escapeTimeoutMs: 40` by default) so a sequence split across Node.js input chunks is not decoded as separate keys. Set `escapeTimeoutMs: 0` only when immediate Escape handling matters more than split-sequence compatibility.
+The parser recognizes common modified arrow and enter escape sequences, including Shift, Alt/Meta, Ctrl, and some macOS Command-arrow forms. Legacy terminals encode `Shift+letter` as the uppercase character, so Terlio normalizes ASCII `A-Z` to a lower-case key name with `shift: true` while preserving the typed uppercase text.
 
 For read-only panes, use `↑/↓` for one-row scrolling when that pane owns focus. Keep `Page Up/Page Down` for larger jumps:
 
@@ -68,8 +66,6 @@ process.stdin.on('data', (chunk) => {
   }
 });
 ```
-
-Low-level decoder users must decide when a retained lone `Esc` is complete. Managed runtimes do this with the timeout above. A custom loop can call `decoder.flushPendingEscape()` after its own short timeout. `parseInputEvents(data)` remains a synchronous one-shot API and flushes a standalone Escape immediately.
 
 Pointer names are:
 

@@ -61,7 +61,9 @@ securityContractTest({ ...SEC003, outcome: 'preserve' }, 'events after the brack
 securityContractTest({ ...SEC003, outcome: 'preserve' }, 'non-submit events after paste remain available to the application', () => {
   const decoder = new TerminalInputDecoder();
   const events = decoder.write('\u001b[200~value\u001b[201~\u001b[AX');
-  assert.deepEqual(events.map((event) => event.name), ['paste', 'up', 'X']);
+  assert.deepEqual(events.map((event) => event.name), ['paste', 'up', 'x']);
+  assert.equal(events[2].text, 'X');
+  assert.equal(events[2].shift, true);
 });
 
 securityContractTest({ ...SEC003, outcome: 'truncate' }, 'oversized paste produces explicit truncation metadata', () => {

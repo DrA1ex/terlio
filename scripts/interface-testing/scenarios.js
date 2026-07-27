@@ -597,7 +597,7 @@ export const INTERFACE_SCENARIOS = Object.freeze([
   },
   {
     id: 'interaction-kit-reordering',
-    title: 'Interaction Kit modified-arrow reordering window',
+    title: 'Interaction Kit portable reordering window',
     width: 120,
     height: 35,
     covers: ['SelectList', 'KeyValueBlock', 'SummaryList', 'KeyHintBar', 'WorkspaceShell'],
@@ -644,7 +644,7 @@ function interactionKitReorderingWindow() {
   state.focus.focus('preview');
   const decoder = new TerminalInputDecoder();
   const runtime = { exit() {}, invalidate() {} };
-  for (const sequence of ['\x1b[A', '\x1b[1;2A', '\x1b[1;2B']) {
+  for (const sequence of ['\x1b[A', 'K', 'J']) {
     const [key] = decoder.write(sequence);
     handleInteractionKitKey({ key, state, runtime });
   }

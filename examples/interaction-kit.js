@@ -71,7 +71,10 @@ export function handleInteractionKitKey({ key, state, runtime }) {
 
   const entry = activeEntry(state);
 
-  if (entry.id === 'reordering-items' && key.shift && (key.name === 'up' || key.name === 'down')) {
+  // Reordering uses printable Shift+K/J so it remains available in legacy
+  // terminals. Route it to the preview even when the showcase list still owns
+  // focus; ordinary arrows continue to navigate the focused list.
+  if (entry.id === 'reordering-items' && key.shift && ['j', 'k'].includes(key.name)) {
     state.focus.focus('preview');
     if (entry.handleKey?.(showcaseCtx(state, entry, runtime), key)) return;
   }
@@ -773,11 +776,11 @@ const SHOWCASES = [
     id: 'reordering-items',
     title: 'Reordering Items',
     category: 'Navigation',
-    summary: 'Verifies modified-arrow routing by separating ordinary selection from Shift+Arrow item movement.',
+    summary: 'Demonstrates portable item reordering with Shift+K/J while ordinary arrows remain selection-only.',
     components: ['ActionRegistry', 'SelectList', 'KeyValueBlock', 'createListState'],
     controls: [
       { key: '↑/↓', action: 'select item' },
-      { key: 'Shift+↑/↓', action: 'move selected item' },
+      { key: 'Shift+K/J', action: 'move selected item' },
       { key: 'Home/End', action: 'select boundary' },
       { key: 'r', action: 'reset order' },
     ],
@@ -818,8 +821,8 @@ const SHOWCASES = [
             children: [
               Text(state.lastAction),
               Text(''),
-              Text(color(theme, 'textMuted', 'Ordinary arrows only change selection. Shift+Arrow moves the selected object and keeps it selected.')),
-              Text(color(theme, 'textMuted', 'The raw sequence panel makes terminal-specific modifier loss visible immediately.')),
+              Text(color(theme, 'textMuted', 'Ordinary arrows only change selection. Shift+K/J moves the selected object and keeps it selected.')),
+              Text(color(theme, 'textMuted', 'Uppercase K/J is available in legacy terminal input, so reordering does not depend on modified-arrow reporting.')),
             ],
           }),
           SummaryList({
@@ -827,7 +830,7 @@ const SHOWCASES = [
             selectedIndex: -1,
             items: state.history.length
               ? state.history.slice(-5).map((title) => ({ title, description: 'reordered' }))
-              : [{ title: 'No moves yet', description: 'press Shift+↑ or Shift+↓' }],
+              : [{ title: 'No moves yet', description: 'press Shift+K or Shift+J' }],
           }),
         ),
       );
@@ -945,14 +948,14 @@ function createReorderingState() {
     lastKey: 'none',
     lastShift: false,
     lastSequence: '—',
-    lastAction: 'Use ordinary arrows to select, then Shift+Arrow to reorder.',
+    lastAction: 'Use ordinary arrows to select, then Shift+K/J to reorder.',
     moves: 0,
     history: [],
     actions: null,
   };
   state.actions = new ActionRegistry([
-    { id: 'reorder.up', title: 'Move selected item up', keys: ['shift+up'], scope: 'local', execute: (ctx) => runReorderingMove(ctx, -1) },
-    { id: 'reorder.down', title: 'Move selected item down', keys: ['shift+down'], scope: 'local', execute: (ctx) => runReorderingMove(ctx, 1) },
+    { id: 'reorder.up', title: 'Move selected item up', keys: ['shift+k'], scope: 'local', execute: (ctx) => runReorderingMove(ctx, -1) },
+    { id: 'reorder.down', title: 'Move selected item down', keys: ['shift+j'], scope: 'local', execute: (ctx) => runReorderingMove(ctx, 1) },
   ]);
   return state;
 }
@@ -977,7 +980,8 @@ function rememberReorderingKey(state, key = {}) {
 
 function formatKeyChord(key = {}) {
   const modifiers = [key.cmd && 'Cmd', key.ctrl && 'Ctrl', key.meta && 'Alt', key.shift && 'Shift'].filter(Boolean);
-  const name = key.name === 'up' ? '↑' : key.name === 'down' ? '↓' : key.name === 'home' ? 'Home' : key.name === 'end' ? 'End' : String(key.name ?? 'unknown');
+  const rawName = key.name === 'up' ? '↑' : key.name === 'down' ? '↓' : key.name === 'home' ? 'Home' : key.name === 'end' ? 'End' : String(key.name ?? 'unknown');
+  const name = key.shift && /^[a-z]$/.test(rawName) ? rawName.toUpperCase() : rawName;
   return [...modifiers, name].join('+');
 }
 

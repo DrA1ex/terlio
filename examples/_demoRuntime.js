@@ -21,7 +21,6 @@ export class InteractiveRuntime {
     onTick = null,
     tickMs = 0,
     animationMs = 80,
-    escapeTimeoutMs = 40,
     onStop = null,
     input = process.stdin,
     output = process.stdout,
@@ -43,14 +42,12 @@ export class InteractiveRuntime {
     this.onTick = onTick;
     this.tickMs = Number(tickMs) || 0;
     this.animationMs = Math.max(0, Number(animationMs) || 0);
-    this.escapeTimeoutMs = Math.max(0, Number(escapeTimeoutMs) || 0);
     this.animationFrame = 0;
     this.animationRequested = false;
     this.onStop = typeof onStop === 'function' ? onStop : null;
     this.stopNotified = false;
     this.tickTimer = null;
     this.animationTimer = null;
-    this.escapeTimer = null;
     this.renderBatchDepth = 0;
     this.renderPending = false;
     this.input = input;
@@ -98,10 +95,6 @@ export class InteractiveRuntime {
     if (this.animationTimer) {
       clearTimeout(this.animationTimer);
       this.animationTimer = null;
-    }
-    if (this.escapeTimer) {
-      clearTimeout(this.escapeTimer);
-      this.escapeTimer = null;
     }
     this.input.off('data', this.boundOnData);
     this.output.off('resize', this.boundOnResize);
@@ -174,67 +167,39 @@ export class InteractiveRuntime {
   }
 
   handleData(data) {
-    this.clearEscapeTimer();
     this.renderBatchDepth += 1;
     try {
-      this.dispatchInputEvents(this.inputDecoder.write(data));
+      for (const event of this.inputDecoder.write(data)) {
+        if (event?.type === 'pointer') {
+          this.handlePointer(event);
+          continue;
+        }
+
+        const key = event;
+        this.logKey(key);
+
+        if (key.name === 'ctrl-c') {
+          this.exit(130);
+          return;
+        }
+
+        if (key.name === 'ctrl-d') {
+          this.exit(0);
+          return;
+        }
+
+        if (key.ctrl && key.name === 't') {
+          this.togglePointerOverride();
+          continue;
+        }
+
+        this.onKey?.({ key, state: this.state, runtime: this, animationFrame: this.animationFrame });
+        this.render();
+      }
     } finally {
       this.renderBatchDepth = Math.max(0, this.renderBatchDepth - 1);
       if (this.renderBatchDepth === 0 && this.renderPending) this.render();
     }
-    this.scheduleEscapeFlush();
-  }
-
-  dispatchInputEvents(events) {
-    for (const event of events) {
-      if (event?.type === 'pointer') {
-        this.handlePointer(event);
-        continue;
-      }
-
-      const key = event;
-      this.logKey(key);
-
-      if (key.name === 'ctrl-c') {
-        this.exit(130);
-        return;
-      }
-
-      if (key.name === 'ctrl-d') {
-        this.exit(0);
-        return;
-      }
-
-      if (key.ctrl && key.name === 't') {
-        this.togglePointerOverride();
-        continue;
-      }
-
-      this.onKey?.({ key, state: this.state, runtime: this, animationFrame: this.animationFrame });
-      this.render();
-    }
-  }
-
-  clearEscapeTimer() {
-    if (!this.escapeTimer) return false;
-    clearTimeout(this.escapeTimer);
-    this.escapeTimer = null;
-    return true;
-  }
-
-  scheduleEscapeFlush() {
-    if (!this.inputDecoder.hasPendingStandaloneEscape()) return false;
-    if (!this.running || this.escapeTimeoutMs <= 0) {
-      this.dispatchInputEvents(this.inputDecoder.flushPendingEscape());
-      return true;
-    }
-    this.escapeTimer = setTimeout(() => {
-      this.escapeTimer = null;
-      if (!this.running) return;
-      this.dispatchInputEvents(this.inputDecoder.flushPendingEscape());
-    }, this.escapeTimeoutMs);
-    this.escapeTimer.unref?.();
-    return true;
   }
 
   handlePointer(pointer) {

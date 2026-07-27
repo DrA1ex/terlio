@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseKey } from '../src/lib/keyParser.js';
-import { parseInputEvents, TerminalInputDecoder } from '../src/lib/inputParser.js';
+import { TerminalInputDecoder } from '../src/lib/inputParser.js';
 
 test('parseKey normalizes printable text', () => {
   assert.deepEqual(parseKey('a'), {
@@ -35,36 +35,17 @@ test('parseKey normalizes arrows and modifier arrows', () => {
   assert.deepEqual(pick(parseKey('\x1b[A')), { name: 'up', meta: false, cmd: false, shift: false });
   assert.deepEqual(pick(parseKey('\x1b[1;2A')), { name: 'up', meta: false, cmd: false, shift: true });
   assert.deepEqual(pick(parseKey('\x1b[1;2B')), { name: 'down', meta: false, cmd: false, shift: true });
-  assert.deepEqual(pick(parseKey('\x1bOA')), { name: 'up', meta: false, cmd: false, shift: false });
-  assert.deepEqual(pick(parseKey('\x1bO2A')), { name: 'up', meta: false, cmd: false, shift: true });
-  assert.deepEqual(pick(parseKey('\x1bO1;2B')), { name: 'down', meta: false, cmd: false, shift: true });
   assert.deepEqual(pick(parseKey('\x1b[1;3D')), { name: 'left', meta: true, cmd: false, shift: false });
   assert.deepEqual(pick(parseKey('\x1b[1;9C')), { name: 'right', meta: false, cmd: true, shift: false });
 });
 
 test('TerminalInputDecoder preserves Shift+Arrow modifiers across split input chunks', () => {
   const decoder = new TerminalInputDecoder();
-  assert.deepEqual(decoder.write('\x1b'), []);
-  const [up] = decoder.write('[1;2A');
+  assert.deepEqual(decoder.write('\x1b[1;2'), []);
+  const [up] = decoder.write('A');
   const [down] = decoder.write('\x1b[1;2B');
   assert.deepEqual(pick(up), { name: 'up', meta: false, cmd: false, shift: true });
   assert.deepEqual(pick(down), { name: 'down', meta: false, cmd: false, shift: true });
-});
-
-test('TerminalInputDecoder preserves SS3 Shift+Arrow modifiers across split input chunks', () => {
-  const decoder = new TerminalInputDecoder();
-  assert.deepEqual(decoder.write('\x1b'), []);
-  const [down] = decoder.write('O2B');
-  assert.deepEqual(pick(down), { name: 'down', meta: false, cmd: false, shift: true });
-});
-
-test('TerminalInputDecoder flushes an ambiguous standalone Escape explicitly', () => {
-  const decoder = new TerminalInputDecoder();
-  assert.deepEqual(decoder.write('\x1b'), []);
-  assert.equal(decoder.hasPendingStandaloneEscape(), true);
-  assert.deepEqual(decoder.flushPendingEscape().map((event) => event.name), ['escape']);
-  assert.equal(decoder.hasPendingStandaloneEscape(), false);
-  assert.deepEqual(parseInputEvents('\x1b').map((event) => event.name), ['escape']);
 });
 
 test('parseKey supports bracketed paste as a single semantic event', () => {
@@ -83,3 +64,19 @@ test('parseKey supports bracketed paste as a single semantic event', () => {
 function pick(key) {
   return { name: key.name, meta: key.meta, cmd: key.cmd, shift: key.shift };
 }
+
+
+test('parseKey infers Shift for uppercase ASCII letters without changing typed text', () => {
+  assert.deepEqual(parseKey('K'), {
+    text: 'K',
+    printable: true,
+    ctrl: false,
+    meta: false,
+    shift: true,
+    cmd: false,
+    name: 'k',
+    sequence: 'K',
+  });
+  assert.equal(parseKey('k').shift, false);
+  assert.equal(parseKey('1').shift, false);
+});

@@ -122,13 +122,13 @@ Affected golden:
 The complete syntax-highlighting example keeps its workspace layout, language detection and semantic token colors. A separate direct-run regression test and the packed-package smoke test require real ANSI output and reject visible escape notation such as `␛[38;5;…m`.
 
 
-### UI-AUDIT-011 — Modified arrows remain distinct from ordinary navigation
+### UI-AUDIT-011 — Portable reordering remains distinct from ordinary navigation
 
 Affected golden:
 
 - `interaction-kit-reordering`.
 
-The reordering showcase keeps ordinary `↑/↓` as selection-only navigation while `Shift+↑/↓` moves the selected item and preserves its identity. The frame exposes the normalized `shift` flag and escaped raw input sequence so terminal-specific modifier loss is visible instead of silently changing list behavior.
+The reordering showcase keeps ordinary `↑/↓` as selection-only navigation while `Shift+K/J` moves the selected item and preserves its identity. The frame exposes the normalized `shift` flag and escaped raw input sequence, proving that the portable text-key shortcut is routed independently from list navigation.
 
 ## Golden update policy
 

@@ -616,7 +616,7 @@ parseInputEvents(data)
 new TerminalInputDecoder()
 ```
 
-`parsePointer()` decodes SGR 1006 sequences. `TerminalInputDecoder.write(data)` preserves incomplete CSI, SS3, SGR pointer and bracketed-paste sequences across chunks and returns an ordered array of normalized keyboard and pointer events. A lone `Esc` remains pending because it may prefix a later chunk; managed runtimes flush it after `escapeTimeoutMs`, while custom decoder loops can call `flushPendingEscape()` after their own timeout.
+`parsePointer()` decodes SGR 1006 sequences. `TerminalInputDecoder.write(data)` preserves incomplete SGR and bracketed-paste sequences across chunks and returns an ordered array of normalized keyboard and pointer events. Legacy uppercase ASCII letters are exposed with a lower-case key `name`, the original uppercase `text`, and `shift: true`, allowing portable shortcuts such as `Shift+K/J`.
 
 ### hitTestPointerRegions / dispatchPointerEvent
 

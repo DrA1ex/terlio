@@ -357,7 +357,7 @@ test('progress showcase pages scroll and keep progress variants visually separat
 });
 
 
-test('reordering showcase distinguishes selection arrows from Shift+Arrow movement', () => {
+test('reordering showcase keeps arrows selection-only and uses portable Shift+K/J movement', () => {
   const state = createInteractionKitState();
   const index = state.list.items.findIndex((item) => item.id === 'reordering-items');
   assert.ok(index >= 0);
@@ -373,27 +373,28 @@ test('reordering showcase distinguishes selection arrows from Shift+Arrow moveme
   assert.equal(demo.list.selectedIndex, 1);
   assert.deepEqual(demo.list.items.map((item) => item.id), initialOrder, 'ordinary arrows must not reorder items');
 
-  const decoder = new TerminalInputDecoder();
   state.focus.focus('nav');
-  assert.deepEqual(decoder.write('\x1b'), []);
-  const [shiftUp] = decoder.write('[1;2A');
-  handleInteractionKitKey({ key: shiftUp, state, runtime });
-  assert.equal(state.focus.current(), 'preview', 'reordering shortcuts should activate the preview even from navigation focus');
+  const decoder = new TerminalInputDecoder();
+  const [shiftK] = decoder.write('K');
+  assert.equal(shiftK.name, 'k');
+  assert.equal(shiftK.shift, true);
+  handleInteractionKitKey({ key: shiftK, state, runtime });
+  assert.equal(state.focus.current(), 'preview', 'portable reorder should activate the preview from navigation focus');
   assert.equal(demo.list.selectedIndex, 0);
   assert.deepEqual(demo.list.items.map((item) => item.id).slice(0, 3), ['compile', 'resolve', 'unit']);
   assert.equal(demo.lastShift, true);
-  assert.equal(demo.lastKey, 'Shift+↑');
-  assert.match(demo.lastSequence, /1;2A/);
+  assert.equal(demo.lastKey, 'Shift+K');
+  assert.equal(demo.lastSequence, 'K');
   assert.match(demo.lastAction, /Moved Compile sources from 2 to 1/);
 
-  const [shiftDown] = decoder.write('\x1b[1;2B');
-  handleInteractionKitKey({ key: shiftDown, state, runtime });
+  const [shiftJ] = decoder.write('J');
+  handleInteractionKitKey({ key: shiftJ, state, runtime });
   assert.equal(demo.list.selectedIndex, 1);
-  assert.deepEqual(demo.list.items.map((item) => item.id).slice(0, 3), ['resolve', 'compile', 'unit']);
+  assert.deepEqual(demo.list.items.map((item) => item.id).slice(0, 3), initialOrder.slice(0, 3));
   assert.equal(demo.moves, 2);
 
   const output = render(state, 136, 39);
   assert.match(output, /Reordering Items/);
-  assert.match(output, /Shift\+↑\/↓ move selected item/);
-  assert.ok(output.includes('raw sequence \\u001b[1;2B'));
+  assert.match(output, /Shift\+K\/J move selected item/);
+  assert.ok(output.includes('raw sequence J'));
 });

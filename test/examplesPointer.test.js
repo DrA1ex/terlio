@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import {
   RichTerminalApp,
-  Text,
   dispatchPointerEvent,
   parsePointer,
   renderToFrame,
@@ -100,7 +99,7 @@ test('every interactive packaged example exposes working click and wheel regions
 });
 
 test('chat example enables wheel, clicks, and component text selection by default', () => {
-  const app = new RichTerminalApp({ input: new FakeInput(), output: new FakeOutput(), escapeTimeoutMs: 0 });
+  const app = new RichTerminalApp({ input: new FakeInput(), output: new FakeOutput() });
   app.running = true;
   app.render();
   assert.equal(app.pointerActive, true);
@@ -151,28 +150,4 @@ test('packaged interactive examples can temporarily invert smart pointer mode wi
   runtime.handleData('\x14');
   assert.equal(runtime.pointerOverride, null);
   assert.equal(runtime.pointerActive, true);
-});
-
-test('InteractiveRuntime preserves modified arrows when Escape is delivered separately', () => {
-  const input = new FakeInput();
-  const output = new FakeOutput();
-  const seen = [];
-  const runtime = new InteractiveRuntime({
-    title: 'Split key example',
-    state: {},
-    input,
-    output,
-    render: () => Text('ready'),
-    onKey: ({ key }) => seen.push(key),
-  });
-
-  runtime.start();
-  input.emit('data', '\x1b');
-  input.emit('data', 'O2B');
-  runtime.stop();
-
-  assert.equal(seen.length, 1);
-  assert.equal(seen[0].name, 'down');
-  assert.equal(seen[0].shift, true);
-  assert.equal(seen[0].sequence, '\x1bO2B');
 });

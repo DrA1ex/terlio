@@ -115,16 +115,6 @@ export class TerminalInputDecoder {
     return String(value ?? '').replace(/\r\n?/g, '\n');
   }
 
-  hasPendingStandaloneEscape() {
-    return this.buffer === ESC;
-  }
-
-  flushPendingEscape() {
-    if (!this.hasPendingStandaloneEscape()) return [];
-    this.buffer = '';
-    return [parseKey(ESC)];
-  }
-
   reset() {
     this.buffer = '';
     this.discardingPaste = false;
@@ -135,7 +125,6 @@ export class TerminalInputDecoder {
 export function parseInputEvents(data, options = {}) {
   const decoder = new TerminalInputDecoder(options);
   const events = decoder.write(data);
-  events.push(...decoder.flushPendingEscape());
   if (decoder.buffer) {
     const residual = decoder.buffer;
     decoder.reset();
@@ -155,7 +144,10 @@ function extractSequence(buffer, limits) {
 
   if (buffer.startsWith('\x1b[<')) return extractCsi(buffer, limits, { pointer: true });
   if (buffer.startsWith('\x1b[')) return extractCsi(buffer, limits);
-  if (buffer.startsWith('\x1bO')) return extractSs3(buffer, limits);
+  if (buffer.startsWith('\x1bO')) {
+    if (buffer.length < 3) return null;
+    return boundedSequence(buffer.slice(0, 3), 3, limits);
+  }
   if (buffer.startsWith('\x1b]')) return extractStringControl(buffer, limits, '\x07');
   if (buffer.startsWith('\x1bP') || buffer.startsWith('\x1b_') || buffer.startsWith('\x1b^') || buffer.startsWith('\x1bX')) {
     return extractStringControl(buffer, limits, null);
@@ -168,10 +160,7 @@ function extractSequence(buffer, limits) {
   }
 
   if (buffer[0] === ESC) {
-    // A lone Esc is ambiguous with the first byte of every legacy function
-    // key sequence. Keep it until another chunk arrives or the runtime's
-    // short escape timeout explicitly flushes it as a standalone key.
-    if (buffer.length === 1) return null;
+    if (buffer.length === 1) return { sequence: buffer, length: 1 };
     return boundedSequence(buffer.slice(0, 2), 2, limits);
   }
 
@@ -186,36 +175,6 @@ function extractSequence(buffer, limits) {
     index += String.fromCodePoint(code).length;
   }
   return { sequence: buffer.slice(0, index), length: index };
-}
-
-
-function extractSs3(buffer, limits) {
-  let finalIndex = -1;
-  for (let index = 2; index < buffer.length; index += 1) {
-    const code = buffer.charCodeAt(index);
-    if (code >= 0x40 && code <= 0x7e) {
-      finalIndex = index;
-      break;
-    }
-  }
-  if (finalIndex < 0) {
-    if (utf8ByteLength(buffer) > limits.escapeSequenceBytes) {
-      return { sequence: '', length: buffer.length, discard: true, terminalReply: true };
-    }
-    return null;
-  }
-
-  const length = finalIndex + 1;
-  const sequence = buffer.slice(0, length);
-  if (utf8ByteLength(sequence) > limits.escapeSequenceBytes) {
-    return { sequence, length, discard: true, terminalReply: true };
-  }
-
-  const modified = /^\x1bO(?:1;)?(\d+)[A-DHF]$/u.exec(sequence);
-  if (modified && !isSupportedModifier(Number(modified[1]))) {
-    return { sequence, length, discard: true, terminalReply: true };
-  }
-  return { sequence, length };
 }
 
 function extractCsi(buffer, limits, { pointer = false } = {}) {
