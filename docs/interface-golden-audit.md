@@ -4,7 +4,7 @@
 
 The interface snapshot suite renders deterministic component trees into fixed-size virtual terminal frames and compares the complete output with committed golden files.
 
-The catalog currently contains **23 golden frames** and covers **52 of 52 public visual components (100%)**. Coverage here means that every public visual component is represented in at least one rendered interface tree. It is intentionally separate from source-line coverage.
+The catalog currently contains **24 golden frames** and covers **52 of 52 public visual components (100%)**. Coverage here means that every public visual component is represented in at least one rendered interface tree. It is intentionally separate from source-line coverage.
 
 Each golden stores:
 
@@ -100,7 +100,7 @@ Affected goldens:
 - `interaction-kit-progress-live-jobs`;
 - `interaction-kit-progress-status`.
 
-The catalog protects all four progress-bar variants, fractional filling, zero and completed states, running rate and ETA details, paused/completed/failed/cancelled lifecycle states, controller-backed `LiveJobBlock` output, batching feedback and the complete Interaction Kit windows that combine these components.
+The catalog protects all six progress-bar variants, fractional filling, zero and completed states, running rate and ETA details, paused/completed/failed/cancelled lifecycle states, controller-backed `LiveJobBlock` output, batching feedback and the complete Interaction Kit windows that combine these components.
 
 ### UI-AUDIT-009 — Scrollable workspace bodies keep local controls fixed
 
@@ -120,6 +120,15 @@ Affected golden:
 - `syntax-highlighting-window`.
 
 The complete syntax-highlighting example keeps its workspace layout, language detection and semantic token colors. A separate direct-run regression test and the packed-package smoke test require real ANSI output and reject visible escape notation such as `␛[38;5;…m`.
+
+
+### UI-AUDIT-011 — Modified arrows remain distinct from ordinary navigation
+
+Affected golden:
+
+- `interaction-kit-reordering`.
+
+The reordering showcase keeps ordinary `↑/↓` as selection-only navigation while `Shift+↑/↓` moves the selected item and preserves its identity. The frame exposes the normalized `shift` flag and escaped raw input sequence so terminal-specific modifier loss is visible instead of silently changing list behavior.
 
 ## Golden update policy
 

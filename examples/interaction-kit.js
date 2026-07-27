@@ -763,6 +763,89 @@ const SHOWCASES = [
     if (key.printable && key.text === 'r') { state.previous = 0; state.next = 1; state.previousLong = false; state.nextLong = false; state.patchMode = 'diff'; return true; }
     return false;
   } },
+
+  {
+    id: 'reordering-items',
+    title: 'Reordering Items',
+    category: 'Navigation',
+    summary: 'Verifies modified-arrow routing by separating ordinary selection from Shift+Arrow item movement.',
+    components: ['ActionRegistry', 'SelectList', 'KeyValueBlock', 'createListState'],
+    controls: [
+      { key: '↑/↓', action: 'select item' },
+      { key: 'Shift+↑/↓', action: 'move selected item' },
+      { key: 'Home/End', action: 'select boundary' },
+      { key: 'r', action: 'reset order' },
+    ],
+    createInitialState: createReorderingState,
+    render: ({ state, theme, width }) => {
+      const selected = state.list.items[state.list.selectedIndex] ?? null;
+      const listWidth = Math.max(40, Math.min(58, Math.floor(width * 0.56)));
+      return Row({ gap: 2, widths: [listWidth, Math.max(28, width - listWidth - 2)] },
+        SelectList({
+          title: 'Build order',
+          items: state.list.items,
+          selectedIndex: state.list.selectedIndex,
+          windowSize: 'auto',
+          getLabel: (item, index) => `${String(index + 1).padStart(2, '0')}. ${item.title}`,
+          getDescription: (item) => item.detail,
+          wrapItems: true,
+          maxItemLines: 2,
+          theme,
+          pointerId: 'kit:reordering-items',
+          onSelect: (_item, index) => {
+            state.list.selectedIndex = index;
+            state.lastAction = `Pointer selected position ${index + 1}.`;
+          },
+          onWheel: (event) => moveListByWheel(state.list, event),
+        }),
+        Column({ gap: 1 },
+          KeyValueBlock({ title: ' Last input event ', rows: [
+            ['key', state.lastKey],
+            ['shift flag', state.lastShift ? 'true' : 'false'],
+            ['raw sequence', state.lastSequence],
+            ['selected', selected?.title ?? 'none'],
+            ['moves', String(state.moves)],
+          ] }),
+          WorkspacePane({
+            title: ' Routing result ',
+            theme,
+            children: [
+              Text(state.lastAction),
+              Text(''),
+              Text(color(theme, 'textMuted', 'Ordinary arrows only change selection. Shift+Arrow moves the selected object and keeps it selected.')),
+              Text(color(theme, 'textMuted', 'The raw sequence panel makes terminal-specific modifier loss visible immediately.')),
+            ],
+          }),
+          SummaryList({
+            title: ' Recent moves ',
+            selectedIndex: -1,
+            items: state.history.length
+              ? state.history.slice(-5).map((title) => ({ title, description: 'reordered' }))
+              : [{ title: 'No moves yet', description: 'press Shift+↑ or Shift+↓' }],
+          }),
+        ),
+      );
+    },
+    handleKey: ({ state, setStatus }, key) => {
+      rememberReorderingKey(state, key);
+      const actionResult = state.actions.handleKey(key, { state, setStatus });
+      if (actionResult.type === 'executed') return true;
+
+      if (!key.shift) {
+        const before = state.list.selectedIndex;
+        const result = handleListKey(state.list, key);
+        if (result.handled) {
+          const item = state.list.items[state.list.selectedIndex];
+          state.lastAction = before === state.list.selectedIndex
+            ? `Selection remains at position ${state.list.selectedIndex + 1}.`
+            : `Selected ${item?.title ?? 'item'} at position ${state.list.selectedIndex + 1}; order unchanged.`;
+          setStatus(state.lastAction);
+          return true;
+        }
+      }
+      return false;
+    },
+  },
 ];
 
 
@@ -847,6 +930,75 @@ function blockTypeCounts(blocks) {
     acc[key] = (acc[key] ?? 0) + 1;
     return acc;
   }, {});
+}
+
+function createReorderingState() {
+  const items = reorderingSeedItems();
+  const state = {
+    list: createListState({ items, selectedIndex: 2, windowSize: 7, skipDisabled: false }),
+    lastKey: 'none',
+    lastShift: false,
+    lastSequence: '—',
+    lastAction: 'Use ordinary arrows to select, then Shift+Arrow to reorder.',
+    moves: 0,
+    history: [],
+    actions: null,
+  };
+  state.actions = new ActionRegistry([
+    { id: 'reorder.up', title: 'Move selected item up', keys: ['shift+up'], scope: 'local', execute: (ctx) => runReorderingMove(ctx, -1) },
+    { id: 'reorder.down', title: 'Move selected item down', keys: ['shift+down'], scope: 'local', execute: (ctx) => runReorderingMove(ctx, 1) },
+  ]);
+  return state;
+}
+
+function reorderingSeedItems() {
+  return [
+    { id: 'resolve', title: 'Resolve dependencies', detail: 'prepare package graph' },
+    { id: 'compile', title: 'Compile sources', detail: 'build runtime modules' },
+    { id: 'unit', title: 'Run unit tests', detail: 'fast behavioral checks' },
+    { id: 'interface', title: 'Run interface goldens', detail: 'verify complete terminal frames' },
+    { id: 'security', title: 'Run security contracts', detail: 'validate terminal boundaries' },
+    { id: 'package', title: 'Verify package', detail: 'inspect published artifact' },
+    { id: 'publish', title: 'Publish release', detail: 'final delivery step' },
+  ];
+}
+
+function rememberReorderingKey(state, key = {}) {
+  state.lastKey = formatKeyChord(key);
+  state.lastShift = Boolean(key.shift);
+  state.lastSequence = formatKeySequence(key.sequence);
+}
+
+function formatKeyChord(key = {}) {
+  const modifiers = [key.cmd && 'Cmd', key.ctrl && 'Ctrl', key.meta && 'Alt', key.shift && 'Shift'].filter(Boolean);
+  const name = key.name === 'up' ? '↑' : key.name === 'down' ? '↓' : key.name === 'home' ? 'Home' : key.name === 'end' ? 'End' : String(key.name ?? 'unknown');
+  return [...modifiers, name].join('+');
+}
+
+function formatKeySequence(sequence) {
+  if (!sequence) return 'synthetic event';
+  return JSON.stringify(String(sequence)).slice(1, -1);
+}
+
+function runReorderingMove({ state, setStatus }, direction) {
+  const moved = moveSelectedReorderingItem(state, direction);
+  state.lastAction = moved
+    ? `Moved ${moved.item.title} from ${moved.from + 1} to ${moved.to + 1}.`
+    : `Cannot move farther ${direction < 0 ? 'up' : 'down'} from this position.`;
+  setStatus?.(state.lastAction);
+  return moved;
+}
+
+function moveSelectedReorderingItem(state, direction) {
+  const from = clamp(state.list.selectedIndex, 0, state.list.items.length - 1);
+  const to = clamp(from + direction, 0, state.list.items.length - 1);
+  if (from === to) return null;
+  const [item] = state.list.items.splice(from, 1);
+  state.list.items.splice(to, 0, item);
+  state.list.selectedIndex = to;
+  state.moves += 1;
+  state.history.push(`${item.title}: ${from + 1} → ${to + 1}`);
+  return { item, from, to };
 }
 
 function ticketItems() { return Array.from({ length: 24 }, (_, index) => ({ title: `TKT-${String(index + 1).padStart(3, '0')} ${['Login issue', 'Renderer edge case', 'Palette request', 'Theme polish', 'Scroll report', 'Editor question'][index % 6]}`, priority: ['low', 'medium', 'high'][index % 3], disabled: index % 7 === 4 })); }

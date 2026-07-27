@@ -11,6 +11,7 @@ import {
   renderToString,
   stripAnsi,
   themes,
+  TerminalInputDecoder,
   visibleLength,
 } from '../src/lib/index.js';
 import {
@@ -72,7 +73,7 @@ test('OverlayHost dims background content behind blocking overlays', () => {
 
 test('all example:kit screens keep the local controls panel visible at 136x39', () => {
   const state = createInteractionKitState();
-  for (let index = 0; index < 15; index += 1) {
+  for (let index = 0; index < state.list.items.length; index += 1) {
     select(state, index);
     const output = render(state, 136, 39);
     const lines = output.split('\n');
@@ -353,4 +354,43 @@ test('progress showcase pages scroll and keep progress variants visually separat
   assert.equal(status.manualBatchAdds, 1);
   assert.equal(status.batchNotice, 'Manual batch completed: 1/12.');
   assert.match(render(state, 136, 39), /Manual batch completed: 1\/12\./);
+});
+
+
+test('reordering showcase distinguishes selection arrows from Shift+Arrow movement', () => {
+  const state = createInteractionKitState();
+  const index = state.list.items.findIndex((item) => item.id === 'reordering-items');
+  assert.ok(index >= 0);
+  select(state, index);
+  const demo = state.showcaseState['reordering-items'];
+  const initialOrder = demo.list.items.map((item) => item.id);
+
+  handleInteractionKitKey({
+    key: { name: 'up', shift: false, ctrl: false, meta: false, cmd: false, sequence: '\x1b[A' },
+    state,
+    runtime,
+  });
+  assert.equal(demo.list.selectedIndex, 1);
+  assert.deepEqual(demo.list.items.map((item) => item.id), initialOrder, 'ordinary arrows must not reorder items');
+
+  const decoder = new TerminalInputDecoder();
+  const [shiftUp] = decoder.write('\x1b[1;2A');
+  handleInteractionKitKey({ key: shiftUp, state, runtime });
+  assert.equal(demo.list.selectedIndex, 0);
+  assert.deepEqual(demo.list.items.map((item) => item.id).slice(0, 3), ['compile', 'resolve', 'unit']);
+  assert.equal(demo.lastShift, true);
+  assert.equal(demo.lastKey, 'Shift+↑');
+  assert.match(demo.lastSequence, /1;2A/);
+  assert.match(demo.lastAction, /Moved Compile sources from 2 to 1/);
+
+  const [shiftDown] = decoder.write('\x1b[1;2B');
+  handleInteractionKitKey({ key: shiftDown, state, runtime });
+  assert.equal(demo.list.selectedIndex, 1);
+  assert.deepEqual(demo.list.items.map((item) => item.id).slice(0, 3), ['resolve', 'compile', 'unit']);
+  assert.equal(demo.moves, 2);
+
+  const output = render(state, 136, 39);
+  assert.match(output, /Reordering Items/);
+  assert.match(output, /Shift\+↑\/↓ move selected item/);
+  assert.ok(output.includes('raw sequence \\u001b[1;2B'));
 });

@@ -56,9 +56,10 @@ import {
   createOverlayManager,
   createScrollState,
   createTextSelectionState,
+  TerminalInputDecoder,
   themes,
 } from '../../src/lib/index.js';
-import { createInteractionKitState, createInteractionKitView } from '../../examples/interaction-kit.js';
+import { createInteractionKitState, createInteractionKitView, handleInteractionKitKey } from '../../examples/interaction-kit.js';
 import { createSyntaxHighlightingView } from '../../examples/syntax-highlighting.js';
 
 export const VISUAL_COMPONENTS = Object.freeze([
@@ -594,6 +595,14 @@ export const INTERFACE_SCENARIOS = Object.freeze([
     covers: ['ScrollView', 'ProgressStatus', 'LiveJobBlock', 'SelectList', 'KeyHintBar', 'WorkspaceShell'],
     render: () => interactionKitProgressWindow('progress-status-controller', { scroll: 8 }),
   },
+  {
+    id: 'interaction-kit-reordering',
+    title: 'Interaction Kit modified-arrow reordering window',
+    width: 120,
+    height: 35,
+    covers: ['SelectList', 'KeyValueBlock', 'SummaryList', 'KeyHintBar', 'WorkspaceShell'],
+    render: () => interactionKitReorderingWindow(),
+  },
 ]);
 
 
@@ -625,6 +634,21 @@ function scrollableWorkspaceSnapshot(scroll) {
     footerMinHeight: 3,
     footerMaxHeight: 5,
   });
+}
+
+function interactionKitReorderingWindow() {
+  const state = createInteractionKitState();
+  const index = state.list.items.findIndex((item) => item.id === 'reordering-items');
+  state.selectedShowcaseIndex = index;
+  state.list.selectedIndex = index;
+  state.focus.focus('preview');
+  const decoder = new TerminalInputDecoder();
+  const runtime = { exit() {}, invalidate() {} };
+  for (const sequence of ['\x1b[A', '\x1b[1;2A', '\x1b[1;2B']) {
+    const [key] = decoder.write(sequence);
+    handleInteractionKitKey({ key, state, runtime });
+  }
+  return createInteractionKitView({ state, width: 120, height: 35 });
 }
 
 function interactionKitProgressWindow(id, { scroll = 0 } = {}) {

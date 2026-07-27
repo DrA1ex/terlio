@@ -1,0 +1,1414 @@
+{
+  "id": "interaction-kit-reordering",
+  "title": "Interaction Kit modified-arrow reordering window",
+  "width": 120,
+  "height": 35,
+  "lines": [
+    "\u001b[38;5;24m┌  Terlio.js Component Studio                                                                                          ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;87mTerlio.js Component Studio  ·  Interactive component and capability showcase\u001b[0m                                         \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67mTheme: ocean   Size: 120×35   Screen: 17/17   │   Focus: preview   Mode: browse   │   Focus preview\u001b[0m                  \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;24m┌  SHOWCASES                       ┐\u001b[0m  \u001b[38;5;45m┌  PREVIEW · Reordering Items                                                    ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m┌  Entries 17/17 · ↑11         ┐\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m┌  Build order 2/7                          ┐\u001b[0m  ┌  Last input event           ┐ \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Timeline and Activity     \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  01. Resolve dependencies — prepare     \u001b[0m \u001b[38;5;24m│\u001b[0m  │ key Shift+↓                 │ \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Feeds — Feedback          \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  package graph                          \u001b[0m \u001b[38;5;24m│\u001b[0m  │ shift flag true             │ \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Structured Assistant      \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[48;5;24m\u001b[38;5;231m› 02. Compile sources — build runtime    \u001b[0m \u001b[38;5;24m│\u001b[0m  │ raw sequence \\u001b[1;2B    │ \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Blocks — AI blocks        \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[48;5;24m\u001b[38;5;231m  modules                                \u001b[0m \u001b[38;5;24m│\u001b[0m  │ selected Compile sources    │ \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Responsive Layout — Layout\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  03. Run unit tests — fast behavioral   \u001b[0m \u001b[38;5;24m│\u001b[0m  │ moves 2                     │ \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Focus and Modes —         \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  checks                                 \u001b[0m \u001b[38;5;24m│\u001b[0m  └─────────────────────────────┘ \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Navigation                \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  04. Run interface goldens — verify     \u001b[0m \u001b[38;5;24m│\u001b[0m                                  \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Runtime, Frames, and Diff \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  complete terminal frames               \u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m┌  Routing result             ┐\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  Rendering — Runtime       \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  05. Run security contracts — validate  \u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m│\u001b[0m Moved Compile sources from  \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[48;5;24m\u001b[38;5;231m› Reordering Items —        \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  terminal boundaries                    \u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m│\u001b[0m 1 to 2.                     \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[48;5;24m\u001b[38;5;231m  Navigation                \u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  06. Verify package — inspect published \u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m│\u001b[0m                             \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m                              \u001b[38;5;24m│\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  artifact                               \u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m│\u001b[0m Ordinary arrows only        \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;24m└──────────────────────────────┘\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  07. Publish release — final delivery   \u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m│\u001b[0m change selection.           \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67m17/17 · Enter preview\u001b[0m            \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;195m  step                                   \u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m│\u001b[0m Shift+Arrow moves the       \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────┘\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                           \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m│\u001b[0m selected object and keeps   \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m┌  ABOUT THIS SCREEN               ┐\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                           \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m│\u001b[0m it selected.                \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m Reordering Items                 \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                           \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m│\u001b[0m The raw sequence panel      \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m Verifies modified-arrow routing  \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                           \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m│\u001b[0m makes terminal-specific     \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m by separating ordinary           \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                           \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m│\u001b[0m modifier loss visible       \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m selection from Shift+Arrow item  \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m                                           \u001b[38;5;24m│\u001b[0m  \u001b[38;5;24m│\u001b[0m immediately.                \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m movement.                        \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m└───────────────────────────────────────────┘\u001b[0m  \u001b[38;5;24m└─────────────────────────────┘\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m Uses  \u001b[38;5;67m ActionRegistry \u001b[0m  \u001b[38;5;67m SelectL\u001b[0m \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m┌  LOCAL CONTROLS                                                            ┐\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m ↑/↓ select item · Shift+↑/↓      \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m↑/↓\u001b[0m\u001b[38;5;67m select item\u001b[0m                       \u001b[38;5;45mShift+↑/↓\u001b[0m\u001b[38;5;67m move selected item\u001b[0m         \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m move selected item · Home/End    \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m│\u001b[0m \u001b[38;5;45mHome/End\u001b[0m\u001b[38;5;67m select boundary\u001b[0m              \u001b[38;5;45mr\u001b[0m\u001b[38;5;67m reset order\u001b[0m                        \u001b[38;5;24m│\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m select boundary · r reset order  \u001b[38;5;24m│\u001b[0m  \u001b[38;5;45m│\u001b[0m \u001b[38;5;24m└────────────────────────────────────────────────────────────────────────────┘\u001b[0m \u001b[38;5;45m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────┘\u001b[0m  \u001b[38;5;45m└────────────────────────────────────────────────────────────────────────────────┘\u001b[0m",
+    "\u001b[38;5;24m┌  STATUS                                                                                                              ┐\u001b[0m",
+    "\u001b[38;5;24m│\u001b[0m \u001b[38;5;67mEsc nav  │  tab Switch Focus  │  shift+tab Switch Focus Back  │  t Next Theme  │  ? Open Help  │  / Open Command Pal\u001b[0m \u001b[38;5;24m│\u001b[0m",
+    "\u001b[38;5;24m└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘\u001b[0m"
+  ],
+  "plain": [
+    "┌  Terlio.js Component Studio                                                                                          ┐",
+    "│ Terlio.js Component Studio  ·  Interactive component and capability showcase                                         │",
+    "│ Theme: ocean   Size: 120×35   Screen: 17/17   │   Focus: preview   Mode: browse   │   Focus preview                  │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘",
+    "┌  SHOWCASES                       ┐  ┌  PREVIEW · Reordering Items                                                    ┐",
+    "│ ┌  Entries 17/17 · ↑11         ┐ │  │ ┌  Build order 2/7                          ┐  ┌  Last input event           ┐ │",
+    "│ │   Timeline and Activity      │ │  │ │   01. Resolve dependencies — prepare      │  │ key Shift+↓                 │ │",
+    "│ │   Feeds — Feedback           │ │  │ │   package graph                           │  │ shift flag true             │ │",
+    "│ │   Structured Assistant       │ │  │ │ › 02. Compile sources — build runtime     │  │ raw sequence \\u001b[1;2B    │ │",
+    "│ │   Blocks — AI blocks         │ │  │ │   modules                                 │  │ selected Compile sources    │ │",
+    "│ │   Responsive Layout — Layout │ │  │ │   03. Run unit tests — fast behavioral    │  │ moves 2                     │ │",
+    "│ │   Focus and Modes —          │ │  │ │   checks                                  │  └─────────────────────────────┘ │",
+    "│ │   Navigation                 │ │  │ │   04. Run interface goldens — verify      │                                  │",
+    "│ │   Runtime, Frames, and Diff  │ │  │ │   complete terminal frames                │  ┌  Routing result             ┐ │",
+    "│ │   Rendering — Runtime        │ │  │ │   05. Run security contracts — validate   │  │ Moved Compile sources from  │ │",
+    "│ │ › Reordering Items —         │ │  │ │   terminal boundaries                     │  │ 1 to 2.                     │ │",
+    "│ │   Navigation                 │ │  │ │   06. Verify package — inspect published  │  │                             │ │",
+    "│ │                              │ │  │ │   artifact                                │  │ Ordinary arrows only        │ │",
+    "│ └──────────────────────────────┘ │  │ │   07. Publish release — final delivery    │  │ change selection.           │ │",
+    "│ 17/17 · Enter preview            │  │ │   step                                    │  │ Shift+Arrow moves the       │ │",
+    "└──────────────────────────────────┘  │ │                                           │  │ selected object and keeps   │ │",
+    "┌  ABOUT THIS SCREEN               ┐  │ │                                           │  │ it selected.                │ │",
+    "│ Reordering Items                 │  │ │                                           │  │ The raw sequence panel      │ │",
+    "│ Verifies modified-arrow routing  │  │ │                                           │  │ makes terminal-specific     │ │",
+    "│ by separating ordinary           │  │ │                                           │  │ modifier loss visible       │ │",
+    "│ selection from Shift+Arrow item  │  │ │                                           │  │ immediately.                │ │",
+    "│ movement.                        │  │ └───────────────────────────────────────────┘  └─────────────────────────────┘ │",
+    "│ Uses   ActionRegistry    SelectL │  │ ┌  LOCAL CONTROLS                                                            ┐ │",
+    "│ ↑/↓ select item · Shift+↑/↓      │  │ │ ↑/↓ select item                       Shift+↑/↓ move selected item         │ │",
+    "│ move selected item · Home/End    │  │ │ Home/End select boundary              r reset order                        │ │",
+    "│ select boundary · r reset order  │  │ └────────────────────────────────────────────────────────────────────────────┘ │",
+    "└──────────────────────────────────┘  └────────────────────────────────────────────────────────────────────────────────┘",
+    "┌  STATUS                                                                                                              ┐",
+    "│ Esc nav  │  tab Switch Focus  │  shift+tab Switch Focus Back  │  t Next Theme  │  ? Open Help  │  / Open Command Pal │",
+    "└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘"
+  ],
+  "pointerRegions": [
+    {
+      "token": 1,
+      "id": "kit:navigation",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 0,
+        "y": 4,
+        "width": 36,
+        "height": 17
+      },
+      "segments": [
+        {
+          "x": 0,
+          "y": 4,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 8,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 9,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 10,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 11,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 12,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 13,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 14,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 15,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 16,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 17,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 18,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 19,
+          "width": 36,
+          "height": 1
+        },
+        {
+          "x": 0,
+          "y": 20,
+          "width": 36,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 2,
+      "id": "kit:showcases",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 1,
+      "bounds": {
+        "x": 2,
+        "y": 5,
+        "width": 32,
+        "height": 14
+      },
+      "segments": [
+        {
+          "x": 2,
+          "y": 5,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 8,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 9,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 10,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 11,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 12,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 13,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 14,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 15,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 16,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 17,
+          "width": 32,
+          "height": 1
+        },
+        {
+          "x": 2,
+          "y": 18,
+          "width": 32,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onWheel"
+      ]
+    },
+    {
+      "token": 3,
+      "id": "kit:showcases:11",
+      "data": {
+        "kind": "select-item",
+        "index": 11,
+        "item": {
+          "id": "timeline-activity-feeds",
+          "title": "Timeline and Activity Feeds",
+          "category": "Feedback",
+          "summary": "Demonstrates event streams, metrics, and structured detail panes.",
+          "components": [
+            "Timeline",
+            "createTimelineEvent",
+            "MetricBlock",
+            "KeyValueBlock"
+          ],
+          "controls": [
+            {
+              "key": "a",
+              "action": "event"
+            },
+            {
+              "key": "e",
+              "action": "error"
+            },
+            {
+              "key": "c",
+              "action": "clear"
+            },
+            {
+              "key": "↑/↓ Pg",
+              "action": "select"
+            }
+          ],
+          "createInitialState": "[function]",
+          "render": "[function]",
+          "handleKey": "[function]"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 2,
+      "bounds": {
+        "x": 4,
+        "y": 6,
+        "width": 28,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 6,
+          "width": 28,
+          "height": 1
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "width": 28,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 4,
+      "id": "kit:showcases:12",
+      "data": {
+        "kind": "select-item",
+        "index": 12,
+        "item": {
+          "id": "structured-assistant-blocks",
+          "title": "Structured Assistant Blocks",
+          "category": "AI blocks",
+          "summary": "Shows scrollable chat-oriented structured rendering with text, code, diff, command, warning, and tool result blocks.",
+          "components": [
+            "createBlock",
+            "renderBlocksLines",
+            "ScrollPane",
+            "transcript roles"
+          ],
+          "controls": [
+            {
+              "key": "[/] or click",
+              "action": "scenario"
+            },
+            {
+              "key": "wheel / ↑/↓",
+              "action": "scroll"
+            },
+            {
+              "key": "c",
+              "action": "copy toast"
+            }
+          ],
+          "createInitialState": "[function]",
+          "render": "[function]",
+          "handleKey": "[function]"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 2,
+      "bounds": {
+        "x": 4,
+        "y": 8,
+        "width": 28,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 8,
+          "width": 28,
+          "height": 1
+        },
+        {
+          "x": 4,
+          "y": 9,
+          "width": 28,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 5,
+      "id": "kit:showcases:13",
+      "data": {
+        "kind": "select-item",
+        "index": 13,
+        "item": {
+          "id": "responsive-layout",
+          "title": "Responsive Layout",
+          "category": "Layout",
+          "summary": "Shows responsive helpers, breakpoints, RequireViewport fallback, and declarative SplitPane constraints.",
+          "components": [
+            "RequireViewport",
+            "getResponsiveMode",
+            "responsiveColumns",
+            "SplitPane"
+          ],
+          "controls": [
+            {
+              "key": "←/→",
+              "action": "simulate"
+            },
+            {
+              "key": "0",
+              "action": "use actual width"
+            }
+          ],
+          "createInitialState": "[function]",
+          "render": "[function]",
+          "handleKey": "[function]"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 2,
+      "bounds": {
+        "x": 4,
+        "y": 10,
+        "width": 28,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 10,
+          "width": 28,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 6,
+      "id": "kit:showcases:14",
+      "data": {
+        "kind": "select-item",
+        "index": 14,
+        "item": {
+          "id": "focus-and-modes",
+          "title": "Focus and Modes",
+          "category": "Navigation",
+          "summary": "Shows local focus ownership, selectable focus targets, disabled targets, and a mode stack that restores focus on pop.",
+          "components": [
+            "FocusManager",
+            "ModeManager",
+            "SelectList",
+            "ActionRegistry"
+          ],
+          "controls": [
+            {
+              "key": "↑/↓",
+              "action": "select target"
+            },
+            {
+              "key": "Enter",
+              "action": "focus selected"
+            },
+            {
+              "key": "Tab",
+              "action": "local next"
+            },
+            {
+              "key": "Shift+Tab",
+              "action": "local previous"
+            },
+            {
+              "key": "m/h/p",
+              "action": "push modal/help/pop"
+            },
+            {
+              "key": "d",
+              "action": "toggle selected"
+            }
+          ],
+          "createInitialState": "[function]",
+          "render": "[function]",
+          "handleKey": "[function]"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 2,
+      "bounds": {
+        "x": 4,
+        "y": 11,
+        "width": 28,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 11,
+          "width": 28,
+          "height": 1
+        },
+        {
+          "x": 4,
+          "y": 12,
+          "width": 28,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 7,
+      "id": "kit:showcases:15",
+      "data": {
+        "kind": "select-item",
+        "index": 15,
+        "item": {
+          "id": "runtime-frames-diff",
+          "title": "Runtime, Frames, and Diff Rendering",
+          "category": "Runtime",
+          "summary": "Explains how virtual frames become small terminal patches that reduce flicker and ghost artifacts.",
+          "components": [
+            "createFrame",
+            "diffFrames",
+            "wcwidth",
+            "ANSI clipping"
+          ],
+          "controls": [
+            {
+              "key": "n",
+              "action": "commit next"
+            },
+            {
+              "key": "w",
+              "action": "toggle next unicode line"
+            },
+            {
+              "key": "d",
+              "action": "diff/full mode"
+            },
+            {
+              "key": "r",
+              "action": "reset"
+            }
+          ],
+          "createInitialState": "[function]",
+          "render": "[function]",
+          "handleKey": "[function]"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 2,
+      "bounds": {
+        "x": 4,
+        "y": 13,
+        "width": 28,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 13,
+          "width": 28,
+          "height": 1
+        },
+        {
+          "x": 4,
+          "y": 14,
+          "width": 28,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 8,
+      "id": "kit:showcases:16",
+      "data": {
+        "kind": "select-item",
+        "index": 16,
+        "item": {
+          "id": "reordering-items",
+          "title": "Reordering Items",
+          "category": "Navigation",
+          "summary": "Verifies modified-arrow routing by separating ordinary selection from Shift+Arrow item movement.",
+          "components": [
+            "ActionRegistry",
+            "SelectList",
+            "KeyValueBlock",
+            "createListState"
+          ],
+          "controls": [
+            {
+              "key": "↑/↓",
+              "action": "select item"
+            },
+            {
+              "key": "Shift+↑/↓",
+              "action": "move selected item"
+            },
+            {
+              "key": "Home/End",
+              "action": "select boundary"
+            },
+            {
+              "key": "r",
+              "action": "reset order"
+            }
+          ],
+          "createInitialState": "[function]",
+          "render": "[function]",
+          "handleKey": "[function]"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 2,
+      "bounds": {
+        "x": 4,
+        "y": 15,
+        "width": 28,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 4,
+          "y": 15,
+          "width": 28,
+          "height": 1
+        },
+        {
+          "x": 4,
+          "y": 16,
+          "width": 28,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 9,
+      "id": "chip-line:ActionRegistry",
+      "data": {
+        "kind": "chip",
+        "id": "ActionRegistry",
+        "index": 0,
+        "chip": {
+          "id": "ActionRegistry"
+        }
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 8,
+        "y": 27,
+        "width": 16,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 8,
+          "y": 27,
+          "width": 16,
+          "height": 1
+        }
+      ],
+      "handlers": []
+    },
+    {
+      "token": 10,
+      "id": "chip-line:SelectList",
+      "data": {
+        "kind": "chip",
+        "id": "SelectList",
+        "index": 1,
+        "chip": {
+          "id": "SelectList"
+        }
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 26,
+        "y": 27,
+        "width": 8,
+        "height": 1
+      },
+      "segments": [
+        {
+          "x": 26,
+          "y": 27,
+          "width": 8,
+          "height": 1
+        }
+      ],
+      "handlers": []
+    },
+    {
+      "token": 12,
+      "id": "kit:preview",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": null,
+      "bounds": {
+        "x": 38,
+        "y": 4,
+        "width": 82,
+        "height": 28
+      },
+      "segments": [
+        {
+          "x": 38,
+          "y": 4,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 5,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 6,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 7,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 8,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 9,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 10,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 11,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 12,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 13,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 14,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 15,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 16,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 17,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 18,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 19,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 20,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 21,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 22,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 23,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 24,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 25,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 26,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 27,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 28,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 29,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 30,
+          "width": 82,
+          "height": 1
+        },
+        {
+          "x": 38,
+          "y": 31,
+          "width": 82,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick"
+      ]
+    },
+    {
+      "token": 13,
+      "id": "kit:reordering-items",
+      "data": null,
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 12,
+      "bounds": {
+        "x": 40,
+        "y": 5,
+        "width": 45,
+        "height": 22
+      },
+      "segments": [
+        {
+          "x": 40,
+          "y": 5,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 6,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 7,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 8,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 9,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 10,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 11,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 12,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 13,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 14,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 15,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 16,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 17,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 18,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 19,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 20,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 21,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 22,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 23,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 24,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 25,
+          "width": 45,
+          "height": 1
+        },
+        {
+          "x": 40,
+          "y": 26,
+          "width": 45,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onWheel"
+      ]
+    },
+    {
+      "token": 14,
+      "id": "kit:reordering-items:0",
+      "data": {
+        "kind": "select-item",
+        "index": 0,
+        "item": {
+          "id": "resolve",
+          "title": "Resolve dependencies",
+          "detail": "prepare package graph"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 13,
+      "bounds": {
+        "x": 42,
+        "y": 6,
+        "width": 41,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 42,
+          "y": 6,
+          "width": 41,
+          "height": 1
+        },
+        {
+          "x": 42,
+          "y": 7,
+          "width": 41,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 15,
+      "id": "kit:reordering-items:1",
+      "data": {
+        "kind": "select-item",
+        "index": 1,
+        "item": {
+          "id": "compile",
+          "title": "Compile sources",
+          "detail": "build runtime modules"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 13,
+      "bounds": {
+        "x": 42,
+        "y": 8,
+        "width": 41,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 42,
+          "y": 8,
+          "width": 41,
+          "height": 1
+        },
+        {
+          "x": 42,
+          "y": 9,
+          "width": 41,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 16,
+      "id": "kit:reordering-items:2",
+      "data": {
+        "kind": "select-item",
+        "index": 2,
+        "item": {
+          "id": "unit",
+          "title": "Run unit tests",
+          "detail": "fast behavioral checks"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 13,
+      "bounds": {
+        "x": 42,
+        "y": 10,
+        "width": 41,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 42,
+          "y": 10,
+          "width": 41,
+          "height": 1
+        },
+        {
+          "x": 42,
+          "y": 11,
+          "width": 41,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 17,
+      "id": "kit:reordering-items:3",
+      "data": {
+        "kind": "select-item",
+        "index": 3,
+        "item": {
+          "id": "interface",
+          "title": "Run interface goldens",
+          "detail": "verify complete terminal frames"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 13,
+      "bounds": {
+        "x": 42,
+        "y": 12,
+        "width": 41,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 42,
+          "y": 12,
+          "width": 41,
+          "height": 1
+        },
+        {
+          "x": 42,
+          "y": 13,
+          "width": 41,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 18,
+      "id": "kit:reordering-items:4",
+      "data": {
+        "kind": "select-item",
+        "index": 4,
+        "item": {
+          "id": "security",
+          "title": "Run security contracts",
+          "detail": "validate terminal boundaries"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 13,
+      "bounds": {
+        "x": 42,
+        "y": 14,
+        "width": 41,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 42,
+          "y": 14,
+          "width": 41,
+          "height": 1
+        },
+        {
+          "x": 42,
+          "y": 15,
+          "width": 41,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 19,
+      "id": "kit:reordering-items:5",
+      "data": {
+        "kind": "select-item",
+        "index": 5,
+        "item": {
+          "id": "package",
+          "title": "Verify package",
+          "detail": "inspect published artifact"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 13,
+      "bounds": {
+        "x": 42,
+        "y": 16,
+        "width": 41,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 42,
+          "y": 16,
+          "width": 41,
+          "height": 1
+        },
+        {
+          "x": 42,
+          "y": 17,
+          "width": 41,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    },
+    {
+      "token": 20,
+      "id": "kit:reordering-items:6",
+      "data": {
+        "kind": "select-item",
+        "index": 6,
+        "item": {
+          "id": "publish",
+          "title": "Publish release",
+          "detail": "final delivery step"
+        },
+        "disabled": false
+      },
+      "disabled": false,
+      "pointerEvents": "auto",
+      "autoEnable": true,
+      "parentToken": 13,
+      "bounds": {
+        "x": 42,
+        "y": 18,
+        "width": 41,
+        "height": 2
+      },
+      "segments": [
+        {
+          "x": 42,
+          "y": 18,
+          "width": 41,
+          "height": 1
+        },
+        {
+          "x": 42,
+          "y": 19,
+          "width": 41,
+          "height": 1
+        }
+      ],
+      "handlers": [
+        "onClick",
+        "onWheel"
+      ]
+    }
+  ]
+}

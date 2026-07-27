@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseKey } from '../src/lib/keyParser.js';
+import { TerminalInputDecoder } from '../src/lib/inputParser.js';
 
 test('parseKey normalizes printable text', () => {
   assert.deepEqual(parseKey('a'), {
@@ -36,6 +37,15 @@ test('parseKey normalizes arrows and modifier arrows', () => {
   assert.deepEqual(pick(parseKey('\x1b[1;2B')), { name: 'down', meta: false, cmd: false, shift: true });
   assert.deepEqual(pick(parseKey('\x1b[1;3D')), { name: 'left', meta: true, cmd: false, shift: false });
   assert.deepEqual(pick(parseKey('\x1b[1;9C')), { name: 'right', meta: false, cmd: true, shift: false });
+});
+
+test('TerminalInputDecoder preserves Shift+Arrow modifiers across split input chunks', () => {
+  const decoder = new TerminalInputDecoder();
+  assert.deepEqual(decoder.write('\x1b[1;2'), []);
+  const [up] = decoder.write('A');
+  const [down] = decoder.write('\x1b[1;2B');
+  assert.deepEqual(pick(up), { name: 'up', meta: false, cmd: false, shift: true });
+  assert.deepEqual(pick(down), { name: 'down', meta: false, cmd: false, shift: true });
 });
 
 test('parseKey supports bracketed paste as a single semantic event', () => {
